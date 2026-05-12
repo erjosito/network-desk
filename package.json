@@ -1,0 +1,38 @@
+{
+  "name": "@dmauser/cloud-networking",
+  "version": "1.0.0",
+  "description": "Your cloud networking AI team for GitHub Copilot CLI — 11 specialist agents, one install.",
+  "type": "module",
+  "bin": {
+    "cloud-networking": "./bin/cli.mjs"
+  },
+  "files": [
+    "bin/",
+    "extensions/cloud-networking/",
+    "LICENSE",
+    "README.md"
+  ],
+  "keywords": [
+    "copilot",
+    "copilot-cli",
+    "networking",
+    "cloud-networking",
+    "azure",
+    "aws",
+    "gcp",
+    "firewall",
+    "vpn",
+    "vnet",
+    "load-balancer",
+    "dns"
+  ],
+  "author": "dmauser",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dmauser/cloud-networking.git"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
