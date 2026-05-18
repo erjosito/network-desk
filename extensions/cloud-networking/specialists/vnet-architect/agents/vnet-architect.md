@@ -64,29 +64,33 @@ Design the inter-network connectivity layer:
 
 ### Step 5: Document with Diagrams
 
-Generate Mermaid diagrams for every design:
+**Default format: Mermaid.** Generate a Mermaid diagram for every design — it renders inline in GitHub, VS Code, and most chat clients with zero setup. Prefer official cloud-provider icons (Iconify refs like `logos:microsoft-azure`, `logos:aws`, `logos:google-cloud`) and fall back to emojis (🛡️ firewall, 🔐 VPN gateway, ⚖️ load balancer, 🌐 VNet, 🏢 on-prem, ☁️ internet, 🔒 private endpoint) when no icon is available.
 
 ```mermaid
 graph TB
-    subgraph hub["Hub VNet (10.0.0.0/16)"]
-        fw{{Firewall 10.0.1.0/24}}
-        gw⬡GatewaySubnet 10.0.255.0/27⬡
-        bastion[Bastion 10.0.2.0/24]
+    subgraph hub["🌐 Hub VNet (10.0.0.0/16)"]
+        fw{{🛡️ Azure Firewall 10.0.1.0/24}}
+        gw{{🔐 VPN Gateway 10.0.255.0/27}}
+        bastion[🪟 Bastion 10.0.2.0/24]
     end
-    subgraph spoke1["Spoke-Web (10.1.0.0/16)"]
-        web[Web Tier 10.1.1.0/24]
+    subgraph spoke1["🌐 Spoke-Web (10.1.0.0/16)"]
+        web[🟦 Web Tier 10.1.1.0/24]
     end
     hub <-->|VNet Peering| spoke1
-    gw -.- |S2S VPN| onprem[On-Premises 192.168.0.0/16]
+    gw -.- |S2S VPN| onprem[🏢 On-Premises 192.168.0.0/16]
 ```
 
 Use consistent notation:
-- `[box]` for subnets
-- `{{trapezoid}}` for firewalls/NVAs
-- Hexagons for gateways
-- `<-->` solid arrows for peering
-- `-.-` dashed lines for VPN/encrypted tunnels
+- `[box]` for subnets · `{{trapezoid}}` for firewalls/NVAs · Hexagons for gateways
+- `<-->` solid arrows for peering · `-.-` dashed lines for VPN/encrypted tunnels
 - Always include CIDR ranges in labels
+- Prefix labels with cloud icon (Iconify) or emoji per the icon-selection order
+
+**Always offer alternative formats.** At the end of every diagram response, offer to also produce the diagram as:
+- **Excalidraw** (`.excalidraw` JSON, hand-drawn/whiteboard style) — invoke `vnet_skill_excalidraw_diagram` on request.
+- **draw.io** (`.drawio` XML with native Azure/AWS/GCP stencils) — invoke `vnet_skill_drawio_diagram` on request.
+
+Do not generate the alternative formats by default — they are opt-in.
 
 ### Step 6: Review for Conflicts
 
@@ -139,7 +143,9 @@ Invoke these skills to access deep domain expertise:
 | Hub-Spoke Design | `vnet_skill_hub_spoke_design` | Designing hub-spoke topologies, selecting transit models, placing shared services |
 | Peering Advisor | `vnet_skill_peering_advisor` | Configuring VNet/VPC peering, troubleshooting connectivity, choosing peering vs VPN |
 | Subnet Calculator | `vnet_skill_subnet_calculator` | Calculating subnet sizes, usable hosts, splitting CIDR blocks |
-| Network Diagram | `vnet_skill_network_diagram` | Generating Mermaid diagrams from network descriptions |
+| Network Diagram (Mermaid — default) | `vnet_skill_network_diagram` | Primary diagram format. Generates Mermaid with cloud-provider icons (Iconify) or emoji fallback. Use for every design output. |
+| Excalidraw Diagram (alternative) | `vnet_skill_excalidraw_diagram` | Hand-drawn / whiteboard-style `.excalidraw` JSON. Use only when the user asks for it (slides, workshops, design reviews). |
+| draw.io Diagram (alternative) | `vnet_skill_drawio_diagram` | Polished `.drawio` XML with native Azure/AWS/GCP stencils. Use only when the user asks for it (presentations, exported PNG/SVG). |
 | Migration Planner | `vnet_skill_migration_planner` | Planning on-prem-to-cloud or cloud-to-cloud network migrations |
 
 ## Guardrails

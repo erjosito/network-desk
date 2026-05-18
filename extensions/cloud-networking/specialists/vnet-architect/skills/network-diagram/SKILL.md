@@ -1,8 +1,58 @@
-# Skill: Network Diagram Generation
+# Skill: Network Diagram Generation (Mermaid — primary format)
 
 ## Purpose
 
-This skill generates Mermaid flowchart diagrams from network topology descriptions. It defines standard node shapes, labeling conventions, and reusable templates for common cloud network architectures.
+**Mermaid is the default diagram format for this specialist.** It renders inline in GitHub READMEs, GitHub Issues/PRs, VS Code preview, and most chat clients with zero setup — making it the right first choice for every design output.
+
+This skill generates Mermaid flowchart and `architecture-beta` diagrams from network topology descriptions. It defines standard node shapes, labeling conventions, and reusable templates for common cloud network architectures.
+
+## ⚠️ Always prefer cloud-provider icons; fall back to emojis
+
+When the diagram contains cloud resources, **always** reference the official cloud-provider icon for each service rather than describing it generically. Mermaid supports this through the `architecture-beta` diagram type (which accepts Iconify icon refs like `logos:microsoft-azure`) and through `iconShape` references in newer flowcharts.
+
+**Icon-selection order — use the first that's available:**
+
+1. **Official cloud-provider icon set** (preferred):
+   - **Azure** → `logos:microsoft-azure`, or the `azure` Iconify pack; reference services by canonical product name: *Azure Firewall*, *Virtual Network*, *VPN Gateway*, *ExpressRoute Gateway*, *Application Gateway*, *Front Door*, *Private Endpoint*, *Azure DNS*.
+   - **AWS** → `logos:aws`, `simple-icons:amazonaws`; reference *VPC*, *Subnet (Public/Private)*, *Network Firewall*, *Transit Gateway*, *NAT Gateway*, *ALB/NLB*, *Route 53*, *Direct Connect*, *PrivateLink*.
+   - **GCP** → `logos:google-cloud`; reference *VPC Network*, *Cloud Firewall*, *Cloud Load Balancing*, *Cloud DNS*, *Cloud Interconnect*, *Cloud Router*, *Private Service Connect*.
+   - **Kubernetes** → `logos:kubernetes` for pods, services, ingress, network policies.
+
+2. **Emoji fallback** (when no icon is available — including chat clients that don't render Iconify, vendor firewalls without stencils, or terminal-rendered diagrams):
+
+   | Component | Emoji | Use For |
+   |-----------|------|---------|
+   | VNet / VPC | 🌐 | Network container |
+   | Subnet | 🟦 / 🟩 / 🟧 | Tiered subnets (web/app/db) |
+   | Firewall / NVA | 🛡️ / 🔥 | Azure FW, AWS NFW, Palo Alto, FortiGate, etc. |
+   | VPN Gateway | 🔐 | Site-to-site VPN endpoints |
+   | ExpressRoute / Direct Connect / Interconnect | ⚡ | Dedicated private links |
+   | Load Balancer | ⚖️ | ALB/NLB, App Gateway, Front Door |
+   | DNS | 🌍 | Azure DNS, Route 53, Cloud DNS |
+   | Private Endpoint / PrivateLink | 🔒 | Service exposure |
+   | Bastion / Jump Host | 🪟 | Management access |
+   | Container / Pod | 🐳 / ⎈ | K8s workloads |
+   | On-Prem DC | 🏢 | Customer datacenter |
+   | Internet | ☁️ | Public network |
+   | Users / Clients | 👥 | End users |
+   | Database | 🗄️ | Backend stores |
+   | Region marker | 📍 | Multi-region designs |
+   | Monitoring | 📊 | Flow logs, NSG analytics |
+   | Alert / Issue | ⚠️ | Highlighted concerns |
+
+3. **Plain text label** (last resort): put the canonical product name in the node label (`"Azure Firewall<br/>10.0.1.4"`, not `"Firewall"`) so readers still know the resource type even without an icon.
+
+Generic shapes (rectangle, ellipse, hexagon) remain appropriate for non-cloud abstractions: internet cloud, users, on-prem datacenter outline, or annotations.
+
+## 🔁 Always offer alternative formats
+
+At the end of every diagram response, append a short offer like:
+
+> *Want this diagram in another format? I can also generate it as:*
+> - *Excalidraw* (`.excalidraw` JSON — hand-drawn / whiteboard style) — say "give me the Excalidraw version" and I'll call `vnet_skill_excalidraw_diagram`.
+> - *draw.io* (`.drawio` XML with native Azure/AWS/GCP stencils) — say "give me the draw.io version" and I'll call `vnet_skill_drawio_diagram`.
+
+Do **not** generate the alternative formats by default — they're opt-in to keep the primary response focused.
 
 ## Core Knowledge
 
