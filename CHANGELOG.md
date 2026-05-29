@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added — `cn_`-prefixed specialist ids, presence note, and stronger routing
+
+- **Specialist ids are now `cn_`-prefixed** (`cn_vnet`, `cn_fw`, `cn_dns`, …) for a consistent namespace. They are the canonical value for the `specialist` argument and appear in all `cn_route` / `cn_capabilities` / `cn_orchestrate` output. The bare forms (`vnet`, `fw`, …) and directory names remain accepted as aliases, so nothing breaks.
+- **Session-start presence note** (`onSessionStart`) announces the extension, its 19 specialists, and the discovery tools from turn 1 — so the agent never claims cloud-networking is unavailable. A belt-and-suspenders fallback re-injects it on the first prompt for older CLI builds.
+- **Direct-mention handling**: naming the extension (`@cloud-networking`, or just "cloud-networking") injects an imperative instruction to call `cn_capabilities` first and offer concrete example prompts.
+- **Per-specialist throttling**: each routing hint is injected at most once per session to avoid crowding the context window.
+- **Hardened routing guidance**: the hook now uses imperative MUST language, requires calling the matched specialist's `cn_role` **before** answering (no answering from prior/general knowledge), and explicitly **prohibits reading the `specialists/**` files directly** — all specialist content must be loaded via `cn_role` / `cn_orchestrate` / `cn_skill`.
+- **Specialist emoji icons** surfaced in `cn_capabilities`, `cn_orchestrate`, `cn_route`, the routing hints, and the README team table.
+- Broadened the mention pattern to match `cloud-networking` with or without a leading `@`.
+
 ### Fixed — Exceeded the 128-tool API limit (extension failed to load)
 
 The extension registered ~162 tools (per-specialist `*_role`, `*_orchestrate`, and ~121 `*_skill_*` tools). The Copilot CLI/model enforces a hard **128-tool limit**, so every request was rejected with *"Request failed due to a transient API error. Retrying..."* and the extension was unusable.

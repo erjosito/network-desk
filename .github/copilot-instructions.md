@@ -27,10 +27,10 @@ node bin/cli.mjs uninstall     # Remove
 
 - **5 tools only — hard 128-tool API limit.** The CLI/model rejects sessions exposing >128 tools (request fails with "transient API error. Retrying..."). With 19 specialists × (role + orchestrate + ~6 skills) this would be ~162 tools, so tools are **parameterized**, not registered per-specialist. NEVER register one tool per specialist/skill.
 - **The 5 tools:** `cn_capabilities`, `cn_route`, `cn_role({ specialist })`, `cn_orchestrate({ specialist })`, `cn_skill({ specialist, skill })`.
-- **Single source of truth:** the `REGISTRY` object (prefix → `{ dir, domain, trigger, guidance, skills }`) generates routing, capabilities, orchestration prompts, and skill loading. Add specialists/skills by editing `REGISTRY` only.
-- **Specialist prefixes:** vnet, fw, lb, dns, pl, hyb, nsec, ntsh, vwan, nmon, mcn, price, iac, cnet, cdn, nauto, sase, ncap, ipv6
-- **Legacy names are references only:** strings like `vnet_skill_address_planner` are NOT callable tools; they're tolerated as the `skill` argument to `cn_skill` (normalized to kebab-case).
-- **Routing:** Regex-based keyword detection in `onUserPromptSubmitted` hook injects guidance pointing at the parameterized tools.
+- **Single source of truth:** the `REGISTRY` object (prefix → `{ dir, domain, icon, trigger, guidance, skills }`) generates routing, capabilities, orchestration prompts, and skill loading. Add specialists/skills by editing `REGISTRY` only.
+- **Specialist ids are `cn_`-prefixed:** `cn_vnet`, `cn_fw`, `cn_lb`, `cn_dns`, `cn_pl`, `cn_hyb`, `cn_nsec`, `cn_ntsh`, `cn_vwan`, `cn_nmon`, `cn_mcn`, `cn_price`, `cn_iac`, `cn_cnet`, `cn_cdn`, `cn_nauto`, `cn_sase`, `cn_ncap`, `cn_ipv6`. The `REGISTRY` is keyed by the bare prefix internally; `pub(prefix)` produces the `cn_` id, and `resolveSpecialist()` accepts the `cn_` id, the bare alias, or the directory name.
+- **Legacy names are references only:** strings like `cn_vnet_skill_address_planner` / `vnet_skill_address_planner` are NOT callable tools; they're tolerated as the `skill` argument to `cn_skill` (normalized to kebab-case).
+- **Routing:** Regex-based keyword detection in `onUserPromptSubmitted` injects MUST-language guidance pointing at the parameterized tools (throttled once per specialist per session); an `onSessionStart` presence note announces the extension from turn 1. The hook forbids reading `specialists/**` files directly and requires loading content via `cn_role`/`cn_orchestrate`/`cn_skill`.
 - **All tools use `skipPermission: true`** — they deliver read-only content (markdown), not actions
 - **No external dependencies** — only `@github/copilot-sdk/extension` and `node:*` builtins
 - **Guardrail:** Every specialist output ends with "Analysis only — verify against vendor documentation before applying."

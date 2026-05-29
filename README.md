@@ -53,27 +53,29 @@ Each specialist runs with its own domain expertise, guardrails, and workflow. Th
 
 ## The Team
 
-| Specialist | Prefix | What They Do |
-|-----------|--------|-------------|
-| **VNet/Subnet Architect** | `vnet_` | VNet/VPC design, hub-spoke, peering, address planning, Mermaid diagrams |
-| **Firewall Engineer** | `fw_` | Multi-vendor firewall rules, policies, migration, config gen (14 vendors) |
-| **Load Balancer** | `lb_` | LB selection, health probes, SSL offload, WAF, traffic routing |
-| **DNS Specialist** | `dns_` | DNS zones, resolvers, record audits, migration, troubleshooting |
-| **Private Link Engineer** | `pl_` | Private endpoints, DNS integration, service exposure, security |
-| **Hybrid Connectivity** | `hyb_` | VPN, ExpressRoute, Direct Connect, BGP, failover design |
-| **Network Security** | `nsec_` | NSG audits, segmentation, DDoS, flow analysis, compliance |
-| **Network Troubleshooter** | `ntsh_` | Connectivity tests, packet capture, latency, routing, NAT, MTU |
-| **Virtual WAN / SD-WAN** | `vwan_` | vWAN design, routing intent, NVA integration, branch connectivity |
-| **Network Monitor** | `nmon_` | Flow logs, traffic analytics, connection monitors, dashboards, alerts |
-| **Multi-Cloud Networking** | `mcn_` | Cross-cloud transit, addressing, service mapping, cost comparison |
-| **Pricing Analyst** | `price_` | Network cost estimation, egress calculation, pricing comparison, cost optimization |
-| **IaC Generator** | `iac_` | Bicep, Terraform, Ansible, ARM templates for networking infrastructure |
-| **Container Networking** | `cnet_` | CNI plugins, network policies, service mesh, ingress, multi-cluster (AKS/EKS/GKE) |
-| **CDN & Edge Networking** | `cdn_` | Azure Front Door, CloudFront, Cloud CDN, edge routing, caching, WAF at edge |
-| **Network Automation & GitOps** | `nauto_` | CI/CD pipelines, drift detection, policy-as-code, testing, rollback |
-| **SASE / SSE** | `sase_` | ZTNA, SWG, CASB, FWaaS, SD-WAN integration, vendor comparison |
-| **Network Capacity Planning** | `ncap_` | Bandwidth forecasting, gateway sizing, throughput calculations, growth modeling |
-| **IPv6 Migration** | `ipv6_` | Dual-stack design, transition planning, addressing, NAT64/DNS64, troubleshooting |
+| | Specialist | `specialist` | What They Do |
+|---|-----------|--------|-------------|
+| 🏗️ | **VNet/Subnet Architect** | `cn_vnet` | VNet/VPC design, hub-spoke, peering, address planning, Mermaid diagrams |
+| 🔥 | **Firewall Engineer** | `cn_fw` | Multi-vendor firewall rules, policies, migration, config gen (14 vendors) |
+| ⚖️ | **Load Balancer** | `cn_lb` | LB selection, health probes, SSL offload, WAF, traffic routing |
+| 🌐 | **DNS Specialist** | `cn_dns` | DNS zones, resolvers, record audits, migration, troubleshooting |
+| 🔒 | **Private Link Engineer** | `cn_pl` | Private endpoints, DNS integration, service exposure, security |
+| 🔗 | **Hybrid Connectivity** | `cn_hyb` | VPN, ExpressRoute, Direct Connect, BGP, failover design |
+| 🛡️ | **Network Security** | `cn_nsec` | NSG audits, segmentation, DDoS, flow analysis, compliance |
+| 🔧 | **Network Troubleshooter** | `cn_ntsh` | Connectivity tests, packet capture, latency, routing, NAT, MTU |
+| 🌍 | **Virtual WAN / SD-WAN** | `cn_vwan` | vWAN design, routing intent, NVA integration, branch connectivity |
+| 📊 | **Network Monitor** | `cn_nmon` | Flow logs, traffic analytics, connection monitors, dashboards, alerts |
+| ☁️ | **Multi-Cloud Networking** | `cn_mcn` | Cross-cloud transit, addressing, service mapping, cost comparison |
+| 💰 | **Pricing Analyst** | `cn_price` | Network cost estimation, egress calculation, pricing comparison, cost optimization |
+| 📐 | **IaC Generator** | `cn_iac` | Bicep, Terraform, Ansible, ARM templates for networking infrastructure |
+| 🐳 | **Container Networking** | `cn_cnet` | CNI plugins, network policies, service mesh, ingress, multi-cluster (AKS/EKS/GKE) |
+| 🌐 | **CDN & Edge Networking** | `cn_cdn` | Azure Front Door, CloudFront, Cloud CDN, edge routing, caching, WAF at edge |
+| 🔄 | **Network Automation & GitOps** | `cn_nauto` | CI/CD pipelines, drift detection, policy-as-code, testing, rollback |
+| 🛡️ | **SASE / SSE** | `cn_sase` | ZTNA, SWG, CASB, FWaaS, SD-WAN integration, vendor comparison |
+| 📏 | **Network Capacity Planning** | `cn_ncap` | Bandwidth forecasting, gateway sizing, throughput calculations, growth modeling |
+| 🔢 | **IPv6 Migration** | `cn_ipv6` | Dual-stack design, transition planning, addressing, NAT64/DNS64, troubleshooting |
+
+> The `specialist` column is the value the coordinator passes internally (e.g. `cn_role({ specialist: "cn_vnet" })`). The bare forms (`vnet`, `fw`, …) are still accepted as aliases. You never type these — just describe what you need after `@cloud-networking`.
 
 ### Firewall Vendors (14)
 
@@ -282,7 +284,7 @@ The extension also performs an **automatic update check** against GitHub once ev
 
 ## How It Works
 
-Trigger the extension with **`@cloud-networking`** anywhere in your prompt. The coordinator detects the mention, picks the right specialist(s) based on what you ask, loads their role and skills behind the scenes, and replies in natural language.
+Trigger the extension with **`@cloud-networking`** anywhere in your prompt — or just ask a networking question. The coordinator announces itself at session start, auto-detects networking intent (even without the `@` mention), picks the right specialist(s), loads their role and skills behind the scenes via the registered tools, and replies in natural language. Each routing hint is shown once per specialist per session to keep the conversation clean.
 
 ```
 You: @cloud-networking design a hub-spoke VNet with Azure Firewall and

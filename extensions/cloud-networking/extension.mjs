@@ -98,6 +98,7 @@ const REGISTRY = {
     vnet: {
         dir: "vnet-architect",
         domain: "VNet/Subnet Architecture",
+        icon: "🏗️",
         trigger: /\b(VNet|VPC|virtual\s+network|subnet|address\s+(space|plan)|CIDR|hub[-\s]?spoke|peering|network\s+(design|topology|diagram)|IP\s+plan)/i,
         guidance: "Cover Azure VNets, AWS VPCs, and GCP VPCs. Cite cloud provider documentation. Diagram policy: Mermaid (`network-diagram`) is the default — always include one for every design, preferring official cloud-provider icons (Iconify refs like `logos:microsoft-azure`, `logos:aws`, `logos:google-cloud`) and falling back to emojis when no icon is available. After delivering the Mermaid diagram, offer to also generate Excalidraw (`excalidraw-diagram`) or draw.io (`drawio-diagram`) versions on request — do not generate them by default.",
         skills: {
@@ -114,6 +115,7 @@ const REGISTRY = {
     fw: {
         dir: "firewall-engineer",
         domain: "Firewall Engineering",
+        icon: "🔥",
         trigger: /\b(firewall|FW\s+(rule|policy)|PAN[-\s]?OS|FortiGate|FortiOS|Check\s*Point|CloudGuard|ASA|FTD|Firepower|SRX|Zscaler|ZIA|ZPA|Sophos\s+XG|Azure\s+Firewall|AWS\s+Network\s+Firewall|Cloud\s+Armor|WAF\s+rule|rule\s+audit|firewall\s+policy|NGFW|network\s+virtual\s+appliance|NVA\s+firewall|OPNsense|pfSense|VyOS|iptables|nftables|netfilter)/i,
         guidance: "Covers 14 vendor platforms: Azure Firewall, AWS Network Firewall, GCP Cloud Firewall, Palo Alto, FortiGate, Check Point, Cisco ASA/FTD, Juniper SRX, Zscaler, Sophos XG, OPNsense, pfSense, VyOS, iptables/nftables. Analysis only — never apply changes without confirmation.",
         skills: {
@@ -131,6 +133,7 @@ const REGISTRY = {
     lb: {
         dir: "load-balancer",
         domain: "Load Balancing",
+        icon: "⚖️",
         trigger: /\b(load\s+balanc|ALB|NLB|GLB|App(lication)?\s+Gateway|Front\s+Door|Traffic\s+Manager|health\s+probe|backend\s+pool|SNAT\s+exhaust|SSL\s+offload|L[47]\s+balanc|ingress\s+controller)/i,
         guidance: "Covers Azure LB/App Gateway/Front Door, AWS ALB/NLB/GLB, GCP LB.",
         skills: {
@@ -146,6 +149,7 @@ const REGISTRY = {
     dns: {
         dir: "dns-specialist",
         domain: "DNS",
+        icon: "🌐",
         trigger: /\b(DNS|domain\s+name|name\s+resolution|Route\s*53|Cloud\s+DNS|Private\s+DNS|DNS\s+(zone|resolver|forward|record|migration)|split[-\s]?horizon|conditional\s+forward)/i,
         guidance: "Covers Azure DNS, AWS Route 53, GCP Cloud DNS, and hybrid DNS resolution.",
         skills: {
@@ -160,6 +164,7 @@ const REGISTRY = {
     pl: {
         dir: "private-link",
         domain: "Private Link / Endpoints",
+        icon: "🔒",
         trigger: /\b(Private\s+(Link|Endpoint|Service\s+Connect)|PSC|service\s+endpoint|PE\s+(subnet|DNS)|PrivateLink)/i,
         guidance: "Covers Azure Private Link/Endpoints, AWS PrivateLink, GCP Private Service Connect.",
         skills: {
@@ -173,6 +178,7 @@ const REGISTRY = {
     hyb: {
         dir: "hybrid-connectivity",
         domain: "Hybrid Connectivity",
+        icon: "🔗",
         trigger: /\b(ExpressRoute|Direct\s+Connect|Cloud\s+Interconnect|S2S\s+VPN|P2S\s+VPN|site[-\s]?to[-\s]?site|point[-\s]?to[-\s]?site|VPN\s+gateway|IPsec|IKEv[12]|BGP\s+(peer|neighbor|session)|hybrid\s+(connect|network))/i,
         guidance: "Covers ExpressRoute, VPN gateways, AWS Direct Connect, GCP Cloud Interconnect.",
         skills: {
@@ -188,6 +194,7 @@ const REGISTRY = {
     nsec: {
         dir: "network-security",
         domain: "Network Security",
+        icon: "🛡️",
         trigger: /\b(NSG|network\s+security\s+group|security\s+group|ASG|DDoS|micro[-\s]?segment|zero[-\s]?trust\s+network|flow\s+log\s+(analys|secur)|network\s+compliance|CIS\s+bench|network\s+segmentation)/i,
         guidance: "Covers NSGs, security groups, DDoS protection, micro-segmentation across all clouds.",
         skills: {
@@ -204,6 +211,7 @@ const REGISTRY = {
     ntsh: {
         dir: "network-troubleshooter",
         domain: "Network Troubleshooting",
+        icon: "🔧",
         trigger: /\b(troubleshoot|packet\s+capture|traceroute|Network\s+Watcher|IP\s+flow\s+verify|connection\s+troubleshoot|latency\s+(issue|analys|spike)|routing\s+(table|debug|issue)|MTU|SNAT\s+port|NAT\s+(gateway|debug|issue)|Reachability\s+Analyzer)/i,
         guidance: "Uses Network Watcher, VPC Reachability Analyzer, and standard diagnostic tools. For packet-level investigations: pair `packet-capture` (capture mechanics) with `pcap-analysis` (deep analysis of the resulting .pcap/.pcapng).",
         skills: {
@@ -220,6 +228,7 @@ const REGISTRY = {
     vwan: {
         dir: "vwan-sdwan",
         domain: "Virtual WAN / SD-WAN",
+        icon: "🌍",
         trigger: /\b(Virtual\s+WAN|vWAN|VWAN|routing\s+intent|secured\s+hub|SD[-\s]?WAN|inter[-\s]?hub|vWAN\s+hub)/i,
         guidance: "Covers Azure Virtual WAN hubs, routing intent, and SD-WAN partner integrations.",
         skills: {
@@ -234,6 +243,7 @@ const REGISTRY = {
     nmon: {
         dir: "network-monitor",
         domain: "Network Monitoring",
+        icon: "📊",
         trigger: /\b(network\s+monitor|Connection\s+Monitor|traffic\s+analytics|flow\s+log|network\s+(alert|dashboard|baseline|observ)|NSG\s+flow|VPC\s+flow|network\s+metric)/i,
         guidance: "Covers flow logs, traffic analytics, connection monitors, and alerting across all clouds.",
         skills: {
@@ -249,6 +259,7 @@ const REGISTRY = {
     mcn: {
         dir: "multi-cloud-net",
         domain: "Multi-Cloud Networking",
+        icon: "☁️",
         trigger: /\b(multi[-\s]?cloud\s+(network|connect|transit)|cross[-\s]?cloud|cloud[-\s]?to[-\s]?cloud|transit\s+(architecture|design)|cloud\s+interconnect\s+design|service\s+mapping\s+(across|between)\s+cloud)/i,
         guidance: "Covers cross-cloud connectivity architectures, service equivalency mapping, and cost analysis.",
         skills: {
@@ -262,6 +273,7 @@ const REGISTRY = {
     price: {
         dir: "pricing-analyst",
         domain: "Network Pricing",
+        icon: "💰",
         trigger: /\b(pric(e|ing)|cost\s+(estimat|compar|analy|optim|break)|egress\s+cost|data\s+transfer\s+cost|TCO|total\s+cost|network\s+cost|billing|budget|monthly\s+cost|how\s+much\s+(does|will|is)|cheaper|expensive|save\s+money|cost\s+saving|right[-\s]?siz)/i,
         guidance: "Covers Azure, AWS, and GCP networking costs. Prices are indicative — always verify against current vendor pricing pages.",
         skills: {
@@ -278,6 +290,7 @@ const REGISTRY = {
     iac: {
         dir: "iac-generator",
         domain: "IaC Generator",
+        icon: "📐",
         trigger: /\b(bicep|terraform|arm\s+template|ansible|infra(structure)?[-\s]+(as[-\s]+code|code)|IaC|generate\s+(bicep|terraform|arm|ansible)|network\s+deployment\s+(template|code)|deploy\s+network(ing)?\s+(template|code))/i,
         guidance: "Generates production-ready Infrastructure-as-Code for networking across Azure, AWS, and GCP. Supports Bicep, Terraform, Ansible, ARM. Code generation only — never executes deployments. Always provide validation commands before deployment commands.",
         skills: {
@@ -290,6 +303,7 @@ const REGISTRY = {
     cnet: {
         dir: "container-networking",
         domain: "Container Networking",
+        icon: "🐳",
         trigger: /\b(CNI|container\s+network|kubernetes\s+network|k8s\s+network|network\s+polic(y|ies)|service\s+mesh|istio|linkerd|cilium|calico|ingress\s+controller|Gateway\s+API|pod[-\s]+(to[-\s]+pod|network|cidr)|cluster\s+mesh|AKS\s+network|EKS\s+network|GKE\s+network)/i,
         guidance: "Covers Kubernetes/container networking across AKS, EKS, and GKE — CNI plugins, network policies, service mesh, ingress controllers, Gateway API, and multi-cluster connectivity.",
         skills: {
@@ -304,6 +318,7 @@ const REGISTRY = {
     cdn: {
         dir: "cdn-edge",
         domain: "CDN & Edge Networking",
+        icon: "🌐",
         trigger: /\b(CDN|content\s+delivery|Front\s+Door|CloudFront|Cloud\s+CDN|edge\s+(network|routing|compute)|cache\s+(optim|strateg|key|purg)|origin\s+(shield|group|failover)|Anycast|POP\s+(location|select)|WAF\s+at\s+edge)/i,
         guidance: "Covers Azure Front Door, AWS CloudFront, GCP Cloud CDN, edge compute, caching strategies, and WAF at the edge.",
         skills: {
@@ -317,6 +332,7 @@ const REGISTRY = {
     nauto: {
         dir: "network-automation",
         domain: "Network Automation & GitOps",
+        icon: "🔄",
         trigger: /\b(network\s+automat|GitOps\s+network|CI[\s/]?CD\s+network|pipeline\s+network|drift\s+detect|policy[-\s]+as[-\s]+code|network\s+testing|network\s+rollback|terraform\s+(pipeline|ci|automation)|bicep\s+(pipeline|ci|automation))/i,
         guidance: "Covers CI/CD pipelines for network changes, GitOps workflows, drift detection, policy-as-code, automated testing, and rollback strategies.",
         skills: {
@@ -330,6 +346,7 @@ const REGISTRY = {
     sase: {
         dir: "sase-sse",
         domain: "SASE / SSE",
+        icon: "🛡️",
         trigger: /\b(SASE|SSE|zero\s+trust\s+network|ZTNA|secure\s+web\s+gateway|SWG|CASB|cloud\s+access\s+security|FWaaS|Prisma\s+Access|Netskope|security\s+service\s+edge|private\s+access|internet\s+access\s+gateway)/i,
         guidance: "Covers SASE/SSE architecture, Zero Trust Network Access, SWG, CASB, SD-WAN integration, and vendor comparison (Zscaler, Palo Alto Prisma, Netskope, Microsoft, Cisco, Fortinet).",
         skills: {
@@ -343,6 +360,7 @@ const REGISTRY = {
     ncap: {
         dir: "capacity-planner",
         domain: "Network Capacity Planning",
+        icon: "📏",
         trigger: /\b(capacity\s+plan|bandwidth\s+forecast|gateway\s+siz(e|ing)|throughput\s+calc|network\s+scalab|growth\s+model|network\s+limit|subscription\s+limit|scale\s+limit|network\s+capacity)/i,
         guidance: "Covers bandwidth forecasting, gateway/service sizing, throughput calculations, scalability limits, and growth modeling for cloud networking resources.",
         skills: {
@@ -356,6 +374,7 @@ const REGISTRY = {
     ipv6: {
         dir: "ipv6-migration",
         domain: "IPv6 Migration",
+        icon: "🔢",
         trigger: /\b(IPv6|dual[-\s]?stack|NAT64|DNS64|464XLAT|IPv6\s+(migrat|transition|address|compat)|SLAAC|GUA|ULA|link[-\s]?local\s+address)/i,
         guidance: "Covers dual-stack design, IPv6 transition strategies, addressing schemes, NAT64/DNS64/464XLAT compatibility, and IPv6 troubleshooting across Azure, AWS, and GCP.",
         skills: {
@@ -370,11 +389,20 @@ const REGISTRY = {
 
 const PREFIXES = Object.keys(REGISTRY);
 
+// Canonical public identifier for a specialist, e.g. "vnet" -> "cn_vnet".
+// REGISTRY stays keyed by the short prefix internally; the cn_ form is what
+// users/the model pass as the `specialist` argument and what all output shows.
+const pub = (prefix) => `cn_${prefix}`;
+
 // ── Resolution & normalization helpers ─────────────────────────────────
 
+// Accepts the canonical "cn_vnet" form, the bare alias "vnet", or the
+// directory name "vnet-architect" (all case-insensitive). Returns the short
+// REGISTRY key, or null.
 function resolveSpecialist(raw) {
     if (!raw) return null;
-    const key = String(raw).trim().toLowerCase();
+    let key = String(raw).trim().toLowerCase();
+    key = key.replace(/^cn[_-]/, ""); // strip canonical cn_ prefix if present
     if (REGISTRY[key]) return key;
     for (const [prefix, def] of Object.entries(REGISTRY)) {
         if (def.dir === key) return prefix;
@@ -384,9 +412,10 @@ function resolveSpecialist(raw) {
 
 // Accepts a skill in any of these forms and returns the canonical kebab name:
 //   "address-planner", "address_planner", "vnet_skill_address_planner",
-//   "skill_address_planner", "vnet-skill-address-planner"
+//   "skill_address_planner", "vnet-skill-address-planner", "cn_vnet_skill_address_planner"
 function normalizeSkillName(prefix, raw) {
     let s = String(raw || "").trim().toLowerCase();
+    s = s.replace(/^cn[_-]/, ""); // tolerate canonical "cn_<prefix>_skill_" form
     if (prefix) s = s.replace(new RegExp(`^${prefix}[_-]skill[_-]`), "");
     s = s.replace(/^[a-z0-9]+[_-]skill[_-]/, ""); // any "<prefix>_skill_" form
     s = s.replace(/^skill[_-]/, "");
@@ -394,10 +423,13 @@ function normalizeSkillName(prefix, raw) {
     return s;
 }
 
-// If a caller passes a legacy full name as the skill (e.g. "fw_skill_rule_audit")
-// without a specialist, infer the specialist from the leading prefix.
+// If a caller passes a legacy full name as the skill (e.g. "fw_skill_rule_audit"
+// or "cn_fw_skill_rule_audit") without a specialist, infer the specialist from
+// the leading prefix.
 function inferSpecialistFromSkill(raw) {
-    const m = String(raw || "").trim().toLowerCase().match(/^([a-z0-9]+)[_-]skill[_-]/);
+    const m = String(raw || "").trim().toLowerCase()
+        .replace(/^cn[_-]/, "")
+        .match(/^([a-z0-9]+)[_-]skill[_-]/);
     if (m && REGISTRY[m[1]]) return m[1];
     return null;
 }
@@ -405,7 +437,7 @@ function inferSpecialistFromSkill(raw) {
 // ── Output builders ────────────────────────────────────────────────────
 
 function specialistList() {
-    return PREFIXES.map((p, i) => `| ${i + 1} | ${REGISTRY[p].domain} | \`${p}\` | ${Object.keys(REGISTRY[p].skills).length} |`).join("\n");
+    return PREFIXES.map((p, i) => `| ${i + 1} | ${REGISTRY[p].icon} | ${REGISTRY[p].domain} | \`${pub(p)}\` | ${Object.keys(REGISTRY[p].skills).length} |`).join("\n");
 }
 
 function buildCapabilitiesSummary() {
@@ -415,27 +447,29 @@ function buildCapabilitiesSummary() {
         const skills = Object.entries(def.skills)
             .map(([name, desc]) => `  - \`${name}\` — ${desc}`)
             .join("\n");
-        return `### ${def.domain} — \`specialist: "${p}"\`\n${skills}`;
+        return `### ${def.icon} ${def.domain} — \`specialist: "${pub(p)}"\`\n${skills}`;
     }).join("\n\n");
 
     return `# Cloud Networking — Available Specialists
 
-This extension exposes its 19 specialists through **five tools**. Specialists and
-skills are selected by *argument*, not by tool name.
+This extension exposes its 19 specialists through **five tools**. Specialists are
+identified by their \`cn_\`-prefixed id (e.g. \`cn_vnet\`) and selected by *argument*,
+not by tool name. Skills are passed as a separate \`skill\` argument.
 
-| # | Domain | specialist | # skills |
-|---|--------|-----------|----------|
+| # | | Domain | specialist | # skills |
+|---|---|--------|-----------|----------|
 ${rows}
 
 ## How to use
 1. \`cn_route\` with { query } — find the right specialist for a request (recommended first step when unsure).
-2. \`cn_role\` with { specialist } — load the specialist's role definition.
+2. \`cn_role\` with { specialist } — load the specialist's role definition (e.g. \`{ specialist: "cn_vnet" }\`).
 3. \`cn_orchestrate\` with { specialist } — get the step-by-step workflow and skill catalog.
 4. \`cn_skill\` with { specialist, skill } — load a specific skill's deep guidance.
 
-**Important:** Names like \`vnet_skill_address_planner\` or \`fw_role\` that appear in
+**Important:** Names like \`cn_vnet_skill_address_planner\` or \`cn_fw_role\` that appear in
 documentation are *references only* — they are NOT callable tools. Always invoke
-through \`cn_role\`, \`cn_orchestrate\`, and \`cn_skill\` with arguments.
+through \`cn_role\`, \`cn_orchestrate\`, and \`cn_skill\` with arguments. The bare forms
+(\`vnet\`, \`fw\`, …) are still accepted as aliases for the \`specialist\` argument.
 
 ## Firewall Vendor Coverage
 Azure Firewall, AWS Network Firewall, GCP Cloud Firewall/Cloud Armor, Palo Alto (PAN-OS/Panorama/VM-Series/Prisma), Fortinet FortiGate, Check Point (R81+/CloudGuard), Cisco ASA/FTD, Juniper SRX/vSRX, Zscaler (ZIA/ZPA), Sophos XG/XGS, OPNsense, pfSense, VyOS, iptables/nftables
@@ -452,18 +486,18 @@ function buildOrchestrator(prefix) {
     const skillLines = Object.entries(def.skills)
         .map(([name, desc]) => `  - \`${name}\` — ${desc}`)
         .join("\n");
-    return `You are now operating as the **${def.dir}** agent — ${def.domain}.
+    return `You are now operating as the **${def.dir}** agent — ${def.icon} ${def.domain}.
 
 Workflow:
-1. Call \`cn_role\` with { specialist: "${prefix}" } to load the full role definition (do this first).
-2. For each relevant skill, call \`cn_skill\` with { specialist: "${prefix}", skill: "<name>" }.
+1. Call \`cn_role\` with { specialist: "${pub(prefix)}" } to load the full role definition (do this first).
+2. For each relevant skill, call \`cn_skill\` with { specialist: "${pub(prefix)}", skill: "<name>" }.
 
 Available skills (pass the name as the \`skill\` argument):
 ${skillLines}
 
 ${def.guidance}
 
-IMPORTANT: Names such as \`${prefix}_skill_<name>\` or \`${prefix}_role\` that may appear in
+IMPORTANT: Names such as \`${pub(prefix)}_skill_<name>\` or \`${pub(prefix)}_role\` that may appear in
 documentation are references only — they are NOT callable tools. Always invoke skills via
 \`cn_skill\` and the role via \`cn_role\`. End every analysis with:
 "Analysis only — verify against vendor documentation before applying."`;
@@ -474,21 +508,21 @@ function routeQuery(query) {
     const matches = PREFIXES.filter((p) => REGISTRY[p].trigger.test(text));
     if (matches.length === 0) {
         return "No specialist matched. Call `cn_capabilities` for the full map.\nAvailable specialists: " +
-            PREFIXES.map((p) => `${p} (${REGISTRY[p].domain})`).join(", ");
+            PREFIXES.map((p) => `${pub(p)} (${REGISTRY[p].domain})`).join(", ");
     }
     const lines = [`Matched ${matches.length} specialist(s). Recommended call sequence:\n`];
     for (const p of matches) {
         const def = REGISTRY[p];
         const firstSkill = Object.keys(def.skills)[0];
-        lines.push(`### ${def.domain}`);
+        lines.push(`### ${def.icon} ${def.domain}`);
         lines.push("```");
-        lines.push(`cn_role({ specialist: "${p}" })`);
-        lines.push(`cn_orchestrate({ specialist: "${p}" })`);
-        lines.push(`cn_skill({ specialist: "${p}", skill: "${firstSkill}" })   # ...and other skills as needed`);
+        lines.push(`cn_role({ specialist: "${pub(p)}" })`);
+        lines.push(`cn_orchestrate({ specialist: "${pub(p)}" })`);
+        lines.push(`cn_skill({ specialist: "${pub(p)}", skill: "${firstSkill}" })   # ...and other skills as needed`);
         lines.push("```");
         lines.push("");
     }
-    lines.push("Do not call legacy tool names like `" + matches[0] + "_role` directly — they are not registered tools.");
+    lines.push("Do not call legacy tool names like `" + pub(matches[0]) + "_role` directly — they are not registered tools.");
     return lines.join("\n");
 }
 
@@ -496,7 +530,7 @@ function unknownSpecialistMsg(raw) {
     return {
         textResultForLlm:
             `Unknown specialist "${raw}". Call \`cn_skill\`/\`cn_role\`/\`cn_orchestrate\` with one of these \`specialist\` values:\n` +
-            PREFIXES.map((p) => `- ${p} — ${REGISTRY[p].domain}`).join("\n"),
+            PREFIXES.map((p) => `- ${pub(p)} — ${REGISTRY[p].domain}`).join("\n"),
         resultType: "failure",
     };
 }
@@ -505,10 +539,11 @@ function unknownSpecialistMsg(raw) {
 
 const SPECIALIST_PARAM = {
     type: "string",
-    enum: PREFIXES,
+    enum: PREFIXES.map(pub),
     description:
         "The specialist to engage. One of: " +
-        PREFIXES.map((p) => `${p} (${REGISTRY[p].domain})`).join("; ") + ".",
+        PREFIXES.map((p) => `${pub(p)} (${REGISTRY[p].domain})`).join("; ") +
+        ". Bare forms (vnet, fw, …) are also accepted as aliases.",
 };
 
 const tools = [
@@ -562,11 +597,11 @@ const tools = [
     },
     {
         name: "cn_skill",
-        description: "Load deep domain guidance for a specific specialist skill. Provide `specialist` (e.g. \"vnet\") and `skill` (e.g. \"address-planner\"). Legacy names like \"vnet_skill_address_planner\" are also accepted as the `skill` value. Call cn_capabilities or cn_orchestrate to see valid skills.",
+        description: "Load deep domain guidance for a specific specialist skill. Provide `specialist` (e.g. \"cn_vnet\") and `skill` (e.g. \"address-planner\"). Legacy names like \"cn_vnet_skill_address_planner\" are also accepted as the `skill` value. Call cn_capabilities or cn_orchestrate to see valid skills.",
         parameters: {
             type: "object",
             properties: {
-                specialist: { ...SPECIALIST_PARAM, description: SPECIALIST_PARAM.description + " May be omitted if `skill` is a legacy full name like \"vnet_skill_address_planner\"." },
+                specialist: { ...SPECIALIST_PARAM, description: SPECIALIST_PARAM.description + " May be omitted if `skill` is a legacy full name like \"cn_vnet_skill_address_planner\"." },
                 skill: { type: "string", description: "The skill name, e.g. \"address-planner\". Underscores and legacy \"<specialist>_skill_\" prefixes are tolerated." },
             },
             required: ["skill"],
@@ -580,7 +615,7 @@ const tools = [
             if (!def.skills[skill]) {
                 return {
                     textResultForLlm:
-                        `Unknown skill "${args?.skill}" for specialist "${prefix}" (${def.domain}).\n` +
+                        `Unknown skill "${args?.skill}" for specialist "${pub(prefix)}" (${def.domain}).\n` +
                         `Call \`cn_skill\` with one of these \`skill\` values:\n` +
                         Object.keys(def.skills).map((s) => `- ${s}`).join("\n"),
                     resultType: "failure",
@@ -615,53 +650,116 @@ async function validateRegistry(session) {
 
 // ── Register session ───────────────────────────────────────────────────
 
-// Explicit mention pattern — users type `@cloud-networking ...` to engage the extension.
-const MENTION_RE = /(^|\s)@cloud[-_]?networking\b/i;
+// Matches the extension name in any form: @cloud-networking, cloud-networking,
+// cloud networking, cloudnetworking (with or without a leading @).
+const MENTION_RE = /(^|[^\w])@?cloud[\s_-]?networking\b/i;
 
 const TOOL_USAGE_NOTE =
-    "Use only these cloud-networking tools: `cn_route`, `cn_role`, `cn_orchestrate`, `cn_skill`, `cn_capabilities`. " +
-    "Do NOT call legacy specialist tool names such as `vnet_role` or `vnet_skill_address_planner` — they are not registered tools. " +
-    "Select the specialist and skill via arguments, e.g. `cn_skill({ specialist: \"vnet\", skill: \"address-planner\" })`. " +
-    "Respond to the user in natural language — do not list internal tool names.";
+    "You MUST use ONLY these cloud-networking tools: `cn_route`, `cn_role`, `cn_orchestrate`, `cn_skill`, `cn_capabilities`. " +
+    "You MUST NOT read, open, list, or search the specialist files under `specialists/**` directly with any file/view/glob/grep/shell tool. " +
+    "Always load specialist content via the registered `cn_role`, `cn_orchestrate`, and `cn_skill` tools — never by reading the `.md` files yourself. " +
+    "Names like `cn_vnet_role` or `vnet_skill_address_planner` are NOT registered tools; select the specialist and skill via arguments, e.g. `cn_skill({ specialist: \"cn_vnet\", skill: \"address-planner\" })`. " +
+    "Respond to the user in natural language — do not list or expose internal tool names.";
+
+// ── Hook state ─────────────────────────────────────────────────────────
+// Throttle the auto-routing hint: each specialist is announced at most once
+// per session so repeated matching prompts don't crowd the context window.
+const announcedPrefixes = new Set();
+// Presence note is injected on session start AND (belt-and-suspenders) on the
+// first user prompt, so the agent learns cloud-networking exists before it
+// decides it doesn't know about it.
+let presenceAnnounced = false;
+
+const SPECIALIST_INLINE = PREFIXES.map((p) => `${REGISTRY[p].icon} ${REGISTRY[p].domain} (${pub(p)})`).join(", ");
+
+const PRESENCE_NOTE =
+    "[cloud-networking] The cloud-networking extension (a.k.a. @cloud-networking) is LOADED in this session. " +
+    `It bundles ${PREFIXES.length} cloud-networking specialists: ${SPECIALIST_INLINE}. ` +
+    "Discovery tools available right now: `cn_capabilities` (full specialist + skill map), `cn_route` (pick the right specialist for a query), " +
+    "`cn_role` (load a specialist's role definition — call this FIRST before answering), `cn_orchestrate` (step-by-step workflow + skill catalog), " +
+    "`cn_skill` (deep guidance for a specific skill). " +
+    "When the user mentions VNets/VPCs, subnets/CIDR/IP planning, firewalls/NSGs/rule audits, load balancers, DNS, Private Link/private endpoints, " +
+    "hybrid connectivity (VPN/ExpressRoute/Direct Connect/Interconnect), network security, connectivity troubleshooting/packet capture, " +
+    "Virtual WAN/SD-WAN, network monitoring, multi-cloud networking, networking pricing/cost, IaC (Bicep/Terraform/Ansible) for networking, " +
+    "container/Kubernetes networking, CDN/edge, network automation, SASE/SSE, capacity planning, or IPv6 migration — or says 'cloud-networking' / " +
+    "'@cloud-networking' / 'this extension' / 'what can you do' in a networking context — you MUST call `cn_route` (or `cn_capabilities`) FIRST, " +
+    "then the matched specialist's `cn_role`, before answering. " +
+    "Do NOT answer networking questions from prior/general knowledge, and do NOT read the specialist files under `specialists/**` directly — " +
+    "load ALL specialist content via `cn_role` / `cn_orchestrate` / `cn_skill`. " +
+    "Never claim cloud-networking is unavailable: it is loaded. " +
+    "Cloud Networking is analysis-only: it never applies changes, modifies infrastructure, or runs commands against live environments. " +
+    "RESPONSE FOOTER (REQUIRED): at the end of EVERY assistant response that touches cloud networking — any turn where you called a `cn_*` tool, " +
+    "or discussed any networking topic above — append the following line verbatim, on its own line after all other content:\n\n" +
+    "> Analysis only — verify against vendor documentation before applying.";
+
+const DIRECT_MENTION =
+    "[cloud-networking — DIRECT MENTION] The user just referenced the cloud-networking extension by name. " +
+    `It IS loaded in this session (${tools.length} tools, ${PREFIXES.length} specialists). ` +
+    "Do NOT tell the user cloud-networking is unavailable, unknown, or not part of the CLI. " +
+    "REQUIRED next action: call the `cn_capabilities` tool now to retrieve the specialist map, then answer the user's question using that information. " +
+    "If the user asked for examples or how to use it, after calling `cn_capabilities` summarize the specialists and suggest 3–5 concrete example prompts " +
+    "(e.g. 'design a hub-spoke VNet topology across 3 regions', 'audit my Azure Firewall rules for shadowed or overly-broad entries', " +
+    "'plan a non-overlapping IP address scheme for prod/dev/test', 'troubleshoot asymmetric routing through my NVA', " +
+    "'compare NAT Gateway vs egress costs across Azure/AWS/GCP', 'generate Terraform for a dual-stack hub VPC'). " +
+    "Remember the response-footer rule from the presence note: end this response with " +
+    "'Analysis only — verify against vendor documentation before applying.'";
 
 const session = await joinSession({
     tools,
     hooks: {
+        onSessionStart: async () => {
+            // Fires on startup / new / resume — inject the presence note as
+            // session-level context so the agent knows cloud-networking exists
+            // from turn 1 without waiting for a user prompt.
+            presenceAnnounced = true;
+            return { additionalContext: PRESENCE_NOTE };
+        },
         onUserPromptSubmitted: async (input) => {
             if (!input?.prompt) return;
 
-            const mentioned = MENTION_RE.test(input.prompt);
-            const scanText = mentioned ? input.prompt.replace(MENTION_RE, " ") : input.prompt;
-            const matches = PREFIXES.filter((p) => REGISTRY[p].trigger.test(scanText));
+            const parts = [];
 
-            if (!mentioned && matches.length === 0) return;
-
-            const header = mentioned
-                ? `[cloud-networking] @cloud-networking invoked.`
-                : `[cloud-networking] Detected networking intent.`;
-
-            if (matches.length === 0) {
-                return {
-                    additionalContext:
-                        `${header} No single specialist matched directly.\n\n` +
-                        `Call \`cn_route\` with the user's query to pick the right specialist, then ` +
-                        `\`cn_role\`, \`cn_orchestrate\`, and the relevant \`cn_skill\` calls. If still ` +
-                        `ambiguous, call \`cn_capabilities\` and ask which area to focus on.\n\n` +
-                        TOOL_USAGE_NOTE,
-                };
+            // Fallback in case onSessionStart didn't fire (older CLI builds).
+            if (!presenceAnnounced) {
+                presenceAnnounced = true;
+                parts.push(PRESENCE_NOTE);
             }
 
-            const guidance = matches
-                .map((p) => `• **${REGISTRY[p].domain}** — \`cn_role({ specialist: "${p}" })\` then \`cn_orchestrate({ specialist: "${p}" })\``)
-                .join("\n");
+            // Strongest signal: the user literally named the extension. Always
+            // inject the imperative (not throttled) so a follow-up prompt still
+            // gets the nudge if the model previously ignored it.
+            const mentioned = MENTION_RE.test(input.prompt);
+            if (mentioned) parts.push(DIRECT_MENTION);
 
-            return {
-                additionalContext:
-                    `${header} Engage the following specialist(s):\n${guidance}\n\n` +
-                    `For each, call \`cn_role\` then \`cn_orchestrate\` (with the shown \`specialist\` value), ` +
-                    `then the relevant \`cn_skill\` calls.\n\n` +
+            const scanText = mentioned ? input.prompt.replace(MENTION_RE, " ") : input.prompt;
+            const matches = PREFIXES.filter((p) => REGISTRY[p].trigger.test(scanText));
+            const fresh = matches.filter((p) => !announcedPrefixes.has(p));
+
+            if (fresh.length > 0) {
+                for (const p of fresh) announcedPrefixes.add(p);
+                const guidance = fresh
+                    .map((p) => `• **${REGISTRY[p].icon} ${REGISTRY[p].domain}** — \`cn_role({ specialist: "${pub(p)}" })\` then \`cn_orchestrate({ specialist: "${pub(p)}" })\``)
+                    .join("\n");
+                parts.push(
+                    `[cloud-networking] Detected networking intent. The following specialist(s) MUST handle this request:\n${guidance}\n\n` +
+                    `Before producing ANY substantive networking answer, you MUST call the matched specialist's role via ` +
+                    `\`cn_role({ specialist })\` FIRST. Do NOT answer from prior/general knowledge, and do NOT read the ` +
+                    `specialist \`.md\` files under \`specialists/**\` directly. For each specialist call \`cn_role\` then ` +
+                    `\`cn_orchestrate\` (with the shown \`specialist\` value), then the relevant \`cn_skill\` calls. ` +
+                    `(This routing hint is shown once per specialist per session.)\n\n` +
                     TOOL_USAGE_NOTE,
-            };
+                );
+            } else if (mentioned && matches.length === 0) {
+                parts.push(
+                    `[cloud-networking] No single specialist matched directly. You MUST call \`cn_route\` with the user's ` +
+                    `query (or \`cn_capabilities\`) to pick the right specialist BEFORE answering — do NOT answer ` +
+                    `networking questions from prior/general knowledge.\n\n` +
+                    TOOL_USAGE_NOTE,
+                );
+            }
+
+            if (parts.length === 0) return;
+            return { additionalContext: parts.join("\n\n") };
         },
     },
 });
