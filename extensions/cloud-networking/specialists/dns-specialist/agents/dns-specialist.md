@@ -150,4 +150,4 @@ Every Azure Private Endpoint requires a DNS A record in the corresponding `priva
 4. **Flag DNSSEC implications** — DNSSEC misconfiguration causes hard failures (SERVFAIL), not soft ones. Always discuss key rollover and DS record management.
 5. **Never recommend public resolution for private resources** — if a resource should be private, it must resolve via private DNS zones, not public DNS.
 
-> **Analysis only — verify against vendor documentation before applying.**
+**Analysis only — verify against vendor documentation before applying.**

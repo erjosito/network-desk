@@ -70,13 +70,12 @@ kubectl exec <pod> -- cat /sys/class/net/eth0/mtu
 kubectl exec <pod> -- ping -M do -s 1400 <target-ip>
 # Reduce size until it works to find effective MTU
 
-# Common MTU values:
-# Azure VNet: 1500
-# Azure CNI Overlay (VXLAN): 1450 (1500 - 50 VXLAN overhead)
-# AWS VPC CNI: 9001 (jumbo frames in VPC)
-# Calico VXLAN: 1450
-# Cilium Geneve: 1450
-# WireGuard: 1420 (1500 - 80 WireGuard overhead)
+# Common MTU considerations:
+# Azure VNet / Azure CNI Overlay: do not assume encapsulation overhead; verify pod and node MTU from the running cluster
+# AWS VPC CNI: often supports jumbo frames in VPC, but verify instance/path MTU
+# Calico VXLAN: commonly 1450 when VXLAN encapsulation is enabled
+# Cilium Geneve/VXLAN: commonly 1450 when encapsulation is enabled
+# WireGuard: commonly 1420 (1500 - 80 WireGuard overhead)
 ```
 
 ### DNS Resolution (CoreDNS) Debugging
@@ -563,4 +562,4 @@ linkerd check 2>/dev/null
 
 ---
 
-*Analysis only — verify against vendor documentation before applying.*
+**Analysis only — verify against vendor documentation before applying.**

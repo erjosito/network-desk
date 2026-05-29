@@ -155,3 +155,4 @@ Example — Azure VpnGw2AZ with 1 TB egress:
 ```
 
 Pricing is indicative — verify against current vendor pricing pages before budgeting.
+**Analysis only — verify against vendor documentation before applying.**

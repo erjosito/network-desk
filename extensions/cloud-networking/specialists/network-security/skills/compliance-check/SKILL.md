@@ -15,7 +15,7 @@ Validate network security controls against CIS Benchmarks, PCI-DSS, and NIST 800
 | 6.3 | Ensure no Network Security Groups allow ingress from 0.0.0.0/0 to any port | Audit all NSG rules with source 0.0.0.0/0 or * |
 | 6.4 | Ensure that UDP access from the Internet is restricted | No inbound UDP rules from 0.0.0.0/0 |
 | 6.5 | Ensure that Network Watcher is enabled | Network Watcher provisioned in all active regions |
-| 6.6 | Ensure that NSG flow logs are enabled | Flow logs enabled on all NSGs |
+| 6.6 | Ensure that Azure flow logging uses VNet flow logs | VNet flow logs enabled for monitored VNets; existing NSG flow logs have documented migration plan before retirement: https://learn.microsoft.com/en-us/azure/network-watcher/nsg-flow-logs-migrate |
 
 ### CIS AWS Foundations Benchmark (v3.0+)
 
@@ -121,5 +121,4 @@ Remediation:     Restrict source to bastion subnet CIDR or remove rule.
                  Use Azure Bastion for RDP access.
 Deadline:        24 hours (Critical)
 ```
-
 **Analysis only — verify against vendor documentation before applying.**

@@ -173,5 +173,4 @@ nft add rule inet filter trust_to_dmz drop
 7. **Vendor-specific config** — ready-to-review configuration in the target vendor's syntax.
 
 ---
-
-*Analysis only — verify against vendor documentation before applying.*
+**Analysis only — verify against vendor documentation before applying.**

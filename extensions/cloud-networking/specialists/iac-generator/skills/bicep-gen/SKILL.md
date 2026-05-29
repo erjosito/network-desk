@@ -10,23 +10,7 @@ Generate production-ready Azure Bicep templates for networking infrastructure. P
 
 ### API Versions
 
-Always use the latest stable API versions:
-
-| Resource Type | API Version |
-|---------------|-------------|
-| Microsoft.Network/virtualNetworks | 2024-01-01 |
-| Microsoft.Network/networkSecurityGroups | 2024-01-01 |
-| Microsoft.Network/routeTables | 2024-01-01 |
-| Microsoft.Network/azureFirewalls | 2024-01-01 |
-| Microsoft.Network/firewallPolicies | 2024-01-01 |
-| Microsoft.Network/loadBalancers | 2024-01-01 |
-| Microsoft.Network/applicationGateways | 2024-01-01 |
-| Microsoft.Network/privateDnsZones | 2024-06-01 |
-| Microsoft.Network/privateEndpoints | 2024-01-01 |
-| Microsoft.Network/virtualNetworkGateways | 2024-01-01 |
-| Microsoft.Network/virtualHubs | 2024-01-01 |
-| Microsoft.Network/virtualWans | 2024-01-01 |
-| Microsoft.Network/dnsResolvers | 2023-07-01-preview |
+Pin API versions that are tested with the template and supported for the target cloud/region. Do not assume a static table is always the latest stable version; verify current `Microsoft.Network/*` versions in Azure template reference before publishing, and avoid preview API versions unless the design explicitly accepts preview support risk.
 
 ### Naming Conventions
 
@@ -471,3 +455,5 @@ az deployment group create \
   --parameters main.bicepparam \
   --confirm-with-what-if
 ```
+
+**Analysis only — verify against vendor documentation before applying.**

@@ -198,3 +198,4 @@ gcloud monitoring time-series list \
 5. **CDN + LB combined** — evaluate whether Front Door/CloudFront/Cloud CDN can replace a regional LB for globally distributed traffic.
 
 Pricing is indicative — verify against current vendor pricing pages before budgeting.
+**Analysis only — verify against vendor documentation before applying.**

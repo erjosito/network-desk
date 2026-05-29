@@ -8,16 +8,9 @@ Calculate data transfer and egress costs across Azure, AWS, and GCP. Covers inte
 
 ### Internet Egress (from Azure to Internet)
 
-Data **into** Azure (ingress) is free. Outbound (egress) follows tiered pricing:
+Data **into** Azure (ingress) is free. Outbound (egress) follows zone- and destination-specific tiered pricing.
 
-| Monthly Volume | Price per GB |
-|---|---|
-| First 5 GB | Free |
-| 5 GB – 10 TB | $0.087 |
-| 10 TB – 50 TB | $0.083 |
-| 50 TB – 150 TB | $0.070 |
-| 150 TB – 500 TB | $0.050 |
-| 500 TB+ | Contact Microsoft |
+> **Pricing assumption reviewed 2026-05-29:** Azure bandwidth pricing advertises the first 100 GB/month of internet egress free globally, then paid tiered rates. Treat any per-GB numbers in examples as illustrative only — verify current rates in the Azure Pricing Calculator or bandwidth pricing page before budgeting.
 
 ### Inter-Region Data Transfer
 
@@ -212,3 +205,4 @@ Use this template for egress cost estimates:
 6. **Private endpoints / Private Link** — data processing charges apply (~$0.01/GB on Azure) but avoid internet egress pricing.
 
 Pricing is indicative — verify against current vendor pricing pages before budgeting.
+**Analysis only — verify against vendor documentation before applying.**

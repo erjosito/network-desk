@@ -154,4 +154,4 @@ Route all connection monitoring alerts through a single incident management plat
 
 This ensures a single pane of glass for on-call engineers regardless of which cloud reported the connectivity issue.
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

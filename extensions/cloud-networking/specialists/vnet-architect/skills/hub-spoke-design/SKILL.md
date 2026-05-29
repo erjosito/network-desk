@@ -187,4 +187,4 @@ gcloud compute networks peerings create hub-to-spoke \
 - GCP Shared VPC: https://cloud.google.com/vpc/docs/shared-vpc
 - GCP Network Connectivity Center: https://cloud.google.com/network-connectivity/docs/network-connectivity-center/concepts/overview
 
-**Analysis only — not a substitute for vendor documentation review.**
+**Analysis only — verify against vendor documentation before applying.**

@@ -134,18 +134,22 @@ Priority 1 (Edge):          Priority 2 (Core):         Priority 3 (Workloads):
 | Standard Load Balancer | ✅ Full | Dual-stack frontends and backends |
 | Application Gateway v2 | ✅ Full | Dual-stack frontend |
 | Azure Firewall | ✅ Full | Premium and Standard SKUs |
-| VPN Gateway | ✅ Partial | Route-based, some SKUs only |
+| VPN Gateway | ✅ Preview / opt-in | IPv6 private connectivity is preview/opt-in; route-based supported SKUs only |
 | ExpressRoute | ✅ Full | Private and Microsoft peering |
 | Azure DNS (public) | ✅ Full | AAAA records supported |
 | Azure Private DNS | ✅ Full | AAAA records in private zones |
 | AKS | ✅ Full | Dual-stack clusters supported |
 | Azure Front Door | ✅ Full | IPv6 frontends |
-| NAT Gateway | ❌ No | IPv4 only (use LB for IPv6 outbound) |
+| NAT Gateway | ✅ Partial | Standard is IPv4 outbound only; StandardV2 supports IPv6 outbound where available |
 | Basic Load Balancer | ❌ No | Standard LB required |
 | VNet peering | ✅ Full | Cross-region supported |
 | Network Watcher | ✅ Partial | Some tools support IPv6 flows |
 | Azure Bastion | ❌ No | IPv4 only for management |
 | Private Endpoints | ✅ Partial | Service-dependent |
+
+**Azure IPv6 caveats:**
+- **NAT Gateway:** Standard SKU remains IPv4 outbound only. StandardV2 supports IPv6 outbound with Standard public IP resources; verify regional availability, SKU eligibility, and current limitations before designing around it. This is outbound IPv6 support, not a general NAT64 gateway.
+- **VPN Gateway:** IPv6 is preview/opt-in. Validate supported gateway SKUs and configurations; current limitations include inner IPv6 traffic only, no SSTP or IKEv1, no Virtual WAN support, and UDR/routing constraints documented by Azure.
 
 ### AWS IPv6 Support Matrix
 
@@ -297,4 +301,4 @@ aws logs filter-log-events --log-group-name vpc-flow-logs \
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

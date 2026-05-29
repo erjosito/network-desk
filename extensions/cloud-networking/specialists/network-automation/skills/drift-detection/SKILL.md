@@ -272,7 +272,7 @@ terraform {
 }
 ```
 
-#### S3 Backend with DynamoDB Locking
+#### S3 Backend with Native Lockfile Locking
 
 ```hcl
 terraform {
@@ -281,13 +281,15 @@ terraform {
     key            = "network/vpc-hub.tfstate"
     region         = "us-east-1"
     encrypt        = true
-    dynamodb_table = "terraform-state-locks"
+    use_lockfile    = true
     
     # Use assume role for cross-account state access
     role_arn = "arn:aws:iam::123456789012:role/TerraformStateAccess"
   }
 }
 ```
+
+DynamoDB locking is legacy for the S3 backend; retain it only for older estates that have not migrated to native lock files.
 
 #### State Backup Before Operations
 
@@ -382,4 +384,4 @@ customEvents
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

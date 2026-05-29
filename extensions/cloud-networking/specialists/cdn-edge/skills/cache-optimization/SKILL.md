@@ -408,4 +408,4 @@ gcloud logging read 'resource.type="http_load_balancer" AND jsonPayload.cacheHit
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

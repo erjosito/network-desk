@@ -10,7 +10,7 @@ This skill provides expert guidance on configuring virtual network peering acros
 
 Azure supports two peering types:
 
-**Regional (same-region) peering** — Traffic stays on the Azure backbone. No bandwidth caps (line-rate). No peering data transfer charges within the same region.
+**Regional (same-region) peering** — Traffic stays on the Azure backbone and has no bandwidth cap from peering itself. Peering data transfer pricing is region-dependent; verify current regional and global peering rates on the Azure Virtual Network pricing page: https://azure.microsoft.com/en-us/pricing/details/virtual-network/.
 
 **Global peering** — Cross-region peering over the Microsoft backbone. Incurs inter-region data transfer charges. Same configuration as regional peering but with `--allow-forwarded-traffic` critical for transit scenarios.
 
@@ -169,7 +169,7 @@ If approaching limits, consolidate VNets/VPCs or switch to managed transit (Azur
 | **Encryption** | Platform backbone (not user-encrypted) | IPsec encrypted | Platform backbone |
 | **Bandwidth** | Line-rate (no cap) | Gateway SKU dependent (1.25–10 Gbps Azure) | Service-dependent |
 | **Transitive routing** | ❌ (requires NVA/TGW) | ✅ (with BGP route propagation) | N/A |
-| **Cost** | Data transfer charges (global only for Azure) | Gateway hour + data transfer | Per-hour + per-GB processed |
+| **Cost** | Peering data transfer charges vary by provider and region; verify current pricing | Gateway hour + data transfer | Per-hour + per-GB processed |
 | **Best for** | Full network integration, hub-spoke | Encrypted cross-cloud or on-prem | Consuming a specific PaaS/SaaS service securely |
 
 **Decision flow:**
@@ -184,5 +184,6 @@ If approaching limits, consolidate VNets/VPCs or switch to managed transit (Azur
 - AWS VPC peering: https://docs.aws.amazon.com/vpc/latest/peering/what-is-vpc-peering.html
 - GCP VPC peering: https://cloud.google.com/vpc/docs/vpc-peering
 - Azure subscription limits (networking): https://learn.microsoft.com/azure/azure-resource-manager/management/azure-subscription-service-limits#networking-limits
+- Azure Virtual Network pricing: https://azure.microsoft.com/en-us/pricing/details/virtual-network/
 
-**Analysis only — not a substitute for vendor documentation review.**
+**Analysis only — verify against vendor documentation before applying.**

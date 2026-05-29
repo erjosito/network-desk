@@ -72,10 +72,10 @@ This skill provides detailed comparison tables mapping equivalent networking ser
 | **Custom Services** | Private Link Service (Standard LB-backed) | PrivateLink Endpoint Service (NLB-backed) | Published services via ILB and service attachment |
 | **DNS Integration** | Private DNS Zone auto-registration | Route 53 Resolver + PHZ | Service Directory or Cloud DNS response policies |
 | **Cross-Account/Subscription** | Supported (approval workflow) | Supported (acceptance model) | Supported (connection acceptance) |
-| **Cross-Region** | Supported (Global VNet Peering + Private Endpoint) | Limited (PrivateLink is regional) | Supported (global access flag) |
+| **Cross-Region** | Supported (Global VNet Peering + Private Endpoint) | Regional interface endpoints; endpoint services can opt in to cross-Region access for consumers | Supported (global access flag) |
 | **Pricing** | Per hour + data processed | Per hour + data processed per AZ | Per hour + data processed |
 
-**Key Differences:** All three providers offer similar NIC/ENI-injection models, but cross-region support varies significantly. Azure supports cross-region private endpoint access via Global VNet Peering. GCP Private Service Connect supports global access natively. AWS PrivateLink is regional-only, requiring per-region endpoint deployment.
+**Key Differences:** All three providers offer similar private connectivity models, but cross-region behavior varies. Azure can reach private endpoints over global VNet peering. GCP Private Service Connect supports global access when enabled. AWS interface endpoints remain regional, while providers of endpoint services can opt in to cross-Region PrivateLink access for consumers; validate service support, added latency, inter-region data charges, and feature limitations before using it.
 
 ## DNS
 
@@ -105,4 +105,4 @@ This skill provides detailed comparison tables mapping equivalent networking ser
 
 **Key Differences:** GCP Cloud Firewall is fundamentally distributed — rules are enforced at the VM level across the entire VPC, not at a centralized chokepoint. Azure Firewall and AWS Network Firewall are centralized appliances deployed in dedicated subnets, requiring UDR/route table configuration to steer traffic through them. GCP's hierarchical firewall policies (at org/folder level) provide top-down policy enforcement that is unique among the three providers.
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

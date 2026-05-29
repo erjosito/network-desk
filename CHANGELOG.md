@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed — Specialist content audit: 2026 currency, consistency, and guardrail normalization
+
+A repo-wide best-practices audit of all 19 specialists and 119 skills (web-verified against current vendor documentation) drove **109 fixes** (4 critical, 45 high, 33 medium, 27 low) across 128 markdown files. Highlights:
+
+- **Azure NSG flow logs → VNet flow logs**: reframed across network-monitor, network-troubleshooter, capacity-planner, private-link, and network-security (new NSG flow log creation blocked after 2025-06-30; retirement 2027-09-30).
+- **Corrected capacity/limit errors** (de-risked to per-resource quotas + "verify current quotas"): Azure NAT Gateway throughput (per-resource, not × IP count; Standard 50 / StandardV2 100 Gbps), AWS NAT Gateway connection/pps model, AWS Transit Gateway 100 Gbps per VPC attachment per AZ, GCP Cloud VPN packet-rate framing.
+- **AWS PrivateLink cross-Region** access added (private-link, multi-cloud-net).
+- **IaC/automation**: Terraform provider pins refreshed, S3 `use_lockfile` (DynamoDB locking deprecated), `tfsec` → Trivy, and a non-enforcing AWS SCP (`ec2:CreateRoute` with unsupported condition keys) replaced with an AWS Config / EventBridge detective control.
+- **Retirements flagged**: Application Gateway v1, Azure CDN classic/Edgio (Front Door default), non-AZ VpnGw1-5 SKUs.
+- **Currency**: AKS Azure CNI Overlay (no VXLAN; in-place `az aks update` migration), Gateway API `v1`, Azure/GCP IPv6 (StandardV2 NAT IPv6 outbound, GCP /64 subnet + /96 per NIC, AWS DNS64/NAT64), DNSSEC RFC 9824, AWS WAF rate/Bot Control limits, GCP Service Extensions/Media CDN, "Azure AD" → "Microsoft Entra ID".
+- **Pricing skills de-risked**: brittle hardcoded rates replaced with date-stamped illustrative guidance + calculator links (corrected Azure 100 GB free egress tier, GCP Cloud NAT cost model, AWS public IPv4 charges).
+- **Guardrail footer normalized**: every role + skill file (138/138) now ends with the canonical `**Analysis only — verify against vendor documentation before applying.**` (6 prior wordings unified; 12 missing footers added).
+- **Wiring**: fixed two skill handoffs that referenced non-existent skills.
+
 ### Added — `cn_`-prefixed specialist ids, presence note, and stronger routing
 
 - **Specialist ids are now `cn_`-prefixed** (`cn_vnet`, `cn_fw`, `cn_dns`, …) for a consistent namespace. They are the canonical value for the `specialist` argument and appear in all `cn_route` / `cn_capabilities` / `cn_orchestrate` output. The bare forms (`vnet`, `fw`, …) and directory names remain accepted as aliases, so nothing breaks.

@@ -193,15 +193,17 @@ Assign unique private AS numbers (64512–65534 for 16-bit, or 4200000000–4294
 
 ## Bandwidth and SLA Considerations
 
-| Method | Max Bandwidth | SLA | Typical Latency |
+| Method | Bandwidth model | SLA | Typical Latency |
 |---|---|---|---|
-| VPN (single tunnel) | 1.25 Gbps | Internet-dependent, no SLA | Variable (5–50ms+) |
-| VPN (ECMP, multiple tunnels) | Up to 10 Gbps aggregate | Internet-dependent | Variable |
-| ExpressRoute (Standard) | 1–10 Gbps | 99.95% | <2ms same metro |
-| Direct Connect (dedicated) | 1–100 Gbps | 99.99% (resilience) | <2ms same metro |
-| GCP Dedicated Interconnect | 10–200 Gbps (8×25 per attachment) | 99.99% (4-nines) | <2ms same metro |
-| Megaport MCR | Up to 10 Gbps per VXC | 99.9% | <1ms within metro |
+| Azure VPN Gateway | Throughput depends on gateway SKU, active-active design, and tunnel count; check current SKU limits before sizing | Gateway/SKU dependent | Variable (internet path) |
+| AWS Site-to-Site VPN (standard tunnels) | Per-tunnel throughput is limited and workload-dependent; use ECMP across tunnels where supported | VPN SLA depends on endpoint redundancy | Variable (internet path) |
+| AWS Site-to-Site VPN (Large Bandwidth Tunnel) | Higher per-tunnel bandwidth option where available; validate region, device, and feature support | VPN SLA depends on endpoint redundancy | Variable (internet path) |
+| GCP HA VPN | Per-tunnel and aggregate throughput depend on HA VPN interfaces, Cloud Router, and ECMP | HA VPN SLA requires redundant tunnels/interfaces | Variable (internet path) |
+| ExpressRoute (Standard) | Circuit bandwidth by provisioned SKU/port | 99.95%+ with proper redundancy | <2ms same metro |
+| Direct Connect (dedicated) | 1–100 Gbps dedicated connections, with LAG for scale | Resiliency model dependent | <2ms same metro |
+| GCP Dedicated Interconnect | 10/100 Gbps circuits; multiple VLAN attachments/circuits for scale | Up to 99.99% with redundant design | <2ms same metro |
+| Megaport MCR | Bandwidth by selected virtual cross-connect/service size | Provider SLA | <1ms within metro |
 
 When designing for production workloads, always provision redundant paths. Single-circuit designs do not meet the SLA thresholds published by any major cloud provider.
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

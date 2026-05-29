@@ -735,4 +735,4 @@ kubectl -n kube-system exec ds/cilium -- \
 
 ---
 
-*Analysis only — verify against vendor documentation before applying.*
+**Analysis only — verify against vendor documentation before applying.**

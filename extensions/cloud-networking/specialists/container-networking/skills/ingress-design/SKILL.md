@@ -16,12 +16,12 @@ Guide the selection, configuration, and architecture of ingress controllers and 
 - Status: Stable but no longer actively enhanced
 
 **Gateway API (gateway.networking.k8s.io):**
-- Next-generation routing API (CNCF, graduating to GA)
+- Next-generation routing API (CNCF, Standard channel resources are GA)
 - Role-oriented: infrastructure provider → cluster operator → application developer
-- Typed routes: HTTPRoute, GRPCRoute, TLSRoute, TCPRoute, UDPRoute
-- Portable — same manifest works across implementations
-- Extensible via policy attachment (BackendTLSPolicy, HealthCheckPolicy)
-- Status: Core features GA (v1.0+), some features in beta/experimental
+- Typed routes: HTTPRoute and GRPCRoute are Standard; TLSRoute/TCPRoute/UDPRoute remain Experimental unless your implementation documents otherwise
+- Portable — same Standard-channel manifest works across conformant implementations
+- Extensible via policy attachment; BackendTLSPolicy is Standard in `gateway.networking.k8s.io/v1`, while some policies remain Experimental
+- Status: Use `gateway.networking.k8s.io/v1` for Standard resources; install Experimental CRDs only when needed and supported by the controller
 
 ### Ingress Controllers
 
@@ -496,7 +496,9 @@ spec:
           port: 50051
 ```
 
-#### TLSRoute (Passthrough)
+#### TLSRoute (Passthrough — Experimental channel)
+
+TLSRoute is not part of the Standard channel in all Gateway API releases/controllers. Install the Experimental CRDs and verify controller support before using it.
 
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1alpha2
@@ -553,8 +555,8 @@ TLS terminates at ingress; new TLS connection to backend.
 # NGINX annotation for backend HTTPS
 nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
 
-# Gateway API - BackendTLSPolicy
-apiVersion: gateway.networking.k8s.io/v1alpha3
+# Gateway API - BackendTLSPolicy (Standard channel)
+apiVersion: gateway.networking.k8s.io/v1
 kind: BackendTLSPolicy
 metadata:
   name: api-backend-tls
@@ -749,4 +751,4 @@ kubectl describe httproute my-route -n production
 
 ---
 
-*Analysis only — verify against vendor documentation before applying.*
+**Analysis only — verify against vendor documentation before applying.**

@@ -166,7 +166,7 @@ gcloud access-context-manager perimeters create my-perimeter \
 | PE connection state is `Approved` | ☐ | `az network private-endpoint show ... --query privateLinkServiceConnections[0].privateLinkServiceConnectionState.status` |
 | DNS resolves to private IP (not public) | ☐ | `nslookup <fqdn>` |
 | No service firewall exceptions allowing public IPs | ☐ | `az storage account network-rule list ...` |
-| PE activity logging enabled | ☐ | Check diagnostic settings for NSG flow logs |
+| PE activity logging enabled | ☐ | Use VNet flow logs for new Azure deployments; keep NSG flow logs only for legacy migration and verify lifecycle dates: https://learn.microsoft.com/en-us/azure/network-watcher/nsg-flow-logs-overview |
 | AWS endpoint policy restricts access | ☐ | `aws ec2 describe-vpc-endpoints --query 'VpcEndpoints[].PolicyDocument'` |
 | AWS resource policy restricts to VPCe | ☐ | Check S3/SQS/SNS resource policies |
 | GCP VPC Service Controls configured | ☐ | `gcloud access-context-manager perimeters list` |
@@ -178,7 +178,7 @@ gcloud access-context-manager perimeters create my-perimeter \
 1. **Assuming PE = no public access** — PE only adds a private path; it doesn't remove the public one.
 2. **NSGs not applied because network policies are disabled** — enable `privateEndpointNetworkPolicies` on the subnet first.
 3. **Overly permissive VPC endpoint policies (AWS)** — default endpoint policy allows all actions to all resources. Scope it down.
-4. **No logging** — enable NSG flow logs (Azure), VPC flow logs (AWS/GCP) to monitor PE traffic.
+4. **No logging** — enable VNet flow logs for new Azure deployments and VPC flow logs for AWS/GCP; use NSG flow logs only for legacy migration after checking the Azure lifecycle notice.
 5. **Service firewall exceptions left open** — after enabling PE, remove any "Allow all networks" or specific public IP rules from the service firewall.
 
-> **Analysis only — verify against vendor documentation before applying.**
+**Analysis only — verify against vendor documentation before applying.**

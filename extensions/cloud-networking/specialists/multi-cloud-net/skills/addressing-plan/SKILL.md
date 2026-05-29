@@ -119,4 +119,4 @@ docker compose up -d
 
 **Infoblox** — Enterprise-grade DDI (DNS, DHCP, IPAM) platform with multi-cloud discovery and integration plugins for Azure, AWS, and GCP. Provides automated IP allocation and conflict detection across hybrid environments.
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

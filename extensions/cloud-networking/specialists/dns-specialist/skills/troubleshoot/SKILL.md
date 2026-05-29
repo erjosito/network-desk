@@ -268,4 +268,4 @@ Query fails (NXDOMAIN / timeout / wrong IP)
 └── Is it a cache issue? → Flush cache, wait for TTL
 ```
 
-> **Analysis only — verify against vendor documentation before applying.**
+**Analysis only — verify against vendor documentation before applying.**

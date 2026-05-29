@@ -535,7 +535,7 @@ jobs:
 
 ### Pre-Change Checklist
 - [ ] Terraform plan reviewed (no unexpected destroys)
-- [ ] Security scan passed (Checkov/tfsec)
+- [ ] Security scan passed (Checkov/Trivy config scanning)
 - [ ] Policy compliance verified
 - [ ] Peer review completed (2+ approvals)
 - [ ] Change advisory board notified (if cross-region)
@@ -568,4 +568,4 @@ jobs:
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

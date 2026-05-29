@@ -274,14 +274,15 @@ aws ec2 assign-ipv6-addresses \
 ### GCP IPv6 Ranges
 
 **External IPv6 (GUA):**
-- Google allocates a /96 per subnet from their GUA space
-- VMs get individual /128 addresses from the subnet's /96
+- Google allocates a /64 per subnet from the VPC IPv6 range
+- Each VM NIC receives a /96 range from the subnet; individual addresses are /128
 - Globally routable; use firewall rules for access control
 - Allocated from Google's 2600:1900::/28 range
 
 **Internal IPv6 (ULA):**
 - VPC gets a /48 ULA range (fd20::/20 pool)
-- Subnets get /64 from the VPC's /48 (shown as /96 for VM allocation)
+- Subnets get /64 from the VPC's /48
+- Each VM NIC receives a /96 range from the subnet for VM allocation
 - NOT routable outside the VPC
 - Useful for internal service-to-service communication
 
@@ -393,4 +394,4 @@ for i, a in enumerate(nets):
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

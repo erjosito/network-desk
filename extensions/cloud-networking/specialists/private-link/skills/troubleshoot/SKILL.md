@@ -252,4 +252,4 @@ curl -v https://storage.googleapis.com/my-bucket/test.txt 2>&1 | head -20
 | Check DNS zone links | `az network private-dns link vnet list ...` | `aws route53 list-hosted-zones-by-vpc ...` | `gcloud dns managed-zones list --filter="visibility=private"` |
 | Check NSG/SG | `az network nsg rule list ...` | `aws ec2 describe-security-groups ...` | `gcloud compute firewall-rules list ...` |
 
-> **Analysis only — verify against vendor documentation before applying.**
+**Analysis only — verify against vendor documentation before applying.**

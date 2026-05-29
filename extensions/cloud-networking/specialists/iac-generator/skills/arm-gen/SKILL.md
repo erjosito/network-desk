@@ -26,21 +26,7 @@ Generate production-ready Azure Resource Manager (ARM) JSON templates for networ
 
 ### API Versions
 
-| Resource Type | API Version |
-|---------------|-------------|
-| Microsoft.Network/virtualNetworks | 2024-01-01 |
-| Microsoft.Network/networkSecurityGroups | 2024-01-01 |
-| Microsoft.Network/routeTables | 2024-01-01 |
-| Microsoft.Network/azureFirewalls | 2024-01-01 |
-| Microsoft.Network/firewallPolicies | 2024-01-01 |
-| Microsoft.Network/publicIPAddresses | 2024-01-01 |
-| Microsoft.Network/loadBalancers | 2024-01-01 |
-| Microsoft.Network/applicationGateways | 2024-01-01 |
-| Microsoft.Network/privateDnsZones | 2024-06-01 |
-| Microsoft.Network/privateEndpoints | 2024-01-01 |
-| Microsoft.Network/virtualNetworkGateways | 2024-01-01 |
-| Microsoft.Network/connections | 2024-01-01 |
-| Microsoft.Network/localNetworkGateways | 2024-01-01 |
+Pin API versions that are tested with the template and supported for the target cloud/region. Avoid hard-coded “latest” tables in generated ARM guidance; verify current `Microsoft.Network/*` resource versions in Azure template reference and document any preview-version dependency before use.
 
 ### Naming Convention Variables
 
@@ -462,3 +448,5 @@ az deployment operation group list \
   --resource-group rg-network-prod \
   --name <deployment-name>
 ```
+
+**Analysis only — verify against vendor documentation before applying.**

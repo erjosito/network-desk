@@ -248,4 +248,4 @@ Configure continuous monitoring of branch-to-spoke and spoke-to-spoke connectivi
 - Effective routes: https://learn.microsoft.com/en-us/azure/virtual-wan/effective-routes-virtual-hub
 - Network Watcher: https://learn.microsoft.com/en-us/azure/network-watcher/network-watcher-overview
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

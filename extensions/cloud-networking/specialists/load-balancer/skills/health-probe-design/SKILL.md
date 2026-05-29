@@ -166,9 +166,9 @@ gcloud compute health-checks create grpc my-grpc-check \
 
 For containers and VMs with slow startup (Java apps, large model loading):
 
-- **Azure AppGW**: No native startup probe — increase unhealthy threshold (e.g., 10 × 30s = 5 min grace).
-- **AWS ALB**: Use `initial_health_check` attribute on target registration. Slow start mode ramps traffic gradually.
-- **GCP**: Set a separate **startup health check** with higher thresholds, then switch to the standard check.
+- **Azure AppGW**: No native startup probe — tune probe interval/thresholds and verify current limits in Azure documentation.
+- **AWS ALB**: There is no `initial_health_check` target attribute. Use ECS or Auto Scaling health-check grace periods, target group slow start for gradual traffic ramp, and adjusted health-check thresholds; verify current target group attributes: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-target-group-attributes.html.
+- **GCP**: Use startup probes/health checks supported by the backend platform and verify current load-balancer health-check behavior in GCP documentation.
 
 ---
 
@@ -180,4 +180,4 @@ For containers and VMs with slow startup (Java apps, large model loading):
 4. **Missing firewall rules** — Forgetting to allow the probe source IPs (168.63.129.16, NLB subnet IPs, 35.191.0.0/16).
 5. **No grace period for slow starts** — Containers killed before they finish initializing.
 
-> **Analysis only — verify against vendor documentation before applying.**
+**Analysis only — verify against vendor documentation before applying.**

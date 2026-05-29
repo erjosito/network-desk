@@ -227,4 +227,4 @@ Document the runbook *before* an incident — name on-call, target time-to-revok
 - Mozilla SSL Configuration Generator: https://ssl-config.mozilla.org/
 - SSL Labs server test: https://www.ssllabs.com/ssltest/
 
-**Analysis only — verify against vendor documentation before applying changes.**
+**Analysis only — verify against vendor documentation before applying.**

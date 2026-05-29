@@ -63,7 +63,9 @@ AzureMetrics
 | render timechart
 ```
 
-**NSG Denied Flows Heatmap:**
+**Denied Flows Heatmap (legacy Traffic Analytics schema example):**
+
+Use VNet flow logs and current Traffic Analytics schema fields for new Azure dashboards. The `AzureNetworkAnalytics_CL` / `NSGRule_s` example below is for legacy-schema orientation; NSG flow logs are legacy/migration-only (new creation blocked after 2025-06-30; retire 2027-09-30).
 
 ```kql
 AzureNetworkAnalytics_CL
@@ -146,7 +148,7 @@ Grafana provides a unified dashboarding layer across all three clouds with nativ
 Design a single Grafana dashboard with rows per cloud:
 
 1. **Row 1 — Overview**: Aggregate health score across all clouds using stat panels (green/yellow/red).
-2. **Row 2 — Azure**: ExpressRoute utilization, VPN tunnel status, NSG denied flows, Application Gateway latency.
+2. **Row 2 — Azure**: ExpressRoute utilization, VPN tunnel status, VNet flow-log denied-flow trends (legacy NSG denied-flow panels only where still deployed), Application Gateway latency.
 3. **Row 3 — AWS**: Transit Gateway throughput, NAT Gateway metrics, VPN tunnel status, Direct Connect utilization.
 4. **Row 4 — GCP**: Cloud VPN throughput, Interconnect utilization, Cloud NAT port allocation, firewall rule hit counts.
 5. **Row 5 — Cross-Cloud Links**: Latency between clouds (measured via synthetic probes), bandwidth utilization on interconnects.
@@ -179,4 +181,4 @@ Design three dashboard levels:
 - Add annotations for deployment events, maintenance windows, and known incidents to correlate metrics with change events.
 - Refresh interval: 30 seconds for real-time operations, 5 minutes for trend monitoring.
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

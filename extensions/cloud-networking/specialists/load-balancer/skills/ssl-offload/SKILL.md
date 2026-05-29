@@ -159,4 +159,4 @@ Use **Restricted** profile unless you must support legacy clients (e.g., legacy 
 4. **Backend certs ignored** — when using TLS re-encryption, the LB must trust the backend certificate. Configure the trusted root CA on the LB.
 5. **Mixed content** — after enabling HTTPS on the LB, ensure all backend responses use HTTPS URLs. Use `Strict-Transport-Security` (HSTS) headers.
 
-> **Analysis only — verify against vendor documentation before applying.**
+**Analysis only — verify against vendor documentation before applying.**

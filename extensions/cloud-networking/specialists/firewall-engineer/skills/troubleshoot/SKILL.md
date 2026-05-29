@@ -346,5 +346,4 @@ nft monitor trace    # after adding: nft add rule ... meta nftrace set 1
 | **L7 inspection blocking** | HTTPS or app traffic blocked despite L4 allow rule | SSL decryption errors, App-ID mismatch, IPS signature match | Check security profiles, SSL decryption exceptions, application overrides |
 
 ---
-
-*Analysis only — verify against vendor documentation before applying.*
+**Analysis only — verify against vendor documentation before applying.**

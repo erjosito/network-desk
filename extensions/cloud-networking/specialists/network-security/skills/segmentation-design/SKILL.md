@@ -130,5 +130,4 @@ No VNet peering between prod and staging. Access to shared services via Private 
 3. **Encrypt east-west traffic** — use mutual TLS (mTLS) or IPsec between workloads, even within the same subnet.
 4. **Continuous verification** — regularly audit rules against actual traffic patterns (flow logs). Remove rules that haven't matched traffic in 30+ days.
 5. **Least-privilege network access** — allow only the specific protocol, port, and source required. Avoid port ranges when a single port suffices.
-
 **Analysis only — verify against vendor documentation before applying.**

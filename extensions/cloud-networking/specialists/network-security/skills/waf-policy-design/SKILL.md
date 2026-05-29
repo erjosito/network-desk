@@ -242,5 +242,4 @@ A WAF without telemetry is just a brittle proxy. Required outputs:
 - AWS WAFv2: https://docs.aws.amazon.com/waf/latest/developerguide/waf-chapter.html
 - GCP Cloud Armor: https://cloud.google.com/armor/docs/cloud-armor-overview
 - Cloudflare WAF: https://developers.cloudflare.com/waf/
-
-**Analysis only — verify against vendor documentation before applying changes.**
+**Analysis only — verify against vendor documentation before applying.**

@@ -43,6 +43,11 @@ az storage blob download \
 - Filter limit: 5 filters per capture session.
 - Requires Network Watcher Agent VM extension installed.
 
+### Continuous Packet Capture (preview)
+- Use standard packet capture for bounded, targeted captures; use Continuous packet capture only when you need a longer-running ring buffer for intermittent issues.
+- Preview limits and regional support can change; currently frame it as a ring-buffer capture with a maximum capture window of up to 7 days and configurable file controls.
+- Confirm storage account capacity, retention, and access controls before enabling continuous capture on busy NICs.
+
 ### Filter Syntax
 ```json
 [

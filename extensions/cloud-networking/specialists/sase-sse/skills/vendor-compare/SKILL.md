@@ -37,22 +37,18 @@ Gartner defines separate Magic Quadrants for SSE and SD-WAN, recognizing that mo
 
 **Architecture:**
 
-```
-┌─────────────────────────────────────────────────────┐
-│              Zscaler Zero Trust Exchange              │
-│                                                      │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────────┐  │
-│  │   ZIA    │  │   ZPA    │  │      ZDX         │  │
-│  │ (SWG/FW) │  │ (ZTNA)  │  │ (Monitoring)     │  │
-│  └─────┬────┘  └────┬─────┘  └────────┬─────────┘  │
-│        └─────────────┼─────────────────┘            │
-│                      │                               │
-│         Single-pass inspection engine                │
-│         (decrypt → inspect → re-encrypt)             │
-└──────────────────────┼───────────────────────────────┘
-                       │
-              Zscaler Client Connector
-              (single unified agent)
+```mermaid
+flowchart TB
+    subgraph zte["Zscaler Zero Trust Exchange"]
+        zia["ZIA SWG / FW"]
+        zpa["ZPA ZTNA"]
+        zdx["ZDX Monitoring"]
+        engine["Single-pass inspection engine decrypt → inspect → re-encrypt"]
+        zia --> engine
+        zpa --> engine
+        zdx --> engine
+    end
+    client["Zscaler Client Connector single unified agent"] --> engine
 ```
 
 **Strengths:**
@@ -97,22 +93,16 @@ Gartner defines separate Magic Quadrants for SSE and SD-WAN, recognizing that mo
 
 **Architecture:**
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                Prisma SASE (Strata Cloud Manager)         │
-│                                                          │
-│  ┌────────────────────┐    ┌─────────────────────────┐  │
-│  │   Prisma Access    │    │    Prisma SD-WAN        │  │
-│  │  (SSE Services)    │    │    (CloudGenix)         │  │
-│  │  ─ ZTNA 2.0       │    │  ─ Path selection       │  │
-│  │  ─ SWG / ADEM     │◄──►│  ─ QoS / optimization   │  │
-│  │  ─ CASB / DLP     │    │  ─ Branch CPE           │  │
-│  │  ─ FWaaS (App-ID) │    │  ─ Multi-link mgmt     │  │
-│  └────────────────────┘    └─────────────────────────┘  │
-│                                                          │
-│              Same PAN-OS policy engine                    │
-│              (consistent with on-prem NGFW)               │
-└──────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph prisma["Prisma SASE (Strata Cloud Manager)"]
+        access["Prisma Access SSE services ZTNA 2.0 / SWG / CASB / DLP / FWaaS"]
+        sdwan["Prisma SD-WAN Path selection / QoS / Branch CPE"]
+        panos["Same PAN-OS policy engine consistent with on-prem NGFW"]
+        access <--> sdwan
+        access --> panos
+        sdwan --> panos
+    end
 ```
 
 **Strengths:**
@@ -158,24 +148,24 @@ Gartner defines separate Magic Quadrants for SSE and SD-WAN, recognizing that mo
 
 **Architecture:**
 
-```
-┌────────────────────────────────────────────────────────┐
-│                    Netskope Platform                     │
-│                                                         │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │              NewEdge Global Network                │  │
-│  │  (Every PoP = full compute, no traffic trombone)  │  │
-│  └──────────────────────────────────────────────────┘  │
-│                                                         │
-│  ┌─────────┐ ┌─────────┐ ┌────────┐ ┌──────────────┐ │
-│  │  SWG    │ │  CASB   │ │  NPA   │ │   FWaaS      │ │
-│  │         │ │(API+Inl)│ │ (ZTNA) │ │              │ │
-│  └─────────┘ └─────────┘ └────────┘ └──────────────┘ │
-│                                                         │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │  Cloud XD + Zero Trust Engine + Advanced DLP      │  │
-│  └──────────────────────────────────────────────────┘  │
-└────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph netskope["Netskope Platform"]
+        newedge["NewEdge Global Network full compute at every PoP"]
+        swg[SWG]
+        casb["CASB API + inline"]
+        npa["NPA ZTNA"]
+        fwaas[FWaaS]
+        engine[Cloud XD + Zero Trust Engine + Advanced DLP]
+        newedge --> swg
+        newedge --> casb
+        newedge --> npa
+        newedge --> fwaas
+        swg --> engine
+        casb --> engine
+        npa --> engine
+        fwaas --> engine
+    end
 ```
 
 **Strengths:**
@@ -250,7 +240,7 @@ Gartner defines separate Magic Quadrants for SSE and SD-WAN, recognizing that mo
 
 **Company Overview:**
 - Microsoft's SSE entry (Global Secure Access) launched 2023
-- Integrates with Azure AD/Entra ID (largest enterprise IdP)
+- Integrates with Microsoft Entra ID (largest enterprise IdP)
 - Part of Microsoft Entra product family
 - Leverages Microsoft's global network backbone
 
@@ -263,9 +253,9 @@ Gartner defines separate Magic Quadrants for SSE and SD-WAN, recognizing that mo
 - **Microsoft Purview:** DLP and information protection
 
 **Strengths:**
-- Deepest Azure AD/Entra ID integration (identity is the perimeter)
+- Deepest Microsoft Entra ID integration (identity is the perimeter)
 - Conditional Access: Most advanced context-based policy engine
-- Included in Microsoft 365 E5 licensing (potential cost advantage)
+- Licensing depends on current Microsoft Entra Suite, Microsoft Entra Private Access, and Microsoft Entra Internet Access entitlements; verify current pricing and bundles before assuming inclusion: https://www.microsoft.com/en-us/security/business/microsoft-entra-pricing
 - Microsoft global network: Low-latency backbone for O365 traffic
 - No additional IdP integration needed for Microsoft-centric orgs
 - Rapid innovation pace from Microsoft security team
@@ -274,7 +264,7 @@ Gartner defines separate Magic Quadrants for SSE and SD-WAN, recognizing that mo
 **Considerations:**
 - Newest entrant — still maturing feature set
 - SWG capabilities not yet on par with Zscaler/Netskope
-- Limited third-party IdP support (Azure AD-centric)
+- Limited third-party IdP support (Microsoft Entra ID-centric)
 - CASB (MDA) is strong but separate from Global Secure Access
 - SD-WAN: No native offering (use Azure vWAN or partner)
 - Limited non-Microsoft app ecosystem coverage in ZTNA
@@ -284,8 +274,8 @@ Gartner defines separate Magic Quadrants for SSE and SD-WAN, recognizing that mo
 **Ideal for:**
 - Microsoft-centric organizations (M365, Azure, Entra ID)
 - Companies wanting to consolidate on Microsoft security stack
-- Organizations with E5 licensing (included capabilities)
-- Quick-win ZTNA for Azure AD-authenticated applications
+- Organizations already invested in Microsoft licensing, after verifying current Entra Suite / Private Access / Internet Access entitlements
+- Quick-win ZTNA for Microsoft Entra ID-authenticated applications
 - Complementary layer alongside best-of-breed SSE
 
 ---
@@ -331,22 +321,78 @@ Gartner defines separate Magic Quadrants for SSE and SD-WAN, recognizing that mo
 
 ---
 
+### Cloudflare One
+
+**Company Overview:**
+- Global edge network combining Zero Trust services with application and network connectivity.
+- Strong fit for organizations already using Cloudflare for DNS, CDN, WAF, or application delivery.
+
+**Platform Components:**
+- **Cloudflare Gateway:** SWG, DNS filtering, RBI, DLP, and network firewall controls.
+- **Cloudflare Access:** ZTNA for private and SaaS applications.
+- **Magic WAN / Magic Firewall:** Network connectivity and cloud-delivered L3/L4 policy.
+- **CASB:** SaaS posture and data exposure visibility for supported applications.
+
+**Strengths:**
+- Large global edge footprint and strong web/application delivery integration.
+- Agent, clientless, and tunnel-based deployment options.
+- Attractive for internet-facing app protection plus workforce access consolidation.
+
+**Considerations:**
+- Validate depth of CASB/DLP and regulated-industry controls against requirements.
+- SD-WAN replacement scope depends on current Magic WAN capabilities and partner design.
+- Verify current feature availability by region and plan.
+
+**Ideal for:**
+- Organizations already invested in Cloudflare edge services.
+- Teams wanting to converge app delivery, Zero Trust access, DNS security, and internet egress controls.
+
+---
+
+### Cato Networks
+
+**Company Overview:**
+- Converged SASE provider with private global backbone, SD-WAN edge, and cloud security stack delivered as one service.
+- Strong single-vendor option for branch-heavy organizations modernizing MPLS, VPN, and security appliances together.
+
+**Platform Components:**
+- **Cato SASE Cloud:** SWG, FWaaS, ZTNA, CASB-related controls, threat prevention, and DLP capabilities.
+- **Cato Socket / IPsec connectivity:** Branch and cloud connectivity into Cato PoPs.
+- **Client access:** Endpoint client for remote users.
+- **Management application:** Unified policy, routing, and analytics.
+
+**Strengths:**
+- Integrated networking + security operations with one policy model.
+- Strong branch transformation story for replacing MPLS and distributed appliances.
+- Simplified operations for lean infrastructure teams.
+
+**Considerations:**
+- Verify advanced CASB/DLP depth against specialist SSE vendors.
+- Validate PoP proximity, data residency, and backbone performance for all regions.
+- Existing SD-WAN investments may reduce the benefit of a full-stack replacement.
+
+**Ideal for:**
+- Distributed enterprises seeking a single-vendor SASE backbone.
+- Organizations prioritizing operational simplicity across branch, remote user, and cloud connectivity.
+
+---
+
 ## Decision Framework
 
 ### Vendor Selection Criteria Matrix
 
-| Criteria | Weight (Example) | Zscaler | Palo Alto | Netskope | Cisco | Microsoft | Fortinet |
-|----------|------------------|---------|-----------|----------|-------|-----------|----------|
-| SWG/URL Filtering | High | ★★★★★ | ★★★★☆ | ★★★★★ | ★★★☆☆ | ★★★☆☆ | ★★★☆☆ |
-| ZTNA | High | ★★★★★ | ★★★★★ | ★★★★☆ | ★★★☆☆ | ★★★★☆ | ★★★☆☆ |
-| CASB/DLP | High | ★★★★☆ | ★★★★☆ | ★★★★★ | ★★★☆☆ | ★★★★☆ | ★★★☆☆ |
-| SD-WAN (native) | Medium | ☆☆☆☆☆ | ★★★★☆ | ★★★☆☆ | ★★★★★ | ☆☆☆☆☆ | ★★★★★ |
-| Global PoP coverage | High | ★★★★★ | ★★★★☆ | ★★★★☆ | ★★★★☆ | ★★★★★ | ★★★☆☆ |
-| Ease of deployment | Medium | ★★★★☆ | ★★★☆☆ | ★★★★☆ | ★★★☆☆ | ★★★★★ | ★★★★☆ |
-| Cost (TCO) | Medium | ★★☆☆☆ | ★★☆☆☆ | ★★★☆☆ | ★★★☆☆ | ★★★★★ | ★★★★☆ |
-| Existing infra fit | Varies | N/A | PAN-OS | N/A | Cisco | Microsoft | Fortinet |
+| Criteria | Weight (Example) | Zscaler | Palo Alto | Netskope | Cisco | Microsoft | Fortinet | Cloudflare One | Cato Networks |
+|----------|------------------|---------|-----------|----------|-------|-----------|----------|----------------|---------------|
+| SWG/URL Filtering | High | ★★★★★ | ★★★★☆ | ★★★★★ | ★★★☆☆ | ★★★☆☆ | ★★★☆☆ | ★★★★☆ | ★★★★☆ |
+| ZTNA | High | ★★★★★ | ★★★★★ | ★★★★☆ | ★★★☆☆ | ★★★★☆ | ★★★☆☆ | ★★★★☆ | ★★★★☆ |
+| CASB/DLP | High | ★★★★☆ | ★★★★☆ | ★★★★★ | ★★★☆☆ | ★★★★☆ | ★★★☆☆ | ★★★☆☆ | ★★★☆☆ |
+| SD-WAN (native) | Medium | ☆☆☆☆☆ | ★★★★☆ | ★★★☆☆ | ★★★★★ | ☆☆☆☆☆ | ★★★★★ | ★★★☆☆ | ★★★★★ |
+| Global PoP coverage | High | ★★★★★ | ★★★★☆ | ★★★★☆ | ★★★★☆ | ★★★★★ | ★★★☆☆ | ★★★★★ | ★★★★☆ |
+| Ease of deployment | Medium | ★★★★☆ | ★★★☆☆ | ★★★★☆ | ★★★☆☆ | ★★★★★ | ★★★★☆ | ★★★★☆ | ★★★★☆ |
+| Cost (TCO) | Medium | ★★☆☆☆ | ★★☆☆☆ | ★★★☆☆ | ★★★☆☆ | Verify current entitlements | ★★★★☆ | ★★★☆☆ | ★★★☆☆ |
+| Existing infra fit | Varies | N/A | PAN-OS | N/A | Cisco | Microsoft | Fortinet | Cloudflare | Cato |
 
-*(Stars are illustrative — actual scoring should be based on specific requirements and current vendor capabilities)*
+*(Stars are illustrative — actual scoring should be based on specific requirements, PoC evidence, and current vendor documentation.)*
 
 ### Decision Criteria Deep Dive
 
@@ -371,7 +417,7 @@ Gartner defines separate Magic Quadrants for SSE and SD-WAN, recognizing that mo
 **4. Budget:**
 - Enterprise (unlimited budget) → Zscaler or Palo Alto
 - Mid-market (cost-conscious) → Fortinet or Cisco
-- Microsoft E5 already licensed → Microsoft (included capabilities)
+- Microsoft licensing already in place → verify current Entra Suite / Private Access / Internet Access entitlements before modeling Microsoft as a lower-cost option
 - Per-user vs per-appliance → Cloud vendors (per-user) vs hardware (CapEx)
 
 **5. Operational Maturity:**
@@ -456,5 +502,4 @@ Gartner defines separate Magic Quadrants for SSE and SD-WAN, recognizing that mo
 → Single vendor, leverages existing Cisco skills and hardware
 
 ---
-
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

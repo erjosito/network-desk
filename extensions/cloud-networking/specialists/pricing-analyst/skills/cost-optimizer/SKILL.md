@@ -131,13 +131,17 @@ Azure savings plans for compute can reduce NVA (VM-based firewall) costs by up t
 
 ### NAT Gateway vs. Load Balancer SNAT
 
-| Approach | Cost (Azure) | Notes |
-|---|---|---|
-| NAT Gateway | $0.045/hr + $0.045/GB | Best for outbound-heavy workloads |
-| LB SNAT (outbound rules) | Free (if LB exists) | Limited port count, risk of SNAT exhaustion |
-| Instance-level public IPs | $3.60/month per IP | Simple but exposes VMs |
+> **Pricing assumption reviewed 2026-05-29:** NAT gateway rates change frequently. Use the provider calculators/pricing pages for exact numbers; examples here are illustrative only.
 
-> **Recommendation:** If you already have a Standard LB, use outbound rules before adding a NAT Gateway. NAT Gateway data processing charges ($0.045/GB) add up quickly.
+| Approach | Cost model | Notes |
+|---|---|---|
+| Azure NAT Gateway | Gateway uptime + data processing + public IP resources | Best for managed outbound at scale; verify Standard vs StandardV2 needs |
+| AWS NAT Gateway | Gateway uptime + data processing + public IPv4 charges + egress | Avoid sending AWS-service traffic through NAT when Gateway/Interface Endpoints exist |
+| GCP Cloud NAT | Gateway uptime + data processing + public IP hourly charges + egress | Do not model as data-processing-only; see https://cloud.google.com/nat/pricing |
+| LB SNAT / existing egress path | Often lower incremental cost if already deployed | Limited port count, operational constraints, and cloud-specific support |
+| Instance-level public IPs | Public IP hourly/monthly charges + exposure risk | Simple but increases attack surface |
+
+> **Recommendation:** If you already have a supported load balancer or private endpoint path, evaluate it before adding a NAT Gateway. NAT data processing and public IP charges can dominate outbound-heavy workloads.
 
 ### Hub-Spoke vs. Flat Network
 
@@ -220,7 +224,7 @@ Run through this checklist quarterly:
 | 8 | Clean up orphaned LBs | Check for LBs with no backends | $18+/month per LB |
 | 9 | Consider reserved circuits | Compare PAYG vs 1yr/3yr ER pricing | 15-30% savings |
 | 10 | Review inter-region traffic | Check if replicas can be moved closer | $0.02-$0.08/GB saved |
-| 11 | Check NAT Gateway data processing | Review outbound traffic volume | $0.045/GB (significant at scale) |
+| 11 | Check NAT Gateway cost model | Review gateway uptime, data processing, public IPs, and egress | Significant at scale; verify current rates |
 | 12 | Audit firewall data processing | Right-size or consider NVA at high volume | Variable |
 
 ---
@@ -248,3 +252,4 @@ aws ce create-anomaly-monitor --anomaly-monitor '{
 ```
 
 Pricing is indicative — verify against current vendor pricing pages before budgeting.
+**Analysis only — verify against vendor documentation before applying.**

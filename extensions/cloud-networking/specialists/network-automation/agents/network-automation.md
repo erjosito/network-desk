@@ -56,4 +56,4 @@ Structure responses as:
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

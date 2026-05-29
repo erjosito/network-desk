@@ -444,7 +444,7 @@ AzureDiagnostics
 AzureDiagnostics
 | where Category == "FrontDoorAccessLog"
 | where timeTaken_d > 1000
-| project TimeGenerated, requestUri_s, timeTaken_d, 
+| project TimeGenerated, requestUri_s, timeTaken_d,
     httpStatusCode_d, cacheStatus_s, pop_s
 | order by timeTaken_d desc
 | take 50
@@ -520,4 +520,4 @@ gcloud logging read '
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

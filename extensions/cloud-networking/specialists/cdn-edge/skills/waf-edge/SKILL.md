@@ -290,13 +290,13 @@ aws cloudfront update-distribution \
 | AWSManagedRulesCommonRuleSet | 700 | Core OWASP rules |
 | AWSManagedRulesSQLiRuleSet | 200 | SQL injection |
 | AWSManagedRulesKnownBadInputsRuleSet | 200 | Log4j, path traversal |
-| AWSManagedRulesBotControlRuleSet | 50 (common) / 725 (targeted) | Bot detection |
+| AWSManagedRulesBotControlRuleSet | 50 base WCU — verify current WCU in AWS docs | Bot detection; pricing/inspection level is separate |
 | AWSManagedRulesATPRuleSet | 50 | Account takeover prevention |
 | AWSManagedRulesACFPRuleSet | 50 | Account creation fraud |
 | AWSManagedRulesAmazonIpReputationList | 25 | Known malicious IPs |
 | AWSManagedRulesAnonymousIpList | 50 | VPN, Tor, proxy IPs |
 
-**WCU limit per WebACL: 5,000** (request increase if needed)
+Verify current WCU quotas and managed rule group capacities before deployment: https://docs.aws.amazon.com/waf/latest/developerguide/limits.html.
 
 ### GCP Cloud Armor Policies
 
@@ -479,9 +479,9 @@ Example: 1000 requests per 1 minute per IP for /api/* paths
 ```
 
 **AWS WAF rate-based rules:**
-- Minimum threshold: 100 requests per 5-minute window
-- Evaluation window: 1 minute or 5 minutes
-- Aggregate keys: IP, forwarded IP, custom keys (headers, query, cookies)
+- Current documented minimum threshold is 10 requests per evaluation window; verify current quotas before deployment: https://docs.aws.amazon.com/waf/latest/developerguide/limits.html.
+- Evaluation windows and aggregate keys change over time; verify supported windows and keys in AWS WAF documentation.
+- Aggregate keys include IP/forwarded IP and supported custom keys (headers, query, cookies) where available.
 
 **GCP Cloud Armor throttle:**
 - Rate threshold: count per interval
@@ -624,4 +624,4 @@ gcloud compute security-policies rules create 300 \
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

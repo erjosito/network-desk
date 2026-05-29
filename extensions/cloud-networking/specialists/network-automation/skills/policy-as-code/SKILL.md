@@ -15,8 +15,8 @@ Enforce network security and compliance policies programmatically — before dep
 │                                                                    │
 │  IDE / Pre-commit ──► CI Pipeline ──► Deployment ──► Runtime      │
 │       │                    │               │             │         │
-│    tfsec plugin       Checkov/OPA      ARM/Terraform   Azure      │
-│    Bicep linter       tfsec            deny effects    Policy     │
+│    Trivy/Checkov      Checkov/OPA      ARM/Terraform   Azure      │
+│    Bicep linter       Trivy config     deny effects    Policy     │
 │                       Terrascan                        AWS Config │
 │                       Sentinel                         SCPs       │
 │                                                                    │
@@ -138,7 +138,7 @@ resource "azurerm_management_group_policy_assignment" "deny_public_ip" {
 
 ### AWS Service Control Policies + Config Rules
 
-#### SCP: Deny VPC with Internet Gateway in Production
+#### SCP: Deny Internet Gateway Creation in Production
 
 ```json
 {
@@ -158,24 +158,24 @@ resource "azurerm_management_group_policy_assignment" "deny_public_ip" {
           "aws:PrincipalTag/environment": "production"
         }
       }
-    },
-    {
-      "Sid": "DenyPublicSubnets",
-      "Effect": "Deny",
-      "Action": [
-        "ec2:CreateRoute"
-      ],
-      "Resource": "*",
-      "Condition": {
-        "StringEquals": {
-          "ec2:RouteTableId": "*"
-        },
-        "IpAddress": {
-          "ec2:DestinationCidr": "0.0.0.0/0"
-        }
-      }
     }
   ]
+}
+```
+
+Do not use unsupported EC2 condition keys such as `ec2:RouteTableId` or `ec2:DestinationCidr` to deny `ec2:CreateRoute`; AWS will not enforce that intent. For default-route control, use detective/remediation controls such as AWS Config custom rules or EventBridge on CloudTrail `CreateRoute` events, then validate route table tags/owners and delete or quarantine unauthorized `0.0.0.0/0` routes.
+
+```json
+{
+  "source": ["aws.ec2"],
+  "detail-type": ["AWS API Call via CloudTrail"],
+  "detail": {
+    "eventSource": ["ec2.amazonaws.com"],
+    "eventName": ["CreateRoute"],
+    "requestParameters": {
+      "destinationCidrBlock": ["0.0.0.0/0"]
+    }
+  }
 }
 ```
 
@@ -349,40 +349,57 @@ soft_fail_on:
     soft_fail: false
 ```
 
-#### tfsec Custom Rules
+#### Trivy Config Scanning with Custom Rego
+
+Use Trivy config scanning for Terraform misconfiguration checks. tfsec custom rules are legacy; migrate custom checks to Rego policies that can run with Trivy or OPA.
 
 ```yaml
-# .tfsec/custom_rules.yml
----
-checks:
-  - code: CUSTOM-NET-001
-    description: VNet peering must not allow forwarded traffic from untrusted VNets
-    requiredTypes:
-      - resource
-    requiredLabels:
-      - azurerm_virtual_network_peering
-    severity: HIGH
-    matchSpec:
-      name: allow_forwarded_traffic
-      action: equals
-      value: false
-    errorMessage: >
-      VNet peering should not allow forwarded traffic unless
-      explicitly approved. Set allow_forwarded_traffic = false.
+# trivy.yaml
+scan:
+  scanners:
+    - misconfig
+misconfiguration:
+  terraform:
+    exclude-downloaded-modules: false
+  policy:
+    - policy/trivy
+severity:
+  - HIGH
+  - CRITICAL
+```
 
-  - code: CUSTOM-NET-002
-    description: All subnets must have service endpoints for storage
-    requiredTypes:
-      - resource
-    requiredLabels:
-      - azurerm_subnet
-    severity: MEDIUM
-    matchSpec:
-      name: service_endpoints
-      action: contains
-      value: Microsoft.Storage
-    errorMessage: >
-      Subnet missing Microsoft.Storage service endpoint.
+```rego
+# policy/trivy/azure_network.rego
+package user.azure.network
+
+deny[res] {
+  input.resource_type == "azurerm_virtual_network_peering"
+  input.config.allow_forwarded_traffic.value == true
+  res := {
+    "msg": sprintf("VNet peering %s allows forwarded traffic; require explicit approval.", [input.__defsec_metadata.resource]),
+    "severity": "HIGH"
+  }
+}
+
+deny[res] {
+  input.resource_type == "azurerm_subnet"
+  not input.config.service_endpoints
+  res := {
+    "msg": sprintf("Subnet %s is missing required service endpoint review.", [input.__defsec_metadata.resource]),
+    "severity": "MEDIUM"
+  }
+}
+```
+
+```yaml
+# CI integration
+- name: Trivy Terraform config scan
+  uses: aquasecurity/trivy-action@<pinned-full-length-commit-sha>
+  with:
+    scan-type: config
+    scan-ref: infrastructure/network
+    trivy-config: trivy.yaml
+    exit-code: "1"
 ```
 
 #### Terrascan
@@ -414,7 +431,7 @@ checks:
 | NSG on all subnets | Deny subnet without NSG | Azure Policy |
 | Flow logs enabled | DeployIfNotExists | Azure Policy / Config Rule |
 | No 0.0.0.0/0 ingress | Deny NSG rule | OPA + Azure Policy |
-| Require encryption | Deny unencrypted VPN | OPA / tfsec |
+| Require encryption | Deny unencrypted VPN | OPA / Trivy config scanning |
 | Private endpoints only | Deny public access on PaaS | Azure Policy |
 | Approved regions only | Deny outside allowed regions | Azure Policy / SCP |
 | Tag compliance | Deny untagged network resources | Azure Policy / SCP |
@@ -488,4 +505,4 @@ az deployment group what-if \
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

@@ -21,7 +21,7 @@ Each stage serves a distinct purpose:
 | Lint | Syntax and formatting (terraform fmt, bicep lint) | Block PR merge |
 | Validate | Schema and reference validation | Block PR merge |
 | Plan | Preview changes, detect drift | Post to PR for review |
-| Security Scan | Policy-as-code checks (tfsec, Checkov) | Block PR merge |
+| Security Scan | Policy-as-code checks (Trivy config scanning, Checkov, OPA) | Block PR merge |
 | Approve | Human gate for production changes | Wait or timeout |
 | Apply | Execute infrastructure changes | Trigger rollback |
 | Test | Post-deployment connectivity validation | Alert + potential rollback |
@@ -49,7 +49,7 @@ permissions:
   pull-requests: write  # Post plan comments
 
 env:
-  TF_VERSION: "1.7.0"
+  TF_VERSION: "<org-approved-current-terraform-version>"
   WORKING_DIR: "infrastructure/network"
 
 jobs:
@@ -105,10 +105,15 @@ jobs:
           output_format: sarif
           soft_fail: false
 
-      - name: tfsec
-        uses: aquasecurity/tfsec-action@v1.0.3
+      - name: Trivy Terraform config scan
+        uses: aquasecurity/trivy-action@<pinned-full-length-commit-sha>
         with:
-          working_directory: ${{ env.WORKING_DIR }}
+          scan-type: config
+          scan-ref: ${{ env.WORKING_DIR }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          exit-code: "1"
 
   plan:
     runs-on: ubuntu-latest
@@ -225,6 +230,11 @@ jobs:
           ./tests/network/smoke-tests.sh
 ```
 
+
+### GitHub Actions Supply-Chain Hardening
+
+For production network pipelines, pin third-party actions to full-length commit SHAs instead of mutable tags (for example, `actions/checkout@<full-length-sha>` after allowlisting the source repository). Restrict allowed actions at the organization/repository level to GitHub-owned actions plus explicitly approved vendors, and require CODEOWNERS review for `.github/workflows/**` changes. Review and refresh SHA pins on a scheduled cadence.
+
 ### GitHub Actions for Bicep Network Deployments
 
 ```yaml
@@ -324,7 +334,7 @@ pr:
 variables:
   - group: network-secrets
   - name: tfVersion
-    value: '1.7.0'
+    value: '<org-approved-current-terraform-version>'
   - name: workingDir
     value: 'infrastructure/network'
 
@@ -553,7 +563,7 @@ version: "1"
 stacks:
   network-hub:
     path: infrastructure/network/hub
-    terraform_version: "1.7.0"
+    terraform_version: "<org-approved-current-terraform-version>"
     autodeploy: false
     before_apply:
       - checkov -d . --framework terraform
@@ -562,7 +572,7 @@ stacks:
 
   network-spokes:
     path: infrastructure/network/spokes
-    terraform_version: "1.7.0"
+    terraform_version: "<org-approved-current-terraform-version>"
     autodeploy: false
     depends_on:
       - network-hub
@@ -570,7 +580,7 @@ stacks:
 
 ## Best Practices
 
-1. **Pin tool versions** — Always pin Terraform, provider, and action versions to avoid surprise breakage
+1. **Pin tool versions** — Pin Terraform/providers to org-approved current versions and pin GitHub Actions to full-length SHAs from allowlisted sources
 2. **Use saved plans** — Generate plan in one job, apply that exact plan in another (never plan-and-apply in one step for production)
 3. **OIDC over secrets** — Prefer workload identity federation; eliminate long-lived credentials
 4. **Limit blast radius** — Split network into logical stacks (hub, spokes, DNS, firewall) with separate state files
@@ -583,4 +593,4 @@ stacks:
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

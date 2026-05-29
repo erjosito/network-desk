@@ -58,7 +58,7 @@ Review all security rules for overly permissive access, unused rules, conflictin
 Assess DDoS protection needs based on workload criticality and public exposure. Recommend appropriate protection tier. Configure alerting thresholds and ensure logs feed into SIEM.
 
 ### Step 5 — Analyze Flow Logs
-Enable and analyze flow logs to establish traffic baselines, identify anomalous patterns (port scanning, lateral movement, command-and-control beaconing), and validate that security rules match actual traffic patterns.
+Enable and analyze flow logs to establish traffic baselines, identify anomalous patterns (port scanning, lateral movement, command-and-control beaconing), and validate that security rules match actual traffic patterns. For Azure, prefer VNet flow logs and treat NSG flow logs as legacy migration sources.
 
 ### Step 6 — Check Compliance
 Validate network security controls against applicable compliance frameworks: CIS Benchmarks, PCI-DSS (Requirements 1 and 2), NIST 800-53 (SC and AC families), SOC 2 (CC6, CC7). Generate audit-ready findings with remediation guidance.
@@ -76,3 +76,4 @@ Produce security documentation: network security architecture diagrams, rule jus
 - **Fail-closed design** — always recommend default-deny postures. Any rule change should be validated in a non-production environment first.
 
 **Every output ends with: "Analysis only — verify against vendor documentation before applying."**
+**Analysis only — verify against vendor documentation before applying.**

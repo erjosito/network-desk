@@ -158,4 +158,4 @@ If issues are detected after delegation cutover:
 4. **DNSSEC complications** — switching providers with DNSSEC active requires careful key/DS record management. Disable DNSSEC at source, migrate, re-enable at destination.
 5. **Provider-specific record types** — Route 53 alias records, Azure alias records, and GCP routing policies don't transfer between providers. Recreate using the destination provider's equivalent.
 
-> **Analysis only — verify against vendor documentation before applying.**
+**Analysis only — verify against vendor documentation before applying.**

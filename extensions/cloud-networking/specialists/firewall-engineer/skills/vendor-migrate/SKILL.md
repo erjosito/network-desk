@@ -190,7 +190,7 @@ nft add rule inet filter forward iifname "eth1" oifname "eth0" tcp sport 443 ct 
 
 | Tool | Vendor Support | Notes |
 |------|---------------|-------|
-| **Palo Alto Expedition** | Cisco ASA, Check Point, FortiGate → PAN-OS | Free tool from Palo Alto; web-based interface |
+| **Palo Alto Expedition** | Cisco ASA, Check Point, FortiGate → PAN-OS | **EOL/unsupported** — do not plan new migrations around Expedition; use supported Palo Alto migration paths such as Strata Cloud Manager workflows and verify current guidance: https://live.paloaltonetworks.com/t5/expedition-articles/important-update-end-of-life-announcement-for-palo-alto-networks/ta-p/589642 |
 | **Tufin SecureTrack/SecureChange** | Multi-vendor policy management and migration | Commercial; supports most enterprise firewalls |
 | **AlgoSec FireFlow** | Multi-vendor change management | Commercial; includes migration workflows |
 | **FireMon** | Multi-vendor policy analysis | Commercial; helps with pre-migration audit |
@@ -198,5 +198,4 @@ nft add rule inet filter forward iifname "eth1" oifname "eth0" tcp sport 443 ct 
 | **Manual scripting** | Any → Any | Python/Ansible scripts for custom translations; most flexible |
 
 ---
-
-*Analysis only — verify against vendor documentation before applying.*
+**Analysis only — verify against vendor documentation before applying.**

@@ -242,8 +242,8 @@ Azure:
 AWS:
 - Single flow within placement group: up to 10 Gbps (Enhanced Networking)
 - Single flow across AZs: 5 Gbps
-- Single flow through Transit Gateway: 10 Gbps (intra-AZ)
-- Single flow through NAT Gateway: 45 Gbps
+- Single flow through Transit Gateway: depends on attachment/AZ path and flow hashing; verify current quotas
+- Single flow through NAT Gateway: no separate hardcoded per-flow planning value here; size against per-gateway bandwidth, packets-per-second, and per-destination connection quotas
 
 GCP:
 - Single flow between VMs (same zone): up to 32 Gbps (with gVNIC, T2D/C3)
@@ -293,25 +293,24 @@ Mitigation for imbalance:
 
 #### Azure NAT Gateway
 ```
-Per-flow: 44.29 Gbps (effectively unlimited per flow)
-Per-public IP: 50 Gbps, 64,512 SNAT ports
-Max public IPs: 16
-Max aggregate: 800 Gbps (16 × 50 Gbps)
-Max SNAT ports: 1,032,192 (16 × 64,512)
+Bandwidth: per NAT gateway resource, not multiplied by public IP count.
+- Standard NAT Gateway: up to 50 Gbps per resource.
+- StandardV2 NAT Gateway: up to 100 Gbps per resource where available.
+SNAT inventory: 64,512 SNAT ports per public IP address; public IP count scales ports, not bandwidth.
 
 SNAT port calculation:
-- Each unique (destination IP, destination port, protocol) = 1 SNAT port
-- Port reuse timer: 4 minutes (TCP FIN), 65 seconds (TCP RST), 4 minutes (UDP)
-- Ports per VM = total_ports / backend_instances (dynamic allocation)
+- Use 64,512 ports per public IP for inventory planning.
+- Each unique outbound flow consumes source-port capacity against destination IP, destination port, and protocol uniqueness.
+- Avoid brittle reuse-timer assumptions in sizing; validate with Azure Monitor metrics and current Azure limits/quotas.
 ```
 
 #### AWS NAT Gateway
 ```
-Per-NAT Gateway: 100 Gbps aggregate (scales to 100 Gbps)
-Per-flow: 45 Gbps (single destination)
-Connections per destination: 55,000 simultaneous
-Connections total: 1,000,000 simultaneous
-New connections: 10,000/second per destination
+Per-NAT Gateway bandwidth: starts at 5 Gbps and scales up to 100 Gbps.
+Packet rate: scales from 1 million to 10 million packets per second.
+Connections per unique destination: 55,000 simultaneous connections per IPv4 address for each destination IP, destination port, and protocol.
+Scaling pattern: deploy one NAT gateway per AZ for resilience and capacity locality; add secondary private IPv4 addresses or additional NAT gateways when per-destination connection capacity is the bottleneck.
+Sizing note: verify current AWS Service Quotas and CloudWatch metrics before committing capacity.
 ```
 
 #### GCP Cloud NAT
@@ -409,4 +408,4 @@ Flows for line rate: 1,250 / 641 = 2 flows minimum
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

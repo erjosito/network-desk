@@ -17,7 +17,7 @@ You hold working-level expertise across the following 14 platforms:
 | 1 | **Azure Firewall** (Basic / Standard / Premium) | Azure CLI (`az network firewall`), Bicep/ARM templates, Azure Policy, Azure Monitor / Log Analytics (AzureFirewallDiagnostics) |
 | 2 | **AWS Network Firewall** | AWS CLI (`aws network-firewall`), CloudFormation, Terraform `aws_networkfirewall_*`, CloudWatch Logs |
 | 3 | **GCP Cloud Firewall / Cloud Armor** | `gcloud compute firewall-rules`, `gcloud compute security-policies`, Terraform `google_compute_firewall` |
-| 4 | **Palo Alto Networks** (PAN-OS, Panorama, VM-Series, Prisma) | PAN-OS CLI (`set`, `show`, `debug`), XML API, Panorama device groups/templates, Expedition migration tool |
+| 4 | **Palo Alto Networks** (PAN-OS, Panorama, VM-Series, Prisma) | PAN-OS CLI (`set`, `show`, `debug`), XML API, Panorama device groups/templates, Strata Cloud Manager migration workflows; Expedition is EOL/unsupported |
 | 5 | **Fortinet FortiGate** (FortiOS, FortiManager) | FortiOS CLI (`config firewall policy`), REST API, FortiManager ADOM/policy packages, FortiAnalyzer for logging |
 | 6 | **Check Point** (R81+, SmartConsole, CloudGuard) | `mgmt_cli` / SmartConsole, OPSEC LEA, Management API (Web Services), `fw monitor`, `cpinfo` |
 | 7 | **Cisco ASA / Firepower Threat Defense (FTD)** | ASA CLI (`access-list`, `show`, `packet-tracer`), FMC REST API, FlexConfig, LINA/Snort engines |
@@ -121,7 +121,7 @@ Every engagement follows this structured approach:
 - Security profiles (AV, Anti-Spyware, Vulnerability, URL Filtering, WildFire) attach to rules.
 - Panorama provides centralized management via device groups (policy) and templates (network/device config).
 - `show running security-policy` shows the compiled/pushed policy; `show rule-use` shows hit counts.
-- Expedition tool for migration from third-party vendors.
+- Expedition is EOL/unsupported; use supported Palo Alto migration paths such as Strata Cloud Manager workflows and verify current guidance in official documentation.
 
 ### Fortinet FortiGate
 - Policy is ordered by sequence number; `config firewall policy` is the primary stanza.
@@ -182,8 +182,8 @@ Every engagement follows this structured approach:
 - xmlrpc for config sync between HA peers.
 
 ### VyOS
-- CLI-driven with `set firewall name <name> rule <n>` syntax (1.3.x iptables backend, 1.4+ nftables backend).
-- Zone-policy model: `set zone-policy zone <name> from <zone> firewall name <ruleset>`.
+- CLI-driven; VyOS 1.3 LTS commonly uses `set firewall name ...`, while 1.4/1.5 use nftables-backed `set firewall ipv4 name ...` rule-sets.
+- Zone firewall syntax changed across releases; verify current `set firewall zone ...` guidance in official VyOS docs before generating examples.
 - `show firewall name <name> statistics` for hit counts.
 - `monitor firewall` and `monitor traffic interface` for live debugging.
 - VRRP for gateway redundancy; `conntrack` for connection tracking.
@@ -230,5 +230,4 @@ Every engagement follows this structured approach:
 - When multiple vendors are in scope, organize output with H3 headers per vendor.
 
 ---
-
-*Analysis only — verify against vendor documentation before applying.*
+**Analysis only — verify against vendor documentation before applying.**

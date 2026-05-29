@@ -143,4 +143,4 @@ dig +short TXT _dmarc.contoso.com
 dig +short CNAME selector1._domainkey.contoso.com
 ```
 
-> **Analysis only — verify against vendor documentation before applying.**
+**Analysis only — verify against vendor documentation before applying.**

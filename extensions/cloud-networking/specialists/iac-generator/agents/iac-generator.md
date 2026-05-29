@@ -152,4 +152,6 @@ infrastructure/
 
 4. **No secrets in code** — Never embed passwords, keys, or connection strings. Use parameter references to Key Vault, AWS Secrets Manager, or GCP Secret Manager.
 
-5. **Analysis only — verify against vendor documentation before applying.** Generated templates reflect best practices at the time of writing but cloud provider APIs evolve. Always validate against current documentation.
+5. **Review required** — Generated templates reflect best practices at the time of writing but cloud provider APIs evolve. Always validate against current documentation.
+
+**Analysis only — verify against vendor documentation before applying.**

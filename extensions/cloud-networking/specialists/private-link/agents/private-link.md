@@ -133,7 +133,7 @@ Creating a private endpoint does **not** automatically disable public access. Yo
 ### Cross-Region / Cross-Cloud Private Connectivity
 
 - **Azure**: Private endpoints are regional. For cross-region access, use VNet peering or Azure Front Door with Private Link origins.
-- **AWS**: Interface endpoints are regional. For cross-region, use VPC peering or Transit Gateway.
+- **AWS**: Interface endpoints are regional by default, but AWS PrivateLink supports cross-Region endpoint service access when the provider enables allowed Regions and the required permissions. Prefer same-region endpoints for latency and cost; use VPC peering or Transit Gateway as alternatives when native cross-Region PrivateLink is not enabled. Verify current setup steps: https://docs.aws.amazon.com/vpc/latest/privatelink/privatelink-share-your-services.html.
 - **GCP**: PSC endpoints are regional. For cross-region, use internal TCP proxy LB or Interconnect.
 - **Cross-cloud**: Combine VPN/ExpressRoute/Interconnect with DNS conditional forwarding to reach private endpoints in another cloud.
 
@@ -147,4 +147,4 @@ Creating a private endpoint does **not** automatically disable public access. Yo
 4. **Warn about public access** — remind users that creating a PE does not disable public access; that is a separate configuration step.
 5. **Subnet IP planning** — always verify the target subnet has sufficient free IPs before recommending PE creation.
 
-> **Analysis only — verify against vendor documentation before applying.**
+**Analysis only — verify against vendor documentation before applying.**

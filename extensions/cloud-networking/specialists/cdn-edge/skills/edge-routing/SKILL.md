@@ -257,6 +257,10 @@ resource headerRule 'Microsoft.Cdn/profiles/ruleSets/rules@2023-05-01' = {
 }
 ```
 
+### GCP Service Extensions
+
+Use **Service Extensions** for lightweight request/response logic on supported global external Application Load Balancer paths, including header manipulation, custom routing decisions, and policy enforcement adjacent to Cloud CDN. Verify current triggers, supported load balancers, and limits: https://cloud.google.com/cdn/docs/integration-with-service-extensions.
+
 ### AWS CloudFront Functions
 
 Lightweight JavaScript functions running at edge locations (viewer-request/viewer-response):
@@ -470,7 +474,7 @@ aws cloudfront create-continuous-deployment-policy \
 Is it HTTP/HTTPS traffic?
 ├── Yes → Use L7 CDN/Edge (Front Door, CloudFront, Cloud CDN)
 │   ├── Need WAF? → Azure FD Premium, CF+WAF, Cloud Armor
-│   ├── Need edge compute? → CF Functions/Lambda@Edge, FD Rules Engine
+│   ├── Need edge compute? → CF Functions/Lambda@Edge, FD Rules Engine, or GCP Service Extensions
 │   ├── Need private origin? → Azure FD Premium, CF VPC Origins
 │   └── Need WebSocket? → Azure FD, CloudFront
 └── No (TCP/UDP)
@@ -481,4 +485,4 @@ Is it HTTP/HTTPS traffic?
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

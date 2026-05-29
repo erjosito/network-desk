@@ -1,59 +1,28 @@
 # Skill: Flow Log Analysis (nsec_flow-analysis)
 
-Analyze network flow logs to detect security threats, identify traffic anomalies, and establish baselines across Azure NSG flow logs, AWS VPC flow logs, and GCP VPC flow logs.
+Analyze network flow logs to detect security threats, identify traffic anomalies, and establish baselines across Azure VNet flow logs, AWS VPC flow logs, and GCP VPC flow logs. Treat Azure NSG flow logs as legacy: new NSG flow log creation stopped June 30, 2025 and retirement is scheduled for September 30, 2027; migrate analysis to VNet flow logs and verify current dates in official docs: https://learn.microsoft.com/en-us/azure/network-watcher/nsg-flow-logs-migrate
 
 ---
 
-## Azure NSG Flow Log Format (Version 2)
+## Azure VNet Flow Logs (current target)
 
-Version 2 flow logs include per-flow byte and packet counts, flow state tracking, and bandwidth information.
+Use Azure VNet flow logs as the default source for Azure network telemetry. They provide virtual-network-level flow visibility for Network Watcher and Traffic Analytics scenarios while avoiding new dependencies on legacy NSG flow logs.
 
-### Log Structure
-```
-{
-  "records": [{
-    "time": "2024-01-15T10:30:00.000Z",
-    "systemId": "nsg-guid",
-    "macAddress": "000D3A123456",
-    "category": "NetworkSecurityGroupFlowEvent",
-    "resourceId": "/subscriptions/.../networkSecurityGroups/myNSG",
-    "operationName": "NetworkSecurityGroupFlowEvents",
-    "properties": {
-      "Version": 2,
-      "flows": [{
-        "rule": "DefaultRule_AllowInternetOutBound",
-        "flows": [{
-          "mac": "000D3A123456",
-          "flowTuples": [
-            "1705312200,10.0.1.4,52.168.1.1,49152,443,T,O,A,B,100,5000,80,4000"
-          ]
-        }]
-      }]
-    }
-  }]
-}
-```
+### Enable and collect
 
-**Flow Tuple Fields (Version 2)**:
+- Enable VNet flow logs through Network Watcher / Traffic Analytics using the current Azure portal, ARM/Bicep, Azure CLI, or REST API syntax.
+- Verify current CLI parameters and supported destinations in Microsoft Learn before generating commands; do not copy old NSG-only examples.
+- If existing analytics parse `AzureNetworkAnalytics_CL`, confirm the table/schema emitted by the current Traffic Analytics configuration and adjust KQL field names accordingly.
+- Plan migration from NSG flow logs before the retirement deadline documented by Microsoft: https://learn.microsoft.com/en-us/azure/network-watcher/nsg-flow-logs-migrate
+
+### Legacy NSG Flow Logs
+
+NSG flow logs v2 include per-flow byte and packet counts, flow state tracking, and bandwidth information, but they are legacy for new deployments. Use this section only to interpret existing data during migration.
+
+**Legacy flow tuple fields (NSG v2)**:
 `timestamp, srcIP, dstIP, srcPort, dstPort, protocol(T/U), direction(I/O), action(A/D), flowState(B/C/E), srcPackets, srcBytes, dstPackets, dstBytes`
 
 Flow states: **B** = Begin (new flow), **C** = Continuing (flow update), **E** = End (flow terminated).
-
-### Enabling NSG Flow Logs
-```bash
-# Enable NSG flow logs (version 2) with traffic analytics
-az network watcher flow-log create \
-  --name MyFlowLog \
-  --nsg MyNSG --resource-group MyRG \
-  --storage-account mystorageaccount \
-  --workspace myLogAnalyticsWorkspace \
-  --enabled true \
-  --format JSON --log-version 2 \
-  --traffic-analytics true \
-  --interval 10
-```
-
----
 
 ## AWS VPC Flow Log Fields
 
@@ -181,5 +150,4 @@ fields srcAddr, dstAddr, bytes
 - **New destinations**: Source IP connecting to previously unseen external IPs — possible C2 or credential theft.
 - **Off-hours activity**: Traffic from workloads that should be idle during non-business hours.
 - **Protocol anomalies**: DNS (UDP 53) traffic to non-DNS servers, ICMP tunneling (large ICMP packets > 64 bytes).
-
 **Analysis only — verify against vendor documentation before applying.**

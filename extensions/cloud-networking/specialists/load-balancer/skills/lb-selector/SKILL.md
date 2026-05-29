@@ -31,9 +31,9 @@ Is the traffic HTTP/HTTPS (L7)?
 │       └── NO → Application Gateway v2 (Standard_v2)
 └── NO (L4 TCP/UDP) → Is it global?
     ├── YES → Is DNS-based steering acceptable?
-    │   ├── YES → Traffic Manager (priority/weighted/geographic/performance)
-    │   └── NO → Azure Front Door (TCP proxy via Premium, limited L4 support)
-    │             or Cross-Region Load Balancer (preview)
+    │   ├── YES → Traffic Manager (DNS steering only: priority/weighted/geographic/performance)
+    │   └── NO → Azure Standard Load Balancer Global tier for cross-region TCP/UDP
+    │             (verify current Global tier capabilities: https://learn.microsoft.com/azure/load-balancer/cross-region-overview)
     └── NO → Azure Load Balancer Standard
               • Use HA Ports rule for NVA/firewall scenarios
               • Use outbound rules for SNAT control
@@ -41,9 +41,10 @@ Is the traffic HTTP/HTTPS (L7)?
 
 **Key Azure constraints:**
 - Azure LB Basic is being retired — always recommend Standard.
-- Application Gateway v1 lacks zone redundancy and auto-scaling — always recommend v2.
+- Application Gateway v1 is retired; direct users to Application Gateway v2 migration and verify current retirement guidance: https://learn.microsoft.com/azure/application-gateway/v1-retirement.
 - Traffic Manager is DNS-only (no inline proxy) — clients connect directly to the endpoint. TTL-based failover is slower than proxy-based.
-- Front Door Classic is deprecated — use Standard/Premium.
+- Azure Front Door is L7 HTTP/HTTPS/CDN, not an L4 TCP/UDP proxy. For global L4, use Standard Load Balancer Global tier; verify current capabilities: https://learn.microsoft.com/azure/load-balancer/cross-region-overview.
+- Front Door Classic is deprecated — use Standard/Premium for HTTP(S).
 
 ---
 
@@ -86,27 +87,26 @@ Is the traffic HTTP/HTTPS (L7)?
 Is the traffic HTTP/HTTPS (L7)?
 ├── YES → Is it external (internet-facing)?
 │   ├── YES → Is global scope needed?
-│   │   ├── YES → External Global HTTP(S) Load Balancer
+│   │   ├── YES → Global external Application Load Balancer (legacy: External HTTP(S) LB)
 │   │   │         • Anycast VIP, Cloud Armor (WAF), Cloud CDN
 │   │   │         • Supports managed SSL certificates
-│   │   └── NO → External Regional HTTP(S) Load Balancer
+│   │   └── NO → Regional external Application Load Balancer
 │   │             • Data residency / sovereignty requirements
-│   └── NO (internal) → Internal HTTP(S) Load Balancer
+│   └── NO (internal) → Internal Application Load Balancer
 │                        • Regional, for internal microservices
 │                        • Envoy-based, supports traffic splitting
 └── NO (L4 TCP/UDP) → Is it external?
-    ├── YES → External TCP/UDP Network Load Balancer
-    │         • Regional, pass-through (no proxy)
-    │         • Supports backend service or target pool
-    └── NO → Internal TCP/UDP Load Balancer
+    ├── YES → External passthrough Network Load Balancer (regional) or external proxy Network Load Balancer where proxy features are required
+    │         • Verify current scope and protocol support: https://cloud.google.com/load-balancing/docs/load-balancing-overview
+    └── NO → Internal passthrough Network Load Balancer
               • Regional, for internal databases/services
               • Supports failover groups
 ```
 
 **Key GCP constraints:**
-- Global LB requires Premium Tier networking; Standard Tier is regional only.
-- Internal HTTP(S) LB is Envoy-based (proxy) — adds a few milliseconds of latency.
-- Cloud CDN only works with external HTTP(S) LB or backend buckets.
+- Verify current GCP Cloud Load Balancing product names, scope, and Network Service Tier constraints in the official overview: https://cloud.google.com/load-balancing/docs/load-balancing-overview.
+- Internal Application Load Balancer is Envoy-based (proxy) — account for proxy behavior in latency-sensitive designs.
+- Cloud CDN only works with supported external Application Load Balancer/backend bucket patterns; verify current supported backends in GCP docs.
 
 ---
 
@@ -114,15 +114,15 @@ Is the traffic HTTP/HTTPS (L7)?
 
 | Feature | Azure | AWS | GCP |
 |---|---|---|---|
-| **L7 regional** | Application Gateway v2 | ALB | External/Internal HTTP(S) LB |
-| **L7 global** | Front Door Standard/Premium | CloudFront + ALB | External Global HTTP(S) LB |
-| **L4 regional** | Load Balancer Standard | NLB | TCP/UDP Network LB |
-| **L4 global** | Cross-Region LB (preview) | Global Accelerator + NLB | TCP Proxy LB (global) |
+| **L7 regional** | Application Gateway v2 | ALB | Regional external/internal Application Load Balancer |
+| **L7 global** | Front Door Standard/Premium | CloudFront + ALB | Global external Application Load Balancer |
+| **L4 regional** | Load Balancer Standard | NLB | External/internal passthrough Network Load Balancer |
+| **L4 global** | Standard Load Balancer Global tier | Global Accelerator + NLB | External proxy Network Load Balancer (verify protocol support) |
 | **DNS-based global** | Traffic Manager | Route 53 routing policies | Cloud DNS routing policies |
-| **WAF** | Front Door WAF / AppGW WAF_v2 | AWS WAF v2 (on ALB/CF) | Cloud Armor (on HTTP(S) LB) |
-| **Static IP** | LB Standard, AppGW v2 | NLB (per AZ EIP) | External TCP/UDP LB |
-| **WebSocket** | AppGW v2, Front Door | ALB | HTTP(S) LB |
-| **gRPC** | AppGW v2 (preview) | ALB | HTTP(S) LB |
+| **WAF** | Front Door WAF / AppGW WAF_v2 | AWS WAF v2 (on ALB/CF) | Cloud Armor (on Application Load Balancer) |
+| **Static IP** | LB Standard, AppGW v2 | NLB (per AZ EIP) | External passthrough/proxy Network Load Balancer |
+| **WebSocket** | AppGW v2, Front Door | ALB | Application Load Balancer |
+| **gRPC** | Verify current AppGW v2 support | ALB | Application Load Balancer |
 | **PrivateLink provider** | Private Link Service + Std LB | NLB (PrivateLink) | Internal LB + Service Attachment |
 | **mTLS** | AppGW v2 | ALB | HTTP(S) LB |
 | **Free tier / low cost** | LB Standard (rule-based pricing) | ALB (LCU pricing) | Forwarding-rule pricing |
@@ -152,4 +152,4 @@ aws elbv2 describe-load-balancers --query 'LoadBalancers[].{Name:LoadBalancerNam
 gcloud compute forwarding-rules list --format='table(name,region,loadBalancingScheme,target)'
 ```
 
-> **Analysis only — verify against vendor documentation before applying.**
+**Analysis only — verify against vendor documentation before applying.**

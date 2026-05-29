@@ -123,7 +123,8 @@ aws ec2 accept-vpc-endpoint-connections \
 
 **Key points:**
 - **NLB only** — ALB and GLB cannot be PrivateLink providers.
-- **Cross-region**: Consumers must be in the same region as the NLB. For multi-region, deploy NLBs in each region.
+- **Cross-region**: Prefer same-region consumers for latency and data-transfer predictability, but AWS PrivateLink supports cross-Region endpoint service access when the provider enables allowed Regions and permissions such as `vpce:AllowMultiRegion`. Verify the current workflow before publishing: https://docs.aws.amazon.com/vpc/latest/privatelink/privatelink-share-your-services.html.
+- **IP address type**: Endpoint services and consumers can use IPv4, IPv6, or dualstack where the service, NLB, target groups, and client VPC subnets support it. Validate address-type support end-to-end before advertising IPv6 or dualstack access.
 - **Private DNS name**: Register a custom DNS name (e.g., `api.myservice.com`) and verify domain ownership. Consumers can then use this name instead of the `vpce-*` DNS name.
 
 ---
@@ -185,4 +186,4 @@ To expose a service from one cloud to consumers in another:
 4. **Not enabling TCP proxy v2 (Azure)** — without it, the backend sees NAT IPs instead of consumer IPs. Enable if you need consumer identification.
 5. **Single-region deployment** — Private Link is regional. For multi-region consumers, deploy the service in multiple regions.
 
-> **Analysis only — verify against vendor documentation before applying.**
+**Analysis only — verify against vendor documentation before applying.**

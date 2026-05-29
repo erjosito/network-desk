@@ -63,7 +63,7 @@ flowchart LR
 Key elements:
 
 - **One regional hub** per Azure region; up to 30 hubs per vWAN (raise via support).
-- **Hub address space**: minimum /24 reserved for the hub services + firewall.
+- **Hub address space**: use /22 or larger for Azure Firewall secured hubs; /24 applies only to non-firewall hubs. Verify current sizing requirements in Azure hub settings: https://learn.microsoft.com/en-us/azure/virtual-wan/hub-settings.
 - **Connections**: VPN sites, ExpressRoute circuits, VNet connections, P2S configs — all attach to the hub.
 - **Firewall**: Azure Firewall (Standard, Premium, or Basic) **or** a supported third-party NVA (Palo Alto Cloud NGFW, Check Point CloudGuard, Fortinet FortiGate, Cisco vMX, Versa, ZScaler, etc.).
 
@@ -71,7 +71,7 @@ Key elements:
 
 ## Routing intent (the heart of secured vHub)
 
-Routing intent replaces manual UDRs with declarative policy: "All internet-bound traffic → firewall" and/or "All private (RFC1918) traffic → firewall". The hub generates the routes automatically across all connections.
+Routing intent replaces manual UDRs with declarative policy: "All internet-bound traffic → firewall" and/or "All private traffic between connected VNets, branches, VPN sites, and ExpressRoute circuits → firewall". The hub generates the routes automatically across all connections.
 
 ```mermaid
 flowchart LR
@@ -80,7 +80,7 @@ flowchart LR
         I2[Private traffic → FW]
     end
     I1 --> R1[All 0.0.0.0/0 routes point to FW]
-    I2 --> R2[All RFC1918 + advertised on-prem prefixes point to FW]
+    I2 --> R2[Connected and learned private prefixes point to FW]
 ```
 
 Three deployment modes:
@@ -242,7 +242,7 @@ Hand off to `price_skill_firewall_pricing` and `price_skill_egress_architecture`
 - [ ] Routing intent mode chosen (internet / private / both) and documented.
 - [ ] Default deny + explicit allow rule set drafted in Firewall Policy (hierarchical).
 - [ ] All spokes connected via vWAN VNet connection — no rogue direct peerings.
-- [ ] Hub address space ≥ /24, no overlap with any spoke or on-prem range.
+- [ ] Hub address space is /22 or larger for Azure Firewall secured hubs (/24 only for non-firewall hubs), with no overlap with any spoke or on-prem range.
 - [ ] Firewall SKU sized for forecast throughput (peak + 30% headroom).
 - [ ] Logging to Log Analytics enabled; Policy Analytics on.
 - [ ] Effective-routes baseline captured and stored for drift detection.
@@ -261,4 +261,4 @@ Hand off to `price_skill_firewall_pricing` and `price_skill_egress_architecture`
 - NVA partners supported in vWAN: https://learn.microsoft.com/azure/virtual-wan/about-nva-hub
 - Virtual WAN FAQ & limits: https://learn.microsoft.com/azure/virtual-wan/virtual-wan-faq
 
-**Analysis only — verify against vendor documentation before applying changes.**
+**Analysis only — verify against vendor documentation before applying.**

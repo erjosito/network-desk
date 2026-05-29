@@ -223,5 +223,4 @@ Network policy then keys off identity, not IP — the IP becomes incidental.
 - Google BeyondCorp: https://cloud.google.com/beyondcorp-enterprise
 - AWS Zero Trust: https://aws.amazon.com/security/zero-trust/
 - SPIFFE/SPIRE: https://spiffe.io/
-
-**Analysis only — verify against vendor documentation before applying changes.**
+**Analysis only — verify against vendor documentation before applying.**

@@ -288,5 +288,4 @@ iptables -A INPUT -m limit --limit 5/min -j LOG --log-prefix "[FW-RATE] "
 7. **Report** — summarize findings with evidence (log excerpts, charts, top-N tables).
 
 ---
-
-*Analysis only — verify against vendor documentation before applying.*
+**Analysis only — verify against vendor documentation before applying.**

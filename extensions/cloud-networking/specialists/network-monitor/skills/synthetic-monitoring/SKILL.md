@@ -14,7 +14,7 @@ Design a synthetic monitoring layer that probes the network from the **user's pe
 flowchart LR
     subgraph Layers[Three monitoring layers — each catches what the others miss]
         A[Infrastructure metrics<br/>CPU, queue depth, BGP up]
-        B[Flow / log telemetry<br/>NSG flow logs, VPC FL, FW logs]
+        B[Flow / log telemetry<br/>VNet flow logs, VPC FL, FW logs]
         C[Synthetic probes<br/>user-perspective tests]
     end
     A -- "blind to: app-layer breakage, DNS, cert" --> B
@@ -56,7 +56,7 @@ flowchart TD
 
 ### Azure — Connection Monitor + App Insights availability tests
 
-**Connection Monitor** (Network Watcher) — probes between Azure VMs, on-prem (via Log Analytics agent), and external endpoints. Test types: TCP, ICMP, HTTP, HTTPS. Reports loss %, RTT, per-hop topology, and threshold-based health.
+**Connection Monitor** (Network Watcher) — probes between Azure VMs, Azure Arc-enabled on-premises servers using the Azure Monitor Agent (AMA), and external endpoints. Test types: TCP, ICMP, HTTP, HTTPS. Reports loss %, RTT, per-hop topology, and threshold-based health. The legacy Log Analytics agent path is retired; use Arc + AMA for non-Azure/on-premises probes.
 
 ```bash
 az network watcher connection-monitor create \
@@ -267,7 +267,7 @@ latency_sli: |
 
 Target SLO of 99.9% availability ≈ 43 m/mo downtime budget. If you probe every 60 s and require 2 consecutive failures, you've already burned 2 min just to detect — adjust the budget plan accordingly.
 
-Hand off SLO definition to `nmon_skill_slo_sli_design`.
+Hand off SLO definition to `nmon_skill_alert_design`.
 
 ---
 
@@ -329,4 +329,4 @@ Alert routing:
 - ThousandEyes documentation: https://docs.thousandeyes.com/
 - Google SRE Book — Monitoring Distributed Systems: https://sre.google/sre-book/monitoring-distributed-systems/
 
-**Analysis only — verify against vendor documentation before applying changes.**
+**Analysis only — verify against vendor documentation before applying.**

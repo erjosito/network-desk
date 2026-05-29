@@ -58,9 +58,9 @@ aws cloudwatch put-metric-alarm \
 
 ## Log-Based Alerts
 
-Log alerts evaluate query results from log analytics platforms, detecting patterns that metric-based alerts cannot capture.
+Log alerts evaluate query results from log analytics platforms, detecting patterns that metric-based alerts cannot capture. For Azure, build new flow-log alerts on VNet flow logs and current Traffic Analytics schemas; treat `AzureNetworkAnalytics_CL` examples below as legacy/schema examples and validate table and field names in the target workspace before deployment. NSG flow logs are legacy/migration-only (new creation blocked after 2025-06-30; retire 2027-09-30).
 
-### Anomalous Traffic Patterns
+### Anomalous Traffic Patterns (legacy TA schema example)
 
 Detect unusual spikes in traffic volume or new communication paths:
 
@@ -80,7 +80,7 @@ AzureNetworkAnalytics_CL
 
 This query identifies source-destination-port combinations observed in the last hour that were never seen in the preceding 30 days — a strong indicator of lateral movement, new services, or misconfiguration.
 
-### Denied Flow Spikes
+### Denied Flow Spikes (legacy TA schema example)
 
 ```kql
 AzureNetworkAnalytics_CL
@@ -90,7 +90,7 @@ AzureNetworkAnalytics_CL
 | where DeniedFlows > percentile(DeniedFlows, 95)
 ```
 
-### New Port Access Detection
+### New Port Access Detection (legacy TA schema example)
 
 ```kql
 AzureNetworkAnalytics_CL
@@ -184,4 +184,4 @@ Establish a unified alerting pipeline across Azure, AWS, and GCP:
 
 Normalize severity mappings: Azure Sev0-4 maps to CloudWatch `ALARM` states and GCP alerting `critical`/`warning`/`info` classifications. Document the mapping in a shared runbook.
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

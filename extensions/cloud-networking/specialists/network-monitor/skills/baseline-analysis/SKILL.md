@@ -8,7 +8,7 @@ Establish normal network traffic patterns, detect anomalies through statistical 
 
 ## Establishing Normal Traffic Patterns
 
-Baselines capture the expected behavior of network metrics under normal operating conditions. Effective baselines must account for multiple temporal dimensions:
+Baselines capture the expected behavior of network metrics under normal operating conditions. For Azure flow-log baselines, use VNet flow logs and current Traffic Analytics schemas by default; examples using `AzureNetworkAnalytics_CL` are legacy/schema examples that must be validated in the target workspace. NSG flow logs are legacy/migration-only (new creation blocked after 2025-06-30; retire 2027-09-30). Effective baselines must account for multiple temporal dimensions:
 
 ### Time-of-Day Analysis
 
@@ -163,4 +163,4 @@ Account for both organic growth and step-function changes:
 
 For ExpressRoute circuits, lead time for provisioning can be 2-8 weeks depending on the provider. For VPN gateways, scaling is faster (hours) but still requires planned maintenance windows for active-active reconfiguration.
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

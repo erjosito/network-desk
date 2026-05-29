@@ -437,4 +437,4 @@ TIMELINE: Decision needed by [date], implementation [duration]
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

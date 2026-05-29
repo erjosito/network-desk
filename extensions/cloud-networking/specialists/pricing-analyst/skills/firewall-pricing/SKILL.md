@@ -167,3 +167,4 @@ Third-party firewalls on cloud marketplaces combine VM compute costs with softwa
 | HA requirements | Built-in | Must design (active/passive, GWLB) |
 
 Pricing is indicative — verify against current vendor pricing pages before budgeting.
+**Analysis only — verify against vendor documentation before applying.**

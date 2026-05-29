@@ -61,11 +61,12 @@ aws logs filter-log-events \
   --start-time $(date -d '5 min ago' +%s%3N)
 ```
 
-For stateful rules: use the **Network Firewall rule analyzer** to check for syntactic conflicts before deploy:
+For AWS Network Firewall, keep analyzer scope explicit: `--analyze-rule-group` is for stateless rule-group behavior, not full stateful Suricata evaluation. For stateful rules, export/describe the rule group, validate Suricata syntax offline, and test in a non-production firewall endpoint before deploy.
 ```bash
 aws network-firewall describe-rule-group --rule-group-arn <arn>
-# Then validate with `suricata --build-info` and `suricata -T -c suricata.yaml` locally
+# Then validate Suricata rules with the current Suricata toolchain and lab traffic before production.
 ```
+Reference: https://docs.aws.amazon.com/cli/latest/reference/network-firewall/describe-rule-group.html
 
 ### Palo Alto PAN-OS — `test security-policy-match`
 
@@ -113,6 +114,25 @@ packet-tracer input INSIDE tcp 10.1.1.5 12345 203.0.113.10 443 detailed
 ```
 
 FTD adds **rule hit count** in FMC and a **rule comparison tool** between policy versions.
+
+### Vendor validation matrix
+
+| Platform | Primary pre-deploy validation | Runtime/log validation |
+|---|---|---|
+| Azure Firewall | Policy Analytics, rule hit metrics, non-prod policy clone | Azure Monitor resource-specific logs; verify current tables in Azure docs |
+| AWS Network Firewall | Stateless analyzer for stateless groups; Suricata syntax + lab endpoint for stateful groups | CloudWatch/S3/Kinesis alert and flow logs |
+| GCP Cloud Firewall / Cloud Armor | `gcloud` describe/dry-run where supported; preview Cloud Armor policy rules | Firewall Rules Logging and Cloud Armor request logs |
+| Palo Alto PAN-OS | `test security-policy-match`, commit validation, BPA/Policy Optimizer | Traffic logs, threat logs, rule hit counts |
+| Fortinet FortiGate | `diagnose firewall policy lookup`, FortiManager install preview | FortiAnalyzer reports, debug flow, packet sniffer |
+| Check Point | SmartConsole policy analysis and verify/install preview | SmartLog, `fw monitor`, hit counts |
+| Cisco ASA/FTD | `packet-tracer`, FMC policy comparison/deploy preview | Connection events, ASP drops, syslog |
+| Juniper SRX | `show security match-policies`, commit check/confirmed commit | `show security flow session`, policy hit counts, traceoptions |
+| Zscaler ZIA/ZPA | Admin Portal policy test/preview where available; scoped pilot policy | NSS logs, user/session logs, test users/locations |
+| Sophos XG/XGS | Policy simulation/validation in UI where available; lab appliance | Log Viewer, packet capture, conntrack diagnostics |
+| OPNsense | Config validation, `pfctl -nf` on generated pf rules when applicable | `pfctl -sr -v`, live logs, packet capture |
+| pfSense | Config validation, `pfctl -nf` on generated pf rules when applicable | `pfctl -sr -v`, firewall logs, packet capture |
+| VyOS | `commit-confirm`, lab config load, verify release-specific syntax | `show firewall ... statistics`, `monitor firewall`, packet capture |
+| iptables/nftables | `iptables-restore --test` / `nft --check -f` | TRACE/log-only chains, counters, conntrack |
 
 ### Cloud-agnostic: nftables / iptables / VyOS / pfSense / OPNsense
 
@@ -221,5 +241,4 @@ Run via a harness that calls the vendor simulator (`test security-policy-match`,
 - PAN-OS `test security-policy-match`: https://docs.paloaltonetworks.com/pan-os/network-security/security-policy/security-policy-best-practices/policy-test
 - FortiGate policy lookup: https://docs.fortinet.com/document/fortigate/latest/cli-reference (search "diagnose firewall policy lookup")
 - Cisco packet-tracer: https://www.cisco.com/c/en/us/td/docs/security/asa/asa97/configuration/general/asa-97-general-config/admin-trshoot.html
-
-**Analysis only — verify against vendor documentation before applying changes.**
+**Analysis only — verify against vendor documentation before applying.**

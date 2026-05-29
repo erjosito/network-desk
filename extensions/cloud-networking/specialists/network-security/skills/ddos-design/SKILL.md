@@ -156,5 +156,4 @@ az monitor metrics alert create \
 - Configure Cloud Monitoring alerts on `loadbalancing.googleapis.com/https/request_count` with filters for denied requests.
 - Set up log-based metrics for Cloud Armor rule match events.
 - Use Security Command Center for centralized DDoS event visibility.
-
 **Analysis only — verify against vendor documentation before applying.**

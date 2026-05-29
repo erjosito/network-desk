@@ -167,6 +167,10 @@ for i,a in enumerate(nets):
 "
 ```
 
+## IPv6 and Dual-Stack Handoff
+
+For dual-stack designs, maintain IPv6 allocations in the same IPAM workflow as IPv4, but do not translate IPv4 subnet sizing rules directly to IPv6. Cloud IPv6 prefix sizes, private/public IPv6 options, load balancer support, and route advertisement behavior differ by provider and change over time. For IPv6-first or dual-stack migration plans, hand off to the IPv6 Migration specialist (`cn_ipv6`) and verify current provider documentation before selecting prefix sizes or compatibility patterns.
+
 ## References
 
 - Azure VNet address space: https://learn.microsoft.com/azure/virtual-network/virtual-networks-faq
@@ -176,4 +180,4 @@ for i,a in enumerate(nets):
 - Azure IPAM: https://learn.microsoft.com/azure/virtual-network/ip-services/ip-address-management
 - AWS IPAM: https://docs.aws.amazon.com/vpc/latest/ipam/what-it-is-ipam.html
 
-**Analysis only — not a substitute for vendor documentation review.**
+**Analysis only — verify against vendor documentation before applying.**

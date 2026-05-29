@@ -239,4 +239,4 @@ Session affinity (stickiness) reduces the benefit of load balancing. Use it only
 4. **Weighted routing without health checks** — traffic routed to unhealthy backends because no health check is configured.
 5. **Session affinity with autoscaling** — sticky sessions prevent even distribution when new instances scale out.
 
-> **Analysis only — verify against vendor documentation before applying.**
+**Analysis only — verify against vendor documentation before applying.**

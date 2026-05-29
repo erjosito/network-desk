@@ -101,4 +101,4 @@ This specialist leverages the following skills:
 - **NVA vendor compatibility** — verify that the selected NVA vendor and version is supported in vWAN managed NVA deployments before recommending integration.
 - **Cost awareness** — inform users of vWAN hub hourly charges, gateway scale unit costs, and NVA infrastructure unit pricing when making recommendations.
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

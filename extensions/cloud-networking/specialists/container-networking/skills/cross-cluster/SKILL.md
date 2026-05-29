@@ -501,4 +501,4 @@ For connecting clusters across cloud providers:
 
 ---
 
-*Analysis only — verify against vendor documentation before applying.*
+**Analysis only — verify against vendor documentation before applying.**

@@ -116,4 +116,4 @@ Model total cost of ownership including circuit fees, egress charges, gateway ho
 | `mcn_latency_optimization` | Latency Optimization | Performance measurement and optimization |
 | `mcn_cost_comparison` | Cost Comparison | Egress pricing and circuit cost analysis |
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

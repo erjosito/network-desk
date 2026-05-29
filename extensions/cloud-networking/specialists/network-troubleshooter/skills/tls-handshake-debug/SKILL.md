@@ -326,4 +326,4 @@ Common pitfalls: middleboxes blocking UDP/443; client falling back silently to T
 - testssl.sh: https://testssl.sh/
 - SSL Labs: https://www.ssllabs.com/ssltest/
 
-**Analysis only — verify against vendor documentation before applying changes.**
+**Analysis only — verify against vendor documentation before applying.**

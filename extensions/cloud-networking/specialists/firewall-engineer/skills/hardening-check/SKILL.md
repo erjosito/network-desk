@@ -213,5 +213,4 @@ Critical Gaps: 2 (M2, D2)
 ```
 
 ---
-
-*Analysis only — verify against vendor documentation before applying.*
+**Analysis only — verify against vendor documentation before applying.**

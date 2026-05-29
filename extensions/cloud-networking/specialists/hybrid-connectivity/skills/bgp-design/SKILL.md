@@ -311,4 +311,4 @@ Wire alerts via `nmon_skill_alert_design` and `nmon_skill_synthetic_monitoring`.
 - AWS Site-to-Site VPN routing: https://docs.aws.amazon.com/vpn/latest/s2svpn/VPNRoutingTypes.html
 - GCP Cloud Router: https://cloud.google.com/network-connectivity/docs/router/concepts/overview
 
-**Analysis only — verify against vendor documentation before applying changes.**
+**Analysis only — verify against vendor documentation before applying.**

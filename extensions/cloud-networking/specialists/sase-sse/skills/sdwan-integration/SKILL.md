@@ -10,24 +10,29 @@ Design SD-WAN architectures that integrate with SASE security services, covering
 
 In the Gartner SASE framework, SD-WAN provides the network fabric that connects users and branches to applications and security services:
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                        SASE Platform                              │
-│                                                                   │
-│  ┌────────────────────────┐    ┌──────────────────────────────┐  │
-│  │    SD-WAN (Network)    │    │       SSE (Security)          │  │
-│  │                        │    │                               │  │
-│  │  • Path selection      │◄──►│  • ZTNA                      │  │
-│  │  • Traffic steering    │    │  • SWG                        │  │
-│  │  • QoS / WAN opt      │    │  • CASB                       │  │
-│  │  • Multi-link agg      │    │  • FWaaS                      │  │
-│  │  • Branch connectivity │    │  • DLP                        │  │
-│  └────────────────────────┘    └──────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────┘
-          ▲         ▲          ▲           ▲
-          │         │          │           │
-     Branch 1   Branch 2    Remote     Data Center
-     (CPE)      (CPE)       Users      (Hub)
+```mermaid
+flowchart TB
+    subgraph sase["SASE Platform"]
+        subgraph net["SD-WAN (Network)"]
+            path[Path selection]
+            steer[Traffic steering]
+            qos[QoS / WAN optimization]
+            agg[Multi-link aggregation]
+            branchconn[Branch connectivity]
+        end
+        subgraph sec["SSE (Security)"]
+            ztna[ZTNA]
+            swg[SWG]
+            casb[CASB]
+            fwaas[FWaaS]
+            dlp[DLP]
+        end
+        net <--> sec
+    end
+    b1["Branch 1 CPE"] --> sase
+    b2["Branch 2 CPE"] --> sase
+    remote[Remote Users] --> sase
+    dc["Data Center Hub"] --> sase
 ```
 
 **SD-WAN responsibilities in SASE:**
@@ -42,10 +47,10 @@ In the Gartner SASE framework, SD-WAN provides the network fabric that connects 
 
 **Direct-to-Cloud (Internet Breakout):**
 
-```
-Branch User → SD-WAN CPE → Internet → SASE Cloud PoP → Destination
-                              │
-                         (No backhaul)
+```mermaid
+flowchart LR
+    user["Branch User"] --> cpe["SD-WAN CPE"] --> internet["Internet"] --> pop["SASE Cloud PoP"] --> dest["Destination"]
+    note["No backhaul"] -.-> internet
 ```
 
 - All traffic exits directly from branch to internet
@@ -56,10 +61,10 @@ Branch User → SD-WAN CPE → Internet → SASE Cloud PoP → Destination
 
 **Regional Hub Backhaul:**
 
-```
-Branch User → SD-WAN CPE → Regional Hub → SASE Stack → Destination
-                              │
-                    (Security inspection at hub)
+```mermaid
+flowchart LR
+    user["Branch User"] --> cpe["SD-WAN CPE"] --> hub["Regional Hub"] --> sase["SASE Stack"] --> dest["Destination"]
+    inspect["Security inspection at hub"] -.-> hub
 ```
 
 - Traffic routes to regional hub for inspection
@@ -70,10 +75,12 @@ Branch User → SD-WAN CPE → Regional Hub → SASE Stack → Destination
 
 **Split-Tunnel with Policy:**
 
-```
-Branch User → SD-WAN CPE ─┬─ Trusted SaaS → Direct (bypasses SASE)
-                           ├─ Private Apps → SASE ZTNA → Data Center
-                           └─ Internet     → SASE SWG → Destination
+```mermaid
+flowchart LR
+    user[Branch User] --> cpe[SD-WAN CPE]
+    cpe -->|Trusted SaaS| direct["Direct breakout bypasses SASE"]
+    cpe -->|Private apps| ztna[SASE ZTNA] --> dc[Data Center]
+    cpe -->|Internet| swg[SASE SWG] --> dest[Destination]
 ```
 
 - SD-WAN classifies traffic by application/destination
@@ -146,16 +153,14 @@ SD-WAN must identify applications to make routing decisions:
 
 **QoS Policy Framework:**
 
-```
-┌─────────────────────────────────────────────────────┐
-│              QoS Priority Queue Model                 │
-├─────────────────────────────────────────────────────┤
-│  Priority 1 (Real-time): VoIP, Video, RTP           │
-│  Priority 2 (Business-critical): ERP, CRM, SAP     │
-│  Priority 3 (Standard): Email, Web, Chat            │
-│  Priority 4 (Best-effort): Backup, updates, bulk    │
-│  Priority 5 (Scavenger): Social media, streaming    │
-└─────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    qos[QoS Priority Queue Model]
+    qos --> p1["Priority 1: Real-time VoIP, video, RTP"]
+    qos --> p2["Priority 2: Business-critical ERP, CRM, SAP"]
+    qos --> p3["Priority 3: Standard Email, web, chat"]
+    qos --> p4["Priority 4: Best-effort Backup, updates, bulk"]
+    qos --> p5["Priority 5: Scavenger Social media, streaming"]
 ```
 
 **Path Selection Logic:**
@@ -172,10 +177,10 @@ SD-WAN continuously monitors WAN link quality and steers traffic:
 
 **Dual ISP (Active/Active):**
 
-```
-         ┌──── ISP 1 (Primary - Fiber) ────┐
-Branch ──┤                                   ├── SASE Cloud
-         └──── ISP 2 (Secondary - Cable) ───┘
+```mermaid
+flowchart LR
+    branch["Branch"] --> isp1["ISP 1 (Primary - Fiber)"] --> sase["SASE Cloud"]
+    branch --> isp2["ISP 2 (Secondary - Cable)"] --> sase
 ```
 
 - Both links active, traffic distributed by policy
@@ -186,10 +191,11 @@ Branch ──┤                                   ├── SASE Cloud
 
 **Dual ISP + LTE/5G Backup:**
 
-```
-         ┌──── ISP 1 (Primary) ─────────────┐
-Branch ──┤──── ISP 2 (Secondary) ────────────├── SASE Cloud
-         └──── LTE/5G (Backup only) ─────────┘
+```mermaid
+flowchart LR
+    branch["Branch"] --> isp1["ISP 1 (Primary)"] --> sase["SASE Cloud"]
+    branch --> isp2["ISP 2 (Secondary)"] --> sase
+    branch -. backup only .-> lte["LTE/5G"] -.-> sase
 ```
 
 - LTE/5G activates only when both ISPs fail
@@ -212,26 +218,20 @@ For sites connecting to data center hubs:
 
 Azure Virtual WAN natively integrates with SASE vendors as Network Virtual Appliances (NVAs):
 
-```
-┌────────────────────────────────────────────────────────────────┐
-│                   Azure Virtual WAN Hub                          │
-│                                                                  │
-│  ┌──────────────┐   ┌───────────────────┐   ┌──────────────┐  │
-│  │ VPN Gateway  │   │  SASE Vendor NVA   │   │ER Gateway    │  │
-│  │ (S2S/P2S)   │   │  (Integrated)      │   │(ExpressRoute)│  │
-│  └──────┬───────┘   └────────┬──────────┘   └──────┬───────┘  │
-│         │                    │                      │           │
-│         └────────────────────┼──────────────────────┘           │
-│                              │                                   │
-│              Routing Intent (Private + Internet)                  │
-└──────────────────────────────┼──────────────────────────────────┘
-                               │
-            ┌──────────────────┼──────────────────┐
-            │                  │                   │
-      ┌─────┴─────┐    ┌─────┴─────┐     ┌──────┴────┐
-      │ Spoke VNet │    │ Spoke VNet │     │  Branch    │
-      │ (Apps)     │    │ (Data)     │     │ (SD-WAN)  │
-      └────────────┘    └────────────┘     └───────────┘
+```mermaid
+flowchart TB
+    subgraph hub["Azure Virtual WAN Hub"]
+        vpn["VPN Gateway S2S / P2S"]
+        nva["SASE Vendor NVA Integrated"]
+        er[ExpressRoute Gateway]
+        intent["Routing Intent Private + Internet"]
+        vpn --> intent
+        nva --> intent
+        er --> intent
+    end
+    intent --> spokea["Spoke VNet Apps"]
+    intent --> spoked["Spoke VNet Data"]
+    intent --> branch["Branch SD-WAN"]
 ```
 
 **Supported SASE vendor integrations:**
@@ -258,28 +258,20 @@ Azure Virtual WAN natively integrates with SASE vendors as Network Virtual Appli
 
 **Architecture:**
 
-```
-┌────────────────────────────────────────────────────────────────┐
-│                   AWS Transit Gateway                            │
-│                                                                  │
-│  ┌──────────────────────┐                                       │
-│  │ SD-WAN/SASE VPC      │                                       │
-│  │ ┌──────────────────┐ │                                       │
-│  │ │ SASE Vendor NVA  │ │  Inspection VPC                       │
-│  │ │ (EC2 instances)  │ │  with GWLBe                           │
-│  │ └──────────────────┘ │                                       │
-│  └──────────┬───────────┘                                       │
-│             │ TGW Attachment                                     │
-│  ┌──────────┴─────────────────────────────────────────────────┐ │
-│  │                  TGW Route Tables                            │ │
-│  │   Spoke RT → SASE VPC    │    SASE RT → Spoke VPCs          │ │
-│  └─────────────────────────────────────────────────────────────┘ │
-│             │                            │                        │
-│   ┌────────┴──────┐           ┌─────────┴──────┐               │
-│   │  Spoke VPC 1  │           │  Spoke VPC 2   │               │
-│   │  (Workloads)  │           │  (Workloads)   │               │
-│   └───────────────┘           └────────────────┘               │
-└────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph tgw["AWS Transit Gateway"]
+        subgraph inspection["SD-WAN / SASE VPC (Inspection VPC)"]
+            nva["SASE Vendor NVA (EC2 instances)"]
+            gwlbe["Gateway Load Balancer endpoints"]
+            nva --> gwlbe
+        end
+        attach["TGW Attachment"]
+        rt["TGW Route Tables<br/>Spoke RT → SASE VPC<br/>SASE RT → Spoke VPCs"]
+        inspection --> attach --> rt
+        rt --> spoke1["Spoke VPC 1 (Workloads)"]
+        rt --> spoke2["Spoke VPC 2 (Workloads)"]
+    end
 ```
 
 **Integration patterns:**
@@ -393,5 +385,4 @@ Azure Virtual WAN natively integrates with SASE vendors as Network Virtual Appli
 | Campus/HQ | 500+ | Dedicated fiber + MPLS + broadband | HA pair | Local + cloud |
 
 ---
-
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

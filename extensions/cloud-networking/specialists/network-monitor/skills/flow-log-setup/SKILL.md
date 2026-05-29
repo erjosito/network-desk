@@ -6,30 +6,14 @@ Configure and enable network flow log collection across Azure, AWS, and GCP. Thi
 
 ---
 
-## Azure NSG Flow Logs v2
+## Azure VNet Flow Logs (default) and NSG Flow Logs (legacy)
 
-Azure supports two scopes for flow logging: **NSG-level** flow logs (attached to individual Network Security Groups) and **VNet-level** flow logs (capturing all traffic within a virtual network regardless of NSG association). VNet flow logs are the newer approach and simplify management by reducing the number of flow log resources.
+Use **VNet flow logs** as the default Azure Network Watcher flow-log scope for new deployments. They capture IP traffic at the virtual network level and reduce per-NSG operational sprawl. **NSG flow logs are legacy/migration-only**: new NSG flow log creation is blocked after 2025-06-30, and existing NSG flow logs retire on 2027-09-30. Plan migration to VNet flow logs.
 
 ### Format Versions
 
 - **Version 1**: Basic 5-tuple (source IP, destination IP, source port, destination port, protocol) with allow/deny disposition.
 - **Version 2**: Adds per-flow byte counts, packet counts, TCP state (Begin, Continuing, End), and flow direction. Version 2 is required for Traffic Analytics integration.
-
-### Enable NSG Flow Log (CLI)
-
-```bash
-az network watcher flow-log create \
-  --resource-group MyRG \
-  --nsg MyNSG \
-  --name MyFlowLog \
-  --storage-account /subscriptions/<sub-id>/resourceGroups/<rg>/providers/Microsoft.Storage/storageAccounts/<account> \
-  --enabled true \
-  --format JSON \
-  --log-version 2 \
-  --retention 90 \
-  --traffic-analytics true \
-  --workspace /subscriptions/<sub-id>/resourceGroups/<rg>/providers/Microsoft.OperationalInsights/workspaces/<workspace>
-```
 
 ### Enable VNet Flow Log (CLI)
 
@@ -47,10 +31,27 @@ az network watcher flow-log create \
   --interval 10
 ```
 
+### Legacy NSG Flow Log (migration-only)
+
+```bash
+# Only for existing NSG-flow-log migration/maintenance scenarios; do not use for new deployments.
+az network watcher flow-log create \
+  --resource-group MyRG \
+  --nsg MyNSG \
+  --name MyLegacyNSGFlowLog \
+  --storage-account /subscriptions/<sub-id>/resourceGroups/<rg>/providers/Microsoft.Storage/storageAccounts/<account> \
+  --enabled true \
+  --format JSON \
+  --log-version 2 \
+  --retention 90 \
+  --traffic-analytics true \
+  --workspace /subscriptions/<sub-id>/resourceGroups/<rg>/providers/Microsoft.OperationalInsights/workspaces/<workspace>
+```
+
 ### Destinations
 
 - **Storage Account**: Required as the primary destination. Flow logs are written as JSON blobs in a hierarchical folder structure (`resourceId=.../y=<year>/m=<month>/d=<day>/h=<hour>/m=<minute>/macAddress=<mac>/PT1H.json`).
-- **Log Analytics Workspace**: Enables KQL-based querying and Traffic Analytics processing. Data is ingested into the `AzureNetworkAnalytics_CL` table.
+- **Log Analytics Workspace**: Enables KQL-based querying and Traffic Analytics processing. Table and field names vary by flow-log generation and Traffic Analytics configuration; validate the current schema in the target workspace before writing alerts or dashboards.
 - **Event Hub**: Enables streaming to third-party SIEM tools (Splunk, Datadog, Elastic) or custom processing pipelines via Azure Functions or Stream Analytics.
 
 ### Retention Policy
@@ -158,7 +159,7 @@ Available intervals: 5 seconds, 30 seconds, 1 minute, 5 minutes, 10 minutes, 15 
 
 ### Azure
 
-- NSG Flow Log storage: Standard blob storage rates (~$0.018/GB for Hot tier in East US).
+- VNet flow log storage (legacy NSG flow-log storage where still deployed): Standard blob storage rates (~$0.018/GB for Hot tier in East US).
 - Log Analytics ingestion: ~$2.76/GB (pay-as-you-go). Use commitment tiers (100GB/day+) for 15-30% discount.
 - Traffic Analytics processing: ~$1.50 per GB processed at 10-min interval, ~$0.75 at 60-min interval.
 
@@ -176,4 +177,4 @@ Available intervals: 5 seconds, 30 seconds, 1 minute, 5 minutes, 10 minutes, 15 
 
 **Tip**: In all clouds, start with a lower sampling rate or longer aggregation interval, then increase granularity for specific subnets or security zones that require detailed visibility.
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

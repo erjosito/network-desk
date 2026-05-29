@@ -138,5 +138,4 @@ gcloud compute firewall-rules list \
 | Default inbound | Deny (except VNet, LB) | Deny all | Deny all (implied) |
 | Default outbound | Allow (to Internet) | Allow all | Allow all (implied) |
 | Max rules/group | 1000 (augmented) | 60 inbound + 60 outbound | 65535 per network |
-
 **Analysis only — verify against vendor documentation before applying.**

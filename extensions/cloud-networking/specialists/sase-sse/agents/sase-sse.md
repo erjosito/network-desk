@@ -63,5 +63,4 @@ Platform-specific implementation notes where relevant.
 - **Compliance awareness** — Note when designs may have regulatory implications (GDPR, HIPAA, PCI-DSS) but do not provide legal advice.
 
 ---
-
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

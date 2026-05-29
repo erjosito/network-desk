@@ -116,25 +116,12 @@ aws ec2 create-vpn-connection \
 
 ## Azure VPN Gateway SKU Selection
 
-| SKU | S2S Tunnels | P2S Connections | Aggregate Throughput | BGP | AZ Redundant |
-|-----|-------------|-----------------|---------------------|-----|--------------|
-| VpnGw1 | 30 | 250 | 650 Mbps | Yes | No |
-| VpnGw2 | 30 | 500 | 1.0 Gbps | Yes | No |
-| VpnGw3 | 30 | 1,000 | 1.25 Gbps | Yes | No |
-| VpnGw4 | 100 | 5,000 | 5.0 Gbps | Yes | No |
-| VpnGw5 | 100 | 10,000 | 10.0 Gbps | Yes | No |
-| VpnGw1AZ | 30 | 250 | 650 Mbps | Yes | Yes |
-| VpnGw2AZ | 30 | 500 | 1.0 Gbps | Yes | Yes |
-| VpnGw3AZ | 30 | 1,000 | 1.25 Gbps | Yes | Yes |
-| VpnGw4AZ | 100 | 5,000 | 5.0 Gbps | Yes | Yes |
-| VpnGw5AZ | 100 | 10,000 | 10.0 Gbps | Yes | Yes |
+Default new designs to **VpnGw1AZ through VpnGw5AZ** for zone-resilient production gateways, and verify current tunnel, P2S, and throughput values in the Azure VPN Gateway SKU documentation before sizing. Treat non-AZ **VpnGw1 through VpnGw5** as legacy or migration-only choices because Azure is consolidating gateway SKUs; check the SKU consolidation timeline before creating or resizing gateways: https://learn.microsoft.com/en-us/azure/vpn-gateway/gateway-sku-consolidation.
 
 **SKU Selection Guidance:**
-- **VpnGw1/1AZ**: Development, testing, single-site small office (< 500 Mbps sustained).
-- **VpnGw2/2AZ**: Small production workloads, moderate throughput needs.
-- **VpnGw3/3AZ**: Most production workloads, good balance of performance and cost.
-- **VpnGw4/4AZ**: High-throughput requirements, multiple branch offices.
-- **VpnGw5/5AZ**: Maximum throughput, large-scale P2S deployments, enterprise hub.
-- Always choose AZ-redundant SKUs for production workloads requiring zone resilience.
+- **VpnGw1AZ**: Development, testing, and smaller branch workloads after validating current limits.
+- **VpnGw2AZ/VpnGw3AZ**: Typical production workloads that need BGP and zone resilience.
+- **VpnGw4AZ/VpnGw5AZ**: High-throughput, large-scale branch or P2S deployments after validating current limits and cost.
+- **Non-AZ VpnGw1-5**: Use only for existing deployments, migration sequencing, or documented exceptions; plan upgrades to AZ SKUs where supported.
 
 **Analysis only — verify against vendor documentation before applying.**

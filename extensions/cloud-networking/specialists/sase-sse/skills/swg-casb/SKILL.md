@@ -12,16 +12,17 @@ A Secure Web Gateway inspects and enforces policy on all internet-bound traffic 
 
 **Core SWG Functions:**
 
-```
-User Traffic → SWG Inspection Pipeline
-    ├─ DNS Filtering (block known-bad domains)
-    ├─ URL Categorization (80+ categories)
-    ├─ TLS Decryption (inspect encrypted traffic)
-    ├─ Malware Scanning (AV, sandboxing)
-    ├─ DLP Inspection (sensitive data detection)
-    ├─ Content Filtering (file type, size)
-    ├─ Bandwidth Control (throttle/block streaming)
-    └─ Logging & Analytics (full visibility)
+```mermaid
+flowchart TB
+    user[User Traffic] --> swg[SWG Inspection Pipeline]
+    swg --> dns["DNS filtering block known-bad domains"]
+    swg --> url[URL categorization]
+    swg --> tls[TLS decryption]
+    swg --> malware[Malware scanning]
+    swg --> dlp[DLP inspection]
+    swg --> content[Content filtering]
+    swg --> bandwidth[Bandwidth control]
+    swg --> logs[Logging and analytics]
 ```
 
 **URL Filtering:**
@@ -85,28 +86,18 @@ CASB provides visibility and control over SaaS application usage, protecting dat
 
 **CASB Deployment Modes:**
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     CASB Deployment Modes                     │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ┌──────────────────┐  ┌──────────────────────────────────┐ │
-│  │  Inline (Proxy)   │  │  API-Based (Out-of-Band)         │ │
-│  │                    │  │                                  │ │
-│  │  User → CASB → SaaS│  │  CASB ←→ SaaS API              │ │
-│  │                    │  │                                  │ │
-│  │  • Real-time block │  │  • Scan data at rest            │ │
-│  │  • DLP on upload   │  │  • Retroactive policy           │ │
-│  │  • Tenant restrict │  │  • Sharing audit                │ │
-│  │  • Malware inline  │  │  • SSPM configuration audit     │ │
-│  │  • Session control │  │  • No agent/proxy needed        │ │
-│  │  • Adaptive access │  │  • Historical scanning          │ │
-│  └──────────────────┘  └──────────────────────────────────┘ │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────────┐│
-│  │  Recommended: Use BOTH inline + API for full coverage    ││
-│  └──────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph inline["Inline CASB (Proxy)"]
+        user[User] --> casb[CASB] --> saas[SaaS]
+        casb --> realtime["Real-time block DLP on upload Tenant restrictions Session control"]
+    end
+    subgraph api["API-Based CASB (Out-of-Band)"]
+        casbapi[CASB] <-->|API| saasapi[SaaS]
+        casbapi --> atrest["Scan data at rest Sharing audit SSPM config audit Historical scanning"]
+    end
+    inline --> both[Use both inline and API for full coverage]
+    api --> both
 ```
 
 **Inline CASB (Forward Proxy):**
@@ -138,7 +129,7 @@ Shadow IT signals:
 - DNS queries to known SaaS domains
 - SNI (Server Name Indication) in TLS handshakes
 - HTTP User-Agent strings (app-specific)
-- OAuth token grants (app registrations in Azure AD)
+- OAuth token grants (app registrations in Microsoft Entra ID)
 - API call patterns from managed SaaS (e.g., O365 → third-party)
 
 **Data Loss Prevention (DLP) via CASB:**
@@ -185,19 +176,19 @@ Phase approach:
 
 **Bypass architecture:**
 
-```
-Traffic → Agent/Tunnel
-  ├─ Bypass List (never inspect)
-  │   ├─ Certificate-pinned apps
-  │   ├─ Approved SaaS (direct route for performance)
-  │   ├─ OS/security updates
-  │   └─ Compliance-exempt traffic
-  ├─ TLS Bypass (steer through SWG but don't decrypt)
-  │   ├─ Banking/financial
-  │   ├─ Healthcare
-  │   └─ Employee privacy categories
-  └─ Full Inspection (decrypt + all engines)
-      └─ Everything else
+```mermaid
+flowchart TB
+    traffic[Traffic] --> agent[Agent / Tunnel]
+    agent --> bypass["Bypass List never inspect"]
+    bypass --> pinned[Certificate-pinned apps]
+    bypass --> approved[Approved SaaS direct route]
+    bypass --> updates[OS / security updates]
+    bypass --> exempt[Compliance-exempt traffic]
+    agent --> tlsbypass["TLS Bypass steer but do not decrypt"]
+    tlsbypass --> banking[Banking / financial]
+    tlsbypass --> healthcare[Healthcare]
+    tlsbypass --> privacy[Employee privacy categories]
+    agent --> inspect["Full Inspection decrypt + all engines"]
 ```
 
 **Bypass management best practices:**
@@ -216,14 +207,14 @@ Traffic → Agent/Tunnel
 - API-based CASB connecting to O365, Azure, AWS, GCP, Salesforce, Box, etc.
 - Inline via Conditional Access App Control (reverse proxy)
 - Integrated with Microsoft 365 Defender suite
-- Uses Azure AD Conditional Access as the policy engine
+- Uses Microsoft Entra ID Conditional Access as the policy engine
 
 **Key capabilities:**
 - Shadow IT discovery via Cloud Discovery (firewall log analysis or Defender for Endpoint)
 - Conditional Access App Control: session-level controls (block download, watermark, read-only)
 - File policies: Scan O365/SharePoint/OneDrive for sensitive content
 - Activity policies: Alert on mass download, unusual login, privilege escalation
-- App governance: Monitor OAuth apps registered in Azure AD
+- App governance: Monitor OAuth apps registered in Microsoft Entra ID
 - SaaS Security Posture Management for connected apps
 
 **Design patterns:**
@@ -234,7 +225,7 @@ Traffic → Agent/Tunnel
 - Alert on impossible travel, mass deletions, suspicious OAuth grants
 
 **Limitations:**
-- Conditional Access App Control requires Azure AD (not third-party IdP directly)
+- Conditional Access App Control requires Microsoft Entra ID (not third-party IdP directly)
 - Session controls limited to browser access (native apps may bypass)
 - Some SaaS APIs have rate limits affecting scan speed
 - Custom app onboarding requires manual configuration
@@ -382,5 +373,4 @@ Traffic → Agent/Tunnel
 10. Do you need instance-level controls (block personal cloud accounts)?
 
 ---
-
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

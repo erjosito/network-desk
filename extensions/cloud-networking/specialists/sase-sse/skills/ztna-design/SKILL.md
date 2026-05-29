@@ -36,30 +36,24 @@ Zero Trust Network Access eliminates the concept of a trusted network perimeter.
 
 ### ZTNA Architecture Model
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    ZTNA Control Plane                             │
-│  ┌──────────┐  ┌───────────┐  ┌──────────┐  ┌──────────────┐  │
-│  │  Policy   │  │  Identity  │  │  Device   │  │   Context    │  │
-│  │  Engine   │  │  Provider  │  │  Posture  │  │   Signals    │  │
-│  └────┬─────┘  └─────┬─────┘  └─────┬────┘  └──────┬───────┘  │
-│       └───────────────┴──────────────┴───────────────┘          │
-│                           │ Policy Decision                      │
-└───────────────────────────┼─────────────────────────────────────┘
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    ZTNA Data Plane                                │
-│  ┌────────────┐           ┌──────────────┐                      │
-│  │ User/Agent │◄─────────►│ ZTNA Broker  │◄────► Application    │
-│  │ (Client)   │  Tunnel   │ (Cloud Edge) │      (Private App)   │
-│  └────────────┘           └──────────────┘                      │
-│                                   ▲                              │
-│                                   │                              │
-│                           ┌───────┴──────┐                      │
-│                           │App Connector │                       │
-│                           │(Outbound-only)│                      │
-│                           └──────────────┘                       │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph control["ZTNA Control Plane"]
+        policy[Policy Engine]
+        identity[Identity Provider]
+        posture[Device Posture]
+        context[Context Signals]
+    end
+    policy --- identity
+    identity --- posture
+    posture --- context
+    control --> decision[Policy Decision]
+    subgraph data["ZTNA Data Plane"]
+        user["User / Agent Client"] <-->|Tunnel| broker["ZTNA Broker Cloud Edge"]
+        connector["App Connector Outbound only"] --> broker
+        broker <-->|Brokered access| app[Private Application]
+    end
+    decision --> broker
 ```
 
 Key architectural elements:
@@ -133,24 +127,17 @@ Architecture differences:
 
 App connectors are the bridge between the ZTNA cloud and private applications:
 
-```
-┌─────────────────────────────────┐
-│        Corporate Data Center     │
-│                                  │
-│  ┌──────────┐   ┌──────────┐   │
-│  │  App A   │   │  App B   │   │
-│  │ (ERP)    │   │ (HR)     │   │
-│  └────┬─────┘   └────┬─────┘   │
-│       │               │         │
-│  ┌────┴───────────────┴─────┐   │
-│  │     App Connector Pool    │   │
-│  │  (2+ instances for HA)    │   │
-│  └────────────┬──────────────┘   │
-│               │ Outbound HTTPS   │
-└───────────────┼──────────────────┘
-                │ (No inbound rules)
-                ▼
-        ZTNA Cloud Broker
+```mermaid
+flowchart TB
+    subgraph dc["Corporate Data Center"]
+        appa["App A ERP"]
+        appb["App B HR"]
+        pool["App Connector Pool 2+ instances for HA"]
+        appa --> pool
+        appb --> pool
+    end
+    pool -->|Outbound HTTPS
+No inbound rules| broker[ZTNA Cloud Broker]
 ```
 
 Design considerations:
@@ -214,9 +201,9 @@ THEN block access, redirect to remediation portal
 
 ## Vendor-Specific Designs
 
-### Azure AD Conditional Access + Microsoft Entra Private Access
+### Microsoft Entra ID (formerly Azure AD) Conditional Access + Microsoft Entra Private Access
 
-Microsoft's ZTNA approach integrates with the Azure AD identity platform:
+Microsoft's ZTNA approach integrates with the Microsoft Entra ID identity platform:
 
 **Components:**
 - **Microsoft Entra Private Access:** Replaces traditional VPN for private apps
@@ -225,23 +212,29 @@ Microsoft's ZTNA approach integrates with the Azure AD identity platform:
 - **Global Secure Access client:** Unified agent for Private + Internet Access
 
 **Architecture:**
-```
-User Device                    Microsoft Cloud              Corporate Network
-┌──────────┐     ┌─────────────────────────┐     ┌──────────────────┐
-│ GSA Agent │────►│ Microsoft SSE PoP       │     │                  │
-│           │     │  ├─ Conditional Access  │     │  ┌────────────┐  │
-│ Entra ID  │     │  ├─ Traffic forwarding  │────►│  │Private App │  │
-│ (auth)    │     │  └─ Adaptive access     │     │  └────────────┘  │
-└──────────┘     └─────────────────────────┘     │                  │
-                                                  │  ┌────────────┐  │
-                                                  │  │  Connector │  │
-                                                  │  │  (App Proxy)│  │
-                                                  │  └────────────┘  │
-                                                  └──────────────────┘
+```mermaid
+flowchart LR
+    device["User Device Global Secure Access agent Microsoft Entra ID auth"]
+    subgraph cloud["Microsoft Cloud"]
+        pop[Microsoft SSE PoP]
+        ca[Conditional Access]
+        tf[Traffic forwarding]
+        aa[Adaptive access]
+        pop --> ca
+        pop --> tf
+        pop --> aa
+    end
+    subgraph corp["Corporate Network"]
+        app[Private App]
+        connector["Connector App Proxy"]
+    end
+    device --> pop
+    tf --> connector
+    connector --> app
 ```
 
 **Key design patterns:**
-- Leverage existing Azure AD groups and Conditional Access policies
+- Leverage existing Microsoft Entra ID groups and Conditional Access policies
 - Use Private Access connectors (evolution of App Proxy connectors)
 - Supports TCP and UDP protocols (not just HTTP like App Proxy)
 - Integrates with Microsoft Defender for Endpoint device posture
@@ -393,7 +386,7 @@ User Device                    Microsoft Cloud              Corporate Network
 1. What percentage of your workforce is remote vs office-based?
 2. Which applications are HTTP/HTTPS vs thick-client/custom protocol?
 3. Do you need to support BYOD/unmanaged devices?
-4. What is your identity provider (Azure AD, Okta, Ping, etc.)?
+4. What is your identity provider (Microsoft Entra ID, Okta, Ping, etc.)?
 5. Do you have compliance requirements for traffic inspection?
 6. What is the acceptable latency increase for ZTNA overhead?
 7. Do you need session recording for privileged access?
@@ -402,5 +395,4 @@ User Device                    Microsoft Cloud              Corporate Network
 10. Do you need to support IoT/OT devices that cannot run agents?
 
 ---
-
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

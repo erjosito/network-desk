@@ -214,3 +214,4 @@ gcloud compute interconnects describe <interconnect-name> \
 ```
 
 Pricing is indicative — verify against current vendor pricing pages before budgeting.
+**Analysis only — verify against vendor documentation before applying.**

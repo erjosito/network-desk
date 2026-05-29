@@ -177,4 +177,4 @@ Size gateways based on peak aggregate throughput across all connections, not ind
 - P2S VPN in vWAN: https://learn.microsoft.com/en-us/azure/virtual-wan/virtual-wan-point-to-site-portal
 - ExpressRoute in vWAN: https://learn.microsoft.com/en-us/azure/virtual-wan/virtual-wan-expressroute-portal
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

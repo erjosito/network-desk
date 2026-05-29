@@ -137,9 +137,10 @@ az network lb address-pool create --resource-group myRG \
 # The LB handles IPv6-to-IPv4 translation for inbound traffic
 ```
 
-**Azure NAT Gateway Limitation:**
-- Azure NAT Gateway is **IPv4 only** — does NOT support NAT64
-- For outbound NAT64, use a Network Virtual Appliance (NVA) running Jool or Tayga
+**Azure NAT Gateway IPv6 / NAT64 Scope:**
+- Azure NAT Gateway Standard is IPv4 outbound only.
+- Azure NAT Gateway StandardV2 supports IPv6 outbound where available, but it is not a general NAT64 gateway; verify current regional/SKU limitations before relying on it.
+- For outbound NAT64 from IPv6-only clients to IPv4-only destinations, use a verified Azure capability or a Network Virtual Appliance (NVA) running Jool or Tayga.
 
 **NVA-Based NAT64 on Azure:**
 ```bash
@@ -183,24 +184,19 @@ aws ec2 create-route \
   --nat-gateway-id nat-xxx
 ```
 
-**Route 53 Resolver DNS64:**
+**Subnet DNS64:**
 ```bash
-# Enable DNS64 on Route 53 Resolver
-# Create Resolver rule for DNS64
-aws route53resolver create-resolver-rule \
-  --creator-request-id dns64-rule-1 \
-  --domain-name "." \
-  --rule-type FORWARD \
-  --resolver-endpoint-id rslvr-xxx
-
-# Associate DNS64 with VPC
-# DNS64 synthesizes AAAA records using 64:ff9b::/96 prefix
-# Works with NAT Gateway's NAT64 translation
-
-# Alternatively, enable DNS64 on VPC subnets
+# Enable DNS64 on each IPv6-only subnet that needs synthesized AAAA responses.
+# Amazon-provided DNS synthesizes records with the well-known 64:ff9b::/96 prefix.
 aws ec2 modify-subnet-attribute \
   --subnet-id subnet-xxx \
   --enable-dns64
+
+# Ensure the subnet route table sends 64:ff9b::/96 to the NAT Gateway.
+aws ec2 create-route \
+  --route-table-id rtb-private-xxx \
+  --destination-ipv6-cidr-block 64:ff9b::/96 \
+  --nat-gateway-id nat-xxx
 ```
 
 **Complete AWS IPv6-Only Architecture:**
@@ -346,4 +342,4 @@ Port Pool Sizing:
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

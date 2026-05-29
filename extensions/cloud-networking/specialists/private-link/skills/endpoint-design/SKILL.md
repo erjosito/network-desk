@@ -214,4 +214,4 @@ gcloud compute service-attachments update my-service \
 4. **Forgetting multi-region** — PEs are regional. Cross-region workloads need PEs in each region or use VNet peering.
 5. **Not disabling public access** — PE alone doesn't block public access. Set `publicNetworkAccess: Disabled` separately.
 
-> **Analysis only — verify against vendor documentation before applying.**
+**Analysis only — verify against vendor documentation before applying.**

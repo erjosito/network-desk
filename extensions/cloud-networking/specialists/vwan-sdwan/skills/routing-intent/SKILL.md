@@ -7,7 +7,7 @@ Routing intent is a mechanism in Azure Virtual WAN that simplifies how traffic i
 Routing intent supports two independent policy types that can be enabled separately or together:
 
 - **Internet Traffic Policy:** Routes 0.0.0.0/0 (default route) through the specified next-hop resource (Azure Firewall or NVA) for internet-bound traffic inspection.
-- **Private Traffic Policy:** Routes RFC1918 aggregate prefixes (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) through the specified next-hop resource for east-west traffic inspection between spokes, branches, and on-premises networks.
+- **Private Traffic Policy:** Routes private traffic between connected VNets, branches, VPN sites, and ExpressRoute circuits through the specified next-hop resource for east-west and hybrid inspection. Microsoft defines this by connected private destinations, not only RFC1918 aggregates; verify the current model: https://learn.microsoft.com/en-us/azure/virtual-wan/how-to-routing-policies.
 
 ## How Routing Intent Changes Effective Routes
 
@@ -21,10 +21,10 @@ When routing intent is enabled, the hub automatically injects routes into the ef
 
 ### Private Traffic Policy Enabled
 
-- All connected spoke VNets receive 10.0.0.0/8, 172.16.0.0/12, and 192.168.0.0/16 with next hop = Azure Firewall or NVA
+- Connected spoke, branch, VPN, and ExpressRoute private destinations are steered to Azure Firewall or the selected NVA
 - Spoke-to-spoke traffic that previously routed directly through the hub router now transits through the firewall or NVA
-- Branch-to-spoke traffic is also routed through the security stack
-- More specific VNet prefixes (e.g., 10.1.0.0/16 for a spoke) are overridden by the RFC1918 supernets pointing to the firewall
+- Branch-to-spoke, branch-to-branch, and hybrid private traffic are also routed through the security stack
+- Effective routes are generated from the hub's connected and learned private prefixes; confirm behavior with `az network vhub get-effective-routes` before and after enabling the policy
 
 ### Both Policies Enabled
 
@@ -35,7 +35,7 @@ When both internet and private traffic policies are enabled simultaneously, all 
 In multi-hub deployments where routing intent is enabled on both hubs:
 
 - Traffic between spokes connected to different hubs is inspected by the firewall/NVA in **both** hubs (double inspection — source hub egress and destination hub ingress)
-- The hub router exchanges RFC1918 supernets between hubs, ensuring that inter-hub traffic is also steered through the security stack
+- The hub router exchanges connected and learned private prefixes between hubs, ensuring that inter-hub private traffic is also steered through the security stack
 - Each hub independently enforces its own routing intent policies; there is no cross-hub policy inheritance
 
 **Important:** Double firewall inspection in multi-hub scenarios can introduce latency and increase firewall processing costs. Consider this when designing multi-hub topologies with routing intent.
@@ -58,19 +58,11 @@ When the internet traffic policy is enabled:
 - VNet connections must have the `internetSecurity` flag set to `true` (also called "Propagate Default Route") to receive the 0.0.0.0/0 route
 - If `internetSecurity` is set to `false` on a VNet connection, that specific spoke will **not** receive the default route and will use its own internet path
 
-## RFC1918 Supernets
+## Private Traffic Destinations
 
-The private traffic policy injects three aggregate prefixes:
+The private traffic policy is not limited to the three RFC1918 ranges. Treat `PrivateTraffic` as the set of connected and learned private destinations for the vWAN hub, including VNet address spaces, branch prefixes, VPN sites, and ExpressRoute-advertised prefixes. If your environment uses non-RFC1918 ranges such as CGNAT or partner-owned private space, validate the generated effective routes instead of assuming static RFC1918-only behavior.
 
-| Prefix | Range | Purpose |
-|--------|-------|---------|
-| 10.0.0.0/8 | 10.0.0.0 – 10.255.255.255 | Covers most Azure VNet and on-prem ranges |
-| 172.16.0.0/12 | 172.16.0.0 – 172.31.255.255 | Secondary private range |
-| 192.168.0.0/16 | 192.168.0.0 – 192.168.255.255 | Common branch/home office range |
-
-These supernets override any more-specific VNet prefixes in the effective routes because routing intent programs them with a higher priority. This ensures that **all** private traffic transits the firewall regardless of individual spoke address ranges.
-
-If your environment uses non-RFC1918 private ranges (e.g., 100.64.0.0/10 for CGNAT space), additional static routes must be configured separately — routing intent does not cover these ranges automatically.
+Before and after enabling routing intent, export hub effective routes and firewall logs to confirm that each intended private prefix is steered through the security resource.
 
 ## CLI Commands
 
@@ -118,9 +110,9 @@ az network vhub routing-intent delete \
 
 1. **Forgetting `internetSecurity` on VNet connections:** If a spoke VNet connection has `internetSecurity` set to `false`, it will not receive the 0.0.0.0/0 default route even when routing intent is enabled. Always verify this flag on all VNet connections.
 
-2. **Non-RFC1918 address space:** Routing intent only covers RFC1918 ranges. If you use addresses outside these ranges (e.g., 100.64.0.0/10), configure additional static routes manually in the hub route table.
+2. **Non-RFC1918 address space:** Do not assume behavior from address class alone. Validate that CGNAT, partner, or public-owned private-use prefixes appear in the hub effective routes and are steered through the intended security resource.
 
-3. **Asymmetric routing with ExpressRoute:** When private traffic policy is enabled, return traffic from on-premises may bypass the firewall if ExpressRoute routes are more specific than the RFC1918 supernets. Ensure consistent route advertisement from on-premises.
+3. **Asymmetric routing with ExpressRoute:** When private traffic policy is enabled, return traffic from on-premises may bypass the firewall if ExpressRoute routes are more specific than the policy-generated private routes. Ensure consistent route advertisement from on-premises.
 
 4. **Firewall capacity planning:** Enabling routing intent forces all traffic through the firewall. Size Azure Firewall or NVA capacity to handle the combined throughput of all spoke-to-spoke, branch-to-spoke, and internet traffic.
 
@@ -133,4 +125,4 @@ az network vhub routing-intent delete \
 - Routing intent overview: https://learn.microsoft.com/en-us/azure/virtual-wan/how-to-routing-policies
 - Virtual WAN routing: https://learn.microsoft.com/en-us/azure/virtual-wan/about-virtual-hub-routing
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

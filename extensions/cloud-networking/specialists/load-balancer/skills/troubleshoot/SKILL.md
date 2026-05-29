@@ -235,4 +235,4 @@ gcloud compute backend-services update my-backend \
 | GCP | HTTP(S) LB | Cloud Logging (resource.type="http_load_balancer") |
 | GCP | TCP/UDP LB | VPC Flow Logs for backend instances |
 
-> **Analysis only — verify against vendor documentation before applying.**
+**Analysis only — verify against vendor documentation before applying.**

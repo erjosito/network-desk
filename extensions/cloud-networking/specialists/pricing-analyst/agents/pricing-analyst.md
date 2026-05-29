@@ -169,3 +169,4 @@ Always cite the authoritative pricing pages:
 6. **No guarantees** — Cost estimates are for planning purposes. Actual costs depend on real usage patterns, EA/EDP discounts, and current pricing.
 
 **Pricing is indicative — verify against current vendor pricing pages before budgeting.**
+**Analysis only — verify against vendor documentation before applying.**

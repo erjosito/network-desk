@@ -172,8 +172,8 @@ gcloud compute networks subnets update my-subnet \
 
 **GCP Constraints:**
 - VPC must be custom-mode for dual-stack subnets
-- IPv6 ranges are /96 per subnet (allocated from VPC's /48)
-- Each VM gets a /96 range; individual IPs are /128
+- IPv6 ranges are /64 per subnet (allocated from the VPC IPv6 range)
+- Each VM NIC receives a /96 range from the subnet; individual addresses are /128
 - `EXTERNAL` IPv6: globally routable (GUA from Google's allocation)
 - `INTERNAL` IPv6: ULA range for internal-only communication
 - Stack type applies per-subnet, not per-VPC
@@ -399,4 +399,4 @@ traceroute6 2001:db8::1      # IPv6 traceroute
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

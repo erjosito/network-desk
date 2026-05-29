@@ -47,7 +47,7 @@ Azure CNI Overlay assigns pod IPs from a private CIDR that is independent of the
 - Pod CIDR (default 10.244.0.0/16) is not routable from VNet by default
 - Dramatically reduces VNet IP consumption (only node IPs from subnet)
 - Supports up to 250 pods per node
-- VXLAN encapsulation between nodes
+- AKS creates a separate pod routing domain without VXLAN encapsulation or tunneling; do not assume overlay MTU overhead
 - Compatible with Network Policies (Calico or Cilium)
 - Supported from AKS Kubernetes 1.25+
 
@@ -248,12 +248,19 @@ GKE's default dataplane for new clusters, built on Cilium.
 ## Migration Guidance
 
 ### Azure CNI Traditional → Overlay
-- Cannot migrate in-place; requires new node pool or cluster
-- Use blue-green node pool strategy:
-  1. Create new node pool with overlay mode
-  2. Cordon and drain old nodes
-  3. Verify pod connectivity on new nodes
-  4. Delete old node pool
+- AKS supports a forward-only in-place migration from Azure CNI traditional to overlay with `az aks update` when prerequisites in the AKS migration documentation are met.
+- Validate the target pod CIDR does not overlap any VNet, peered VNet, on-premises, or service CIDR ranges.
+- Treat the change as irreversible for the cluster; plan a maintenance window because node pools may need to be reimaged/recreated and pods drained.
+
+```bash
+az aks update \
+  --resource-group myRG \
+  --name myCluster \
+  --network-plugin-mode overlay \
+  --pod-cidr 10.244.0.0/16
+```
+
+- Use a rebuild/blue-green cluster only when the cluster does not meet the supported in-place migration prerequisites.
 
 ### Adding Cilium to Existing Cluster (AKS)
 ```bash
@@ -294,4 +301,4 @@ EOF
 
 ---
 
-*Analysis only — verify against vendor documentation before applying.*
+**Analysis only — verify against vendor documentation before applying.**

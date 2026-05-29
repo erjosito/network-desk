@@ -177,4 +177,4 @@ To steer traffic through a managed NVA, use one of these approaches:
 - Deploy NVA in hub: https://learn.microsoft.com/en-us/azure/virtual-wan/how-to-nva-hub
 - BGP peering with hub: https://learn.microsoft.com/en-us/azure/virtual-wan/create-bgp-peering-hub-portal
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

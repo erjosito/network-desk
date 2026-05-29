@@ -27,23 +27,31 @@ SASE, defined by Gartner in 2019, converges two previously separate domains into
 
 The core principle is that security and networking decisions are made together at the cloud edge, closest to the user, rather than backhauling traffic to centralized data centers.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     SASE Cloud Platform                       │
-│  ┌──────────────────────┐  ┌──────────────────────────────┐ │
-│  │   SD-WAN (Network)   │  │        SSE (Security)        │ │
-│  │  ─ Traffic steering   │  │  ─ ZTNA (private apps)      │ │
-│  │  ─ Path selection     │  │  ─ SWG (web filtering)      │ │
-│  │  ─ QoS/optimization   │  │  ─ CASB (SaaS control)     │ │
-│  │  ─ WAN aggregation    │  │  ─ FWaaS (L3/L4 firewall)  │ │
-│  └──────────────────────┘  │  ─ DLP (data protection)    │ │
-│                             │  ─ RBI (browser isolation)   │ │
-│                             └──────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-         ▲              ▲              ▲             ▲
-         │              │              │             │
-    Remote Users    Branch Office     HQ/DC      IoT/OT
-    (client agent)  (connector)    (tunnel)    (agentless)
+```mermaid
+flowchart TB
+    subgraph platform["SASE Cloud Platform"]
+        edge["Cloud edge policy and inspection"]
+        subgraph sdwan["SD-WAN (Network)"]
+            ts[Traffic steering]
+            ps[Path selection]
+            qos[QoS / optimization]
+            agg[WAN aggregation]
+        end
+        subgraph sse["SSE (Security)"]
+            ztna[ZTNA - private apps]
+            swg[SWG - web filtering]
+            casb[CASB - SaaS control]
+            fwaas[FWaaS - L3/L4 firewall]
+            dlp[DLP - data protection]
+            rbi[RBI - browser isolation]
+        end
+        sdwan --> edge
+        sse --> edge
+    end
+    remote["Remote users<br/>client agent"] --> edge
+    branch["Branch office<br/>connector"] --> edge
+    hq["HQ / data center<br/>tunnel"] --> edge
+    iot["IoT / OT<br/>agentless"] --> edge
 ```
 
 ### SSE Pillars — Detailed Breakdown
@@ -182,24 +190,17 @@ Use cases: Branch offices, retail locations, manufacturing sites, IoT/OT environ
 
 **Azure Hub-Spoke Integration:**
 
-```
-┌──────────────────────────────────┐
-│         Azure Hub VNet            │
-│  ┌────────────┐ ┌─────────────┐  │
-│  │  Azure FW  │ │ SASE Vendor │  │
-│  │  (retained)│ │  NVA/VM     │  │
-│  └─────┬──────┘ └──────┬──────┘  │
-│        │                │         │
-│        ▼                ▼         │
-│  ┌──────────────────────────────┐ │
-│  │        UDR / Route Server    │ │
-│  └──────────────────────────────┘ │
-└──────────────────────────────────┘
-         │              │
-    ┌────┴───┐    ┌────┴───┐
-    │Spoke 1 │    │Spoke 2 │
-    │(Apps)  │    │(Data)  │
-    └────────┘    └────────┘
+```mermaid
+flowchart TB
+    subgraph hub["Azure Hub VNet"]
+        azfw["Azure Firewall retained"]
+        nva["SASE Vendor NVA / VM"]
+        route[UDR / Route Server]
+        azfw --> route
+        nva --> route
+    end
+    route --> spoke1["Spoke 1 Apps"]
+    route --> spoke2["Spoke 2 Data"]
 ```
 
 - Deploy SASE vendor NVA in the hub VNet for east-west inspection
@@ -228,7 +229,7 @@ Use cases: Branch offices, retail locations, manufacturing sites, IoT/OT environ
 
 **Phase 1 — Foundation (Months 1–3):**
 - Deploy SASE agent to pilot group (IT staff, early adopters)
-- Configure identity provider integration (Azure AD, Okta)
+- Configure identity provider integration (Microsoft Entra ID, Okta)
 - Define initial ZTNA policies for 5–10 critical applications
 - Run in monitor/audit mode to baseline traffic patterns
 - Keep existing VPN operational as primary access method
@@ -264,7 +265,7 @@ Use cases: Branch offices, retail locations, manufacturing sites, IoT/OT environ
 - Clientless access for contractors
 - 1–3 branch connectors
 - Direct-to-cloud for all traffic
-- Managed IdP (Azure AD / Okta)
+- Managed IdP (Microsoft Entra ID / Okta)
 - No on-premises security hardware
 
 **Mid-Market (500–5,000 users):**
@@ -313,5 +314,4 @@ Use cases: Branch offices, retail locations, manufacturing sites, IoT/OT environ
 10. **Monitoring** — How does SASE telemetry integrate with existing SIEM/SOC?
 
 ---
-
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

@@ -632,4 +632,4 @@ func TestSpokeToSpokeBlocked(t *testing.T) {
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

@@ -64,8 +64,8 @@ Origin shielding reduces load on the origin by consolidating cache fills through
 - Geographic concentration of origin infrastructure
 
 **Provider implementations:**
-- Azure Front Door: Built-in (Premium tier), configurable shield region
-- AWS CloudFront: Origin Shield (per-region, additional cost ~$0.0090/10K requests)
+- Azure Front Door: Built-in for supported tiers; verify current tier capabilities in Azure docs
+- AWS CloudFront: Origin Shield (per-region, additional request cost — verify current pricing in AWS docs)
 - GCP Cloud CDN: Built-in with Cloud CDN cache hierarchy
 - Akamai: Tiered Distribution / SureRoute
 - Cloudflare: Tiered Cache (free), Argo Tiered Cache (paid)
@@ -338,8 +338,10 @@ gcloud compute forwarding-rules create cdn-forwarding-rule \
 | Provider | Mechanism | Supported Origins |
 |----------|-----------|-------------------|
 | Azure Front Door Premium | Private Link | App Service, Storage, ALB, AKS, Custom (any PE-enabled) |
-| AWS CloudFront | VPC Origin (preview) | ALB/NLB in VPC (no public IP needed) |
+| AWS CloudFront | VPC Origin | Private ALB/NLB origins; verify current restrictions: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html |
 | GCP Cloud CDN | Internal backend via PSC | Internal HTTP(S) LB, Cloud Run (internal) |
+
+**CloudFront VPC Origin restrictions:** Verify current restrictions in AWS docs. Notable constraints include no Gateway Load Balancer origins, no dual-stack NLB origins, no NLB TLS listeners, security-group requirements for NLB origins, and feature exclusions such as gRPC or Lambda@Edge origin triggers.
 
 **Azure Private Link Origin Flow:**
 ```
@@ -352,20 +354,31 @@ Client → Front Door POP → Microsoft Backbone → Private Endpoint → Origin
 - Simplifies NSG/firewall rules on origin
 - Eliminates IP allowlisting maintenance
 
+### GCP Media CDN
+
+Use **Cloud CDN** for general web acceleration behind global external Application Load Balancers or backend buckets. Consider **Media CDN** for large-scale media delivery such as HLS/DASH streaming, video-on-demand, large downloads, and origin protection where media-specific cache behavior and performance/cost controls matter. Verify current product fit and feature differences: https://docs.cloud.google.com/cdn/docs/choose-cdn-product.
+
+| Requirement | Prefer Cloud CDN | Prefer Media CDN |
+|-------------|------------------|------------------|
+| Web apps/APIs/static assets | Yes | Usually no |
+| HLS/DASH or large media libraries | Sometimes | Yes |
+| Tight ALB/WAF integration | Yes | Verify fit |
+| Media origin protection and cache efficiency | Verify fit | Yes |
+
 ## Design Decision Matrix
 
 | Requirement | Azure | AWS | GCP |
 |-------------|-------|-----|-----|
 | Global anycast + WAF | Front Door Premium | CloudFront + WAF | Cloud CDN + Cloud Armor |
-| Private origins | Front Door Premium (Private Link) | VPC Origins (preview) | PSC + Internal LB |
+| Private origins | Front Door Premium (Private Link) | VPC Origins | PSC + Internal LB |
 | HTTP/3 | ✓ Default | ✓ Opt-in | ✓ QUIC override |
 | WebSocket | ✓ | ✓ | ✗ |
 | gRPC | Premium only | ✗ | ✓ |
 | Origin shield | Built-in | Paid add-on ($) | Built-in hierarchy |
 | Real-time logs | ✓ (Log Analytics) | ✓ (Kinesis/S3) | ✓ (Cloud Logging) |
-| Edge compute | Rules Engine | CF Functions + Lambda@Edge | ✗ (use Cloud Run) |
+| Edge compute | Rules Engine | CF Functions + Lambda@Edge | Service Extensions for supported global external Application Load Balancer paths; verify current limits: https://cloud.google.com/cdn/docs/integration-with-service-extensions |
 | Cost model | Per-request + egress | Per-request + egress | Per-request + egress (cache egress free) |
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

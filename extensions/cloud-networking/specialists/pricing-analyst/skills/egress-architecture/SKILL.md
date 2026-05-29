@@ -219,4 +219,4 @@ Include in proposal:
 - Cloudflare R2 (zero egress): https://www.cloudflare.com/products/r2/
 - FinOps Foundation — Cloud Network Costs: https://www.finops.org/
 
-**Analysis only — verify against vendor documentation before applying changes.**
+**Analysis only — verify against vendor documentation before applying.**

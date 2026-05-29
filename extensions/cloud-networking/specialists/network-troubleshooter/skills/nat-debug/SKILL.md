@@ -38,8 +38,8 @@ az monitor metrics list \
 ```
 
 ### Azure NAT Gateway
-- 64,000 SNAT ports per public IP address.
-- Supports up to 16 public IP addresses = 1,024,000 total SNAT ports.
+- 64,512 SNAT ports per public IP address (verify current Azure limits/quotas before sizing).
+- Supports up to 16 public IP addresses = 1,032,192 total SNAT ports for inventory planning; public IP count scales ports, not bandwidth.
 - Dynamically allocates ports on demand (no pre-allocation per instance).
 - Recommended over LB SNAT for outbound-heavy workloads.
 
@@ -62,10 +62,10 @@ az monitor metrics list \
 ```
 
 ### AWS NAT Gateway
-- Supports up to 55,000 simultaneous connections per destination (IP:port).
-- Hard limit: 900 connections/second to a single destination (burst: 900/s, sustained: 100/s per destination).
-- Automatically scales to 45 Gbps bandwidth.
-- If `ErrorPortAllocation` CloudWatch metric increases, connections are being dropped.
+- Official capacity framing is per NAT gateway and per unique destination, not a fixed per-second connection-rate ceiling.
+- Bandwidth starts at 5 Gbps and scales up to 100 Gbps; packet processing scales from 1 million to 10 million packets per second.
+- Each IPv4 address supports 55,000 simultaneous connections to each unique destination (destination IP, destination port, protocol). Add secondary private IPv4 addresses or distribute traffic across NAT gateways to increase per-destination connection capacity.
+- If `ErrorPortAllocation` or `PacketsDropCount` CloudWatch metrics increase, connections or packets are being dropped; correlate with `ActiveConnectionCount`, `ConnectionAttemptCount`, and AWS Service Quotas before sizing.
 
 **AWS NAT Gateway Metrics**:
 ```bash

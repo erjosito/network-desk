@@ -213,7 +213,7 @@ Open the PCAP in Wireshark and use these menus methodically:
 
 1. Filter SYNs from the suspected source; group by source port; check for rapid port reuse.
 2. Check for `RST` immediately after SYN-ACK from the same 5-tuple — likely SNAT collision.
-3. Hand off to `ntsh_skill_nat_debug` and `ncap_skill_connection_capacity`.
+3. Hand off to `ntsh_skill_nat_debug` and `ncap_skill_gateway_sizing`.
 
 ### Dual-point capture analysis
 
@@ -273,7 +273,7 @@ Always recompute `capinfos` on the anonymized file and re-share the new SHA-256.
 
 | Source | Format | Gotchas |
 |---|---|---|
-| Azure Network Watcher (VM extension) | `.cap` (libpcap) | Captured at the NIC inside the guest — does NOT see traffic dropped by NSG before it hits the NIC. Cross-check with NSG flow logs. |
+| Azure Network Watcher (VM extension) | `.cap` (libpcap) | Captured at the NIC inside the guest — does NOT see traffic dropped before it hits the NIC. Cross-check with VNet flow logs by default; use NSG flow logs only where legacy deployments already exist (new creation blocked after 2025-06-30; retire 2027-09-30). |
 | Azure vTAP (preview) / packet broker NVA | `.pcapng` | True wire capture; preserves VXLAN. |
 | AWS VPC Traffic Mirroring | VXLAN-encapsulated; decode with VXLAN dissector or strip with editcap | Inner Ethernet preserved; ENI source is the mirror session; flow filters are SHA-based and lossy at high rates. |
 | GCP Packet Mirroring | Raw mirror to a target ILB; capture on the collector VM | Captured packets retain original IPs but lose original ingress interface ID. |
@@ -311,4 +311,4 @@ Before delivering the diagnosis:
 - AWS VPC Traffic Mirroring: https://docs.aws.amazon.com/vpc/latest/mirroring/
 - GCP Packet Mirroring: https://cloud.google.com/vpc/docs/packet-mirroring
 
-**Analysis only — verify against vendor documentation before applying remediations.**
+**Analysis only — verify against vendor documentation before applying.**

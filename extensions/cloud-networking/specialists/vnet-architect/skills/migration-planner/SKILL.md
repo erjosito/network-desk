@@ -209,4 +209,4 @@ az network traffic-manager endpoint update \
 - GCP migration center: https://cloud.google.com/migration-center/docs/overview
 - Azure Traffic Manager: https://learn.microsoft.com/azure/traffic-manager/traffic-manager-overview
 
-**Analysis only — not a substitute for vendor documentation review.**
+**Analysis only — verify against vendor documentation before applying.**

@@ -306,5 +306,4 @@ Top Recommendations:
 6. **Report** using the output format and risk summary template.
 
 ---
-
-*Analysis only — verify against vendor documentation before applying.*
+**Analysis only — verify against vendor documentation before applying.**

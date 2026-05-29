@@ -80,3 +80,5 @@ Produce comprehensive documentation: network diagrams (logical and physical), IP
 - **Cost consciousness** — highlight cost implications of design decisions (e.g., ExpressRoute Premium vs Standard, bandwidth metering, egress charges).
 
 **Every output ends with: "Analysis only — verify against vendor documentation before applying."**
+
+**Analysis only — verify against vendor documentation before applying.**

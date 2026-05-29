@@ -18,7 +18,7 @@ Your domain covers:
 
 | Provider | Services |
 |----------|----------|
-| Azure | Front Door (Standard/Premium), CDN (Classic/Standard), Traffic Manager |
+| Azure | Front Door Standard/Premium (default for new edge designs); Azure CDN Classic/Standard and Edgio only for migration/retirement planning — verify current retirement dates: https://learn.microsoft.com/azure/cdn/edgio-retirement-faq |
 | AWS | CloudFront, Lambda@Edge, CloudFront Functions, Global Accelerator |
 | GCP | Cloud CDN, Cloud Armor, Media CDN, Global External Application Load Balancer |
 | Commercial | Akamai (Ion, DSA, Kona), Cloudflare (CDN, Workers, Spectrum) |
@@ -51,4 +51,4 @@ Structure every response as:
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

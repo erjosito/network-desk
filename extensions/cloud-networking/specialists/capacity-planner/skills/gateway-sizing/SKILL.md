@@ -161,35 +161,35 @@ Max instances = Required CUs at peak / 10
 
 ### AWS Transit Gateway Bandwidth
 
-| Metric | Limit |
-|--------|-------|
-| Per-attachment bandwidth | 50 Gbps (burst) |
-| Per-flow maximum (intra-AZ) | 10 Gbps |
-| Per-flow maximum (cross-AZ) | 5 Gbps |
-| Aggregate per TGW | Multiple Tbps (AWS managed) |
+| Metric | Current planning frame |
+|--------|------------------------|
+| VPC attachment bandwidth | Up to 100 Gbps per VPC attachment per AZ, each direction |
+| VPC attachment packet rate | Up to 7.5 million packets per second per VPC attachment per AZ |
+| Per-flow behavior | Depends on AZ path, flow hashing, and workload architecture; avoid sizing on stale single-flow constants |
+| Aggregate per TGW | AWS managed; realized throughput depends on attachment design |
 | Maximum attachments | 5,000 |
 | Maximum peered TGWs | 50 |
 
 **Sizing Considerations:**
-- Single flow limited to 10 Gbps even with 50 Gbps attachment
-- Multi-flow workloads benefit from flow hashing across internal paths
-- Cross-region peering: 50 Gbps per peering attachment
-- Data processing charges: $0.02/GB (applies to all traffic)
+- Use per-VPC-attachment-per-AZ quotas for capacity modeling; place workloads and attachments deliberately across AZs.
+- Multi-flow workloads benefit from flow hashing, but elephant flows can still bottleneck on a single path.
+- Validate route-table, attachment, packet-rate, and bandwidth quotas in AWS Service Quotas before sizing.
+- Data processing charges apply to TGW traffic; verify current pricing.
 
 ### GCP Cloud VPN
 
-| Configuration | Per-Tunnel Throughput | Max Tunnels | Aggregate |
-|--------------|----------------------|-------------|-----------|
-| Classic VPN | 3 Gbps | 8 per gateway | 24 Gbps |
-| HA VPN (2 interfaces) | 3 Gbps | 4 per interface (8 total) | 24 Gbps |
-| HA VPN + ECMP | 3 Gbps per tunnel | 8 tunnels | 24 Gbps |
+| Configuration | Throughput planning frame | Max Tunnels | Aggregate framing |
+|--------------|---------------------------|-------------|-------------------|
+| Classic VPN | Packet-rate based; 3 Gbps is an upper-bound example for large packets | 8 per gateway | Packet-size and ECMP dependent |
+| HA VPN (2 interfaces) | Packet-rate based; 250k pps per tunnel system limit | 4 per interface (8 total) | Sum only with effective ECMP and sufficient peer capacity |
+| HA VPN + ECMP | Packet-size dependent per tunnel | 8 tunnels | Validate with current GCP quotas and tests |
 
 **Key Notes:**
-- 3 Gbps is egress throughput per tunnel
-- Ingress is limited by peer device and path
-- HA VPN provides 99.99% SLA (vs 99.9% for Classic)
-- Multiple VPN gateways on same Cloud Router for > 24 Gbps
-- Packet size impacts: 1,400 bytes → ~3 Gbps; 500 bytes → ~2 Gbps
+- Cloud VPN limits are packet-rate based (250k pps per tunnel), so throughput varies with packet size.
+- Treat 3 Gbps as an upper-bound example for large packets, not a deterministic sizing guarantee.
+- Ingress is limited by peer device and path.
+- HA VPN provides 99.99% SLA (vs 99.9% for Classic).
+- Verify current GCP Quotas before sizing or promising aggregate throughput.
 
 ### GCP Cloud Interconnect
 
@@ -282,4 +282,4 @@ Week 5: Validate performance, update monitoring thresholds
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

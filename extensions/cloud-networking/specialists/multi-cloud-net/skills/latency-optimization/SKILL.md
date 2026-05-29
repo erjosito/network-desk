@@ -127,4 +127,4 @@ sysctl -w net.ipv4.tcp_congestion_control=bbr
 
 **DNS Optimization:** Use low-TTL DNS records and health-checked routing to steer traffic to the lowest-latency path. Configure DNS resolvers in each cloud to forward to local endpoints rather than crossing cloud boundaries for name resolution.
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

@@ -61,7 +61,7 @@ Key characteristics:
 
 Virtual WAN hub components scale independently:
 
-- **Hub router:** Supports up to 3 routing infrastructure units. Each unit supports 2 Gbps for VNet-to-VNet traffic. Maximum hub router throughput: 50 Gbps with 3 infrastructure units.
+- **Hub router:** Capacity is expressed in Routing Infrastructure Units (RIUs). Azure documents the default and maximum RIU/throughput values in the hub settings table; verify the current table before sizing or quoting throughput: https://learn.microsoft.com/en-us/azure/virtual-wan/hub-settings.
 - **S2S VPN gateway:** Scale units from 1 to 20. Each unit = 500 Mbps. Maximum: 20 units = 10 Gbps aggregate.
 - **P2S VPN gateway:** Scale units from 1 to 20. Each unit = 500 Mbps. Maximum: 20 units = 10 Gbps aggregate. Supports up to 100,000 concurrent P2S connections.
 - **ExpressRoute gateway:** Scale units from 1 to 10. Each unit = 2 Gbps. Maximum: 10 units = 20 Gbps aggregate.
@@ -87,7 +87,7 @@ Private connectivity from on-premises datacenters via ExpressRoute circuits. Sup
 
 ## Hub IP Addressing
 
-Each hub requires a unique address space (minimum /24). This address space is used for:
+Each hub requires a unique address space. Use `/24` only for basic non-firewall hubs, `/23` as a general baseline, and `/22` or larger when Azure Firewall is deployed in the vWAN hub; verify current requirements in Azure hub settings before deployment. This address space is used for:
 
 - Hub router interfaces
 - VPN gateway instances
@@ -95,7 +95,7 @@ Each hub requires a unique address space (minimum /24). This address space is us
 - NVA deployments (if applicable)
 - Azure Firewall subnet (if secured hub)
 
-**Best practice:** Assign a /23 to each hub to accommodate all gateway types plus NVA deployments. Ensure hub address spaces do not overlap with spoke VNets or on-premises address ranges.
+**Best practice:** Assign at least a /23 to general-purpose hubs and /22 or larger to secured hubs with Azure Firewall. Ensure hub address spaces do not overlap with spoke VNets or on-premises address ranges.
 
 ## CLI Commands
 
@@ -164,4 +164,4 @@ az network vhub route-table list \
 - Hub settings: https://learn.microsoft.com/en-us/azure/virtual-wan/hub-settings
 - Virtual WAN limits: https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/azure-subscription-service-limits#virtual-wan-limits
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

@@ -557,4 +557,4 @@ linkerd viz stat deploy -n production -t 1m
 
 ---
 
-*Analysis only — verify against vendor documentation before applying.*
+**Analysis only — verify against vendor documentation before applying.**

@@ -21,15 +21,17 @@ terraform {
     }
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 6.0"
     }
     google = {
       source  = "hashicorp/google"
-      version = "~> 6.0"
+      version = "~> 7.0"
     }
   }
 }
 ```
+
+> Pin providers to the current major version verified in the Terraform Registry and tested by your organization. The AWS `~> 6.0` and Google `~> 7.0` examples reflect current major-version guidance; review provider upgrade guides before adopting them.
 
 ### File Structure Convention
 
@@ -449,11 +451,13 @@ terraform {
     bucket         = "my-org-terraform-state"
     key            = "networking/prod/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "terraform-locks"
-    encrypt        = true
+    use_lockfile = true
+    encrypt      = true
   }
 }
 ```
+
+Use S3 native lock files for state locking. DynamoDB state locking is legacy; keep it only for older Terraform estates that have not migrated.
 
 ### GCP Backend
 
@@ -486,3 +490,5 @@ terraform apply tfplan
 # Destroy (use with caution)
 terraform plan -destroy -var-file=environments/prod.tfvars -out=destroyplan
 ```
+
+**Analysis only — verify against vendor documentation before applying.**

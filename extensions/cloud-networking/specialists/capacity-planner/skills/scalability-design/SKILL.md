@@ -34,6 +34,8 @@ Re-platform when:
 
 ## Provider-Specific Limits
 
+> Quota validation: Treat static limit tables as planning examples only. Before sizing or committing designs, verify current Azure limits/quotas, AWS Service Quotas, and GCP Quotas for the specific account, subscription, project, region, and resource type; request quota increases where supported.
+
 ### Azure Subscription Limits
 
 | Resource | Default Limit | Max (with support) | Scale Strategy |
@@ -139,8 +141,8 @@ AWS (Transit Gateway):
 GCP (HA VPN):
 - 4 tunnels per HA VPN gateway interface pair
 - 2 interfaces × 4 tunnels = 8 tunnels per gateway pair
-- 8 × 3 Gbps = 24 Gbps per gateway pair
-- Multiple gateways for > 24 Gbps
+- Throughput is packet-rate and packet-size dependent; treat 3 Gbps/tunnel only as an upper-bound example for large packets
+- Multiple gateways and ECMP can increase aggregate capacity when flow distribution and peer capacity support it
 ```
 
 ### Azure Firewall Scaling
@@ -206,7 +208,7 @@ Route Tables:
 Attachments:
 - Maximum: 5,000 per TGW
 - Types: VPC, VPN, Direct Connect, Peering, Connect
-- Each attachment: independent bandwidth (50 Gbps burst)
+- VPC attachments: current official quota is up to 100 Gbps per attachment per AZ each direction and up to 7.5M pps; realized throughput depends on AZ placement, flow distribution, and architecture
 
 Multi-TGW strategy:
 - Regional TGWs peered together
@@ -330,7 +332,7 @@ Azure:
 AWS:
 - Direct Connect 100 Gbps
 - LAG (up to 4 connections)
-- Transit Gateway with multiple attachments
+- Transit Gateway with multiple VPC attachments sized against current per-attachment-per-AZ quotas; verify AWS Service Quotas before committing
 
 GCP:
 - Dedicated Interconnect 100 Gbps
@@ -396,4 +398,4 @@ GCP:
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

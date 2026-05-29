@@ -150,10 +150,20 @@ aws route53resolver associate-resolver-rule \
 ```
 
 **AWS Resolver key points:**
-- Deploy endpoints in at least **two AZs** for high availability.
+- Deploy endpoints across multiple AZs for high availability; verify current endpoint limits and HA guidance in AWS docs.
 - Security groups on resolver endpoints must allow **TCP and UDP port 53** inbound/outbound.
 - Use **Route 53 Resolver DNS Firewall** to filter/block queries to malicious domains.
-- **RAM (Resource Access Manager)** shares resolver rules across accounts.
+- **RAM (Resource Access Manager)** can share resolver rules across accounts, but Route 53 Profiles may be a better fit for standardized multi-account DNS controls.
+
+### Route 53 Profiles
+
+Route 53 Profiles bundle DNS settings such as private hosted zone associations, Resolver rules, and DNS Firewall rule groups for VPCs in a Region. Use Profiles when many accounts/VPCs need the same DNS baseline; use one-off RAM-shared Resolver rules only for narrow exceptions or when Profiles are not available for the required resource type.
+
+Operational points:
+- Profiles are regional; plan one profile per Region or environment boundary.
+- Share profiles across accounts with AWS RAM, then associate target VPCs.
+- Establish precedence rules for local VPC associations versus profile-provided rules to avoid conflicting or shadowed DNS behavior.
+- Verify current supported resources, conflict behavior, and quotas: https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/profiles.html.
 
 ---
 
@@ -230,4 +240,4 @@ Azure Hub VNet ◄────────────────────�
 5. **Circular forwarding** — Azure forwards to on-prem, on-prem forwards back to Azure for the same zone. Trace the chain end-to-end.
 6. **Forgetting `privatelink.*` zone forwarding for on-prem** — on-prem clients resolving storage.blob.core.windows.net get the public IP unless you forward `privatelink.blob.core.windows.net` queries to Azure.
 
-> **Analysis only — verify against vendor documentation before applying.**
+**Analysis only — verify against vendor documentation before applying.**

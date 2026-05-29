@@ -75,19 +75,19 @@ Side-by-side pricing comparison of equivalent networking services across Azure, 
 
 | Dimension | Azure NAT Gateway | AWS NAT Gateway | GCP Cloud NAT |
 |---|---|---|---|
-| Hourly cost | $0.045/hr ($32.85/mo) | $0.045/hr ($32.85/mo) | Free (no gateway charge) |
-| Data processing | $0.045/GB | $0.045/GB | $0.045/GB |
-| Public IPs | $3.60/mo per IP | Included (1 EIP) | $0.004/hr per IP ($2.92/mo) |
+| Fixed gateway charge | Hourly gateway charge; verify current Azure NAT Gateway pricing | Hourly gateway charge; verify current AWS VPC pricing | Gateway uptime charge applies; verify current Cloud NAT pricing |
+| Data processing | Per-GB processing charge; illustrative only | Per-GB processing charge; illustrative only | Per-GiB processing charge applies in addition to gateway uptime |
+| Public IPs | Public IP charges may apply | Public IPv4 hourly charges apply for in-use and idle addresses | Public IP hourly charges may apply |
 | Max throughput | 50 Gbps | 45 Gbps per GW | Scales automatically |
 
 ### Public IP Address
 
 | Dimension | Azure | AWS | GCP |
 |---|---|---|---|
-| Static IP (attached) | $3.60/month | Free | $0.004/hr ($2.92/mo) |
-| Static IP (idle) | $3.60/month | $0.005/hr ($3.65/mo) | $0.01/hr ($7.30/mo) |
+| Static IPv4 (attached) | Hourly/monthly charge; verify current page | Charged hourly for all in-use public IPv4 addresses | Hourly charge; verify current page |
+| Static IPv4 (idle) | Hourly/monthly charge; verify current page | Charged hourly for idle public IPv4 addresses | Higher idle hourly charge may apply |
 | Dynamic IP | Deprecated | N/A | N/A |
-| IPv6 public IP | $0.003/hr ($2.19/mo) | Free | Free |
+| IPv6 public IP | Verify current page | Generally no public IPv4-style hourly charge; verify VPC pricing | Verify current page |
 
 ---
 
@@ -113,7 +113,7 @@ Side-by-side pricing comparison of equivalent networking services across Azure, 
 | VPN backup | $263 (VpnGw1AZ) | $36.50 | $109.50 |
 | L7 Load Balancer | $180 (AppGW v2) | $16.43 (ALB) + ~$60 LCU | $18.25 + ~$10 |
 | Firewall | $912 (Standard) | $864 (3 AZ) | $912 (NGFW) |
-| NAT Gateway | $32.85 + $45 | $32.85 + $45 | $45 data only |
+| NAT Gateway | Gateway uptime + data processing + public IPs; verify calculator | Gateway uptime + data processing + public IPv4; verify AWS VPC pricing | Gateway uptime + data processing + public IPs; verify Cloud NAT pricing |
 | **Total/month** | **~$2,008** | **~$1,294** | **~$1,665** |
 
 ### Large: Multi-region, Front Door/CDN, 10 TB egress
@@ -129,7 +129,7 @@ Side-by-side pricing comparison of equivalent networking services across Azure, 
 | DNS + Traffic Routing | $10 | $10 | $5 |
 | **Total/month** | **~$5,899** | **~$3,526** | **~$6,531** |
 
-> **Key takeaway:** AWS tends to be cheapest at all scales primarily due to lower VPN and Direct Connect port costs. Azure wins on L4 LB cost (nearly free). GCP wins on NAT Gateway (no gateway charge) and Public IPs. Actual costs depend heavily on specific SKU choices, commitment discounts, and EA/EDP pricing.
+> **Key takeaway:** AWS tends to be cheapest at all scales primarily due to lower VPN and Direct Connect port costs. Azure wins on L4 LB cost (nearly free). GCP Cloud NAT must be modeled with gateway uptime, data processing, public IP, and egress charges. Actual costs depend heavily on specific SKU choices, commitment discounts, and EA/EDP pricing.
 
 ---
 
@@ -156,7 +156,7 @@ Side-by-side pricing comparison of equivalent networking services across Azure, 
 |---|---|---|
 | **Azure** | https://azure.microsoft.com/en-us/pricing/calculator/ | [Bandwidth](https://azure.microsoft.com/en-us/pricing/details/bandwidth/) · [VPN](https://azure.microsoft.com/en-us/pricing/details/vpn-gateway/) · [ExpressRoute](https://azure.microsoft.com/en-us/pricing/details/expressroute/) · [LB](https://azure.microsoft.com/en-us/pricing/details/load-balancer/) · [App GW](https://azure.microsoft.com/en-us/pricing/details/application-gateway/) · [Front Door](https://azure.microsoft.com/en-us/pricing/details/frontdoor/) · [Firewall](https://azure.microsoft.com/en-us/pricing/details/azure-firewall/) · [DNS](https://azure.microsoft.com/en-us/pricing/details/dns/) · [Private Link](https://azure.microsoft.com/en-us/pricing/details/private-link/) |
 | **AWS** | https://calculator.aws/ | [Data Transfer](https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer) · [VPN](https://aws.amazon.com/vpn/pricing/) · [Direct Connect](https://aws.amazon.com/directconnect/pricing/) · [ELB](https://aws.amazon.com/elasticloadbalancing/pricing/) · [Network FW](https://aws.amazon.com/network-firewall/pricing/) · [Route 53](https://aws.amazon.com/route53/pricing/) · [PrivateLink](https://aws.amazon.com/privatelink/pricing/) |
-| **GCP** | https://cloud.google.com/products/calculator | [VPC Pricing](https://cloud.google.com/vpc/network-pricing) · [Cloud VPN](https://cloud.google.com/network-connectivity/docs/vpn/pricing) · [Interconnect](https://cloud.google.com/network-connectivity/docs/interconnect/pricing) · [LB Pricing](https://cloud.google.com/vpc/network-pricing#lb) · [Cloud Armor](https://cloud.google.com/armor/pricing) · [Cloud DNS](https://cloud.google.com/dns/pricing) |
+| **GCP** | https://cloud.google.com/products/calculator | [VPC Pricing](https://cloud.google.com/vpc/network-pricing) · [Cloud NAT](https://cloud.google.com/nat/pricing) · [Cloud VPN](https://cloud.google.com/network-connectivity/docs/vpn/pricing) · [Interconnect](https://cloud.google.com/network-connectivity/docs/interconnect/pricing) · [LB Pricing](https://cloud.google.com/vpc/network-pricing#lb) · [Cloud Armor](https://cloud.google.com/armor/pricing) · [Cloud DNS](https://cloud.google.com/dns/pricing) |
 
 ---
 
@@ -169,7 +169,8 @@ Side-by-side pricing comparison of equivalent networking services across Azure, 
 | Cheapest L4 LB | Azure Std LB (near-free) | Unbeatable for ≤5 rules |
 | Cheapest L7 LB | AWS ALB ($16.43/mo base) | Watch LCU charges at scale |
 | Cheapest firewall | Azure FW Basic ($288/mo) | For low-traffic, basic filtering |
-| Cheapest NAT | GCP Cloud NAT (no GW charge) | Only pay data processing |
+| NAT modeling | Verify per-cloud calculator | Include gateway uptime, data processing, public IP, and egress charges |
 | Cheapest DNS hosting | GCP Cloud DNS ($0.20/zone) | AWS/Azure both $0.50/zone |
 
 Pricing is indicative — verify against current vendor pricing pages before budgeting.
+**Analysis only — verify against vendor documentation before applying.**

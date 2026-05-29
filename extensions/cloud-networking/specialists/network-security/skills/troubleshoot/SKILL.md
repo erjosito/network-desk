@@ -177,5 +177,4 @@ Higher-priority (lower number) deny rule matches before a lower-priority allow r
 az network nsg rule list --nsg-name MyNSG --resource-group MyRG \
   --query "sort_by([?access=='Deny'], &priority)" -o table
 ```
-
 **Analysis only — verify against vendor documentation before applying.**

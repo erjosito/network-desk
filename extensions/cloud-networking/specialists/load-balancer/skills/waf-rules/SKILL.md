@@ -262,4 +262,4 @@ gcloud compute backend-services update my-backend \
 4. **Ignoring rate limiting** — WAF rules alone won't stop volumetric L7 DDoS. Add rate-based rules.
 5. **Not testing after application changes** — a new API endpoint or form field can trigger existing rules.
 
-> **Analysis only — verify against vendor documentation before applying.**
+**Analysis only — verify against vendor documentation before applying.**

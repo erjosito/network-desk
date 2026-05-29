@@ -30,7 +30,7 @@ flowchart LR
 - **ZSK** (Zone-Signing Key): signs all other RRsets. Rotates more often.
 - **CSK** (Combined Signing Key): a single key plays both roles. Simpler ops; smaller zones favor this.
 - **DS record**: hash of the KSK, published at the parent zone. The "chain of trust" anchor.
-- **NSEC / NSEC3**: proves a name does *not* exist. NSEC3 prevents zone walking (preferred for most public zones).
+- **Authenticated denial of existence**: proves a name does *not* exist. Mechanisms vary by platform (NSEC, NSEC3, or provider-specific compact denial).
 
 ---
 
@@ -49,7 +49,7 @@ flowchart LR
 
 **Default:** ECDSA P-256/SHA-256 (alg 13). Smallest signatures (DNS response fits in UDP without fragmentation), broad support since ~2017, hardware acceleration on modern resolvers.
 
-NSEC3 parameters: `1 0 0 -` (SHA-1, 0 iterations, no salt) per RFC 9276 — *do not* set high iteration counts; they amplify resolver load.
+For platforms that expose NSEC3 tuning, follow RFC 9276 and avoid high iteration counts because they amplify resolver load.
 
 ---
 
@@ -67,10 +67,10 @@ az network dns dnssec-config show --resource-group rg-dns --zone-name example.co
   --query "signingKeys[].delegationSignerInfo"
 ```
 
-Azure DNS handles signing, key rotation, and NSEC3 automatically. Your only job:
-1. Enable.
+Azure DNS handles signing, key rotation, and authenticated denial of existence using RFC 9824 compact denial of existence. Your operational tasks:
+1. Enable DNSSEC.
 2. Publish the DS records at your registrar.
-3. Monitor.
+3. Monitor chain validity and provider state.
 
 ### AWS Route 53
 
@@ -221,13 +221,11 @@ Tools:
 
 If a misconfiguration causes resolution failures for DNSSEC-aware resolvers:
 
-1. **Don't disable DNSSEC at the registrar first.** Removing DS while the zone is still signed causes `bogus` (a different failure mode).
-2. Correct path:
-   a. Remove DS at registrar (parent).
-   b. Wait for parent TTL (24-48 h).
-   c. Stop signing the zone.
-3. **Faster path** (if signing logic is broken but keys valid): publish a fresh signature regen — most managed services have a "resign now" action.
-4. **Communication**: notify dependents — DNSSEC failures look like total DNS outage to validating clients (Google Public DNS, Cloudflare 1.1.1.1, many ISPs).
+1. **If the zone is irreparably broken, break the chain of trust at the parent first**: remove the DS record at the registrar/parent zone.
+2. Wait for the DS TTL and parent-zone propagation to expire, then confirm validating resolvers no longer see a DS for the child zone.
+3. Only after the DS is gone from validators, unsign/disable DNSSEC on the child zone. For Azure DNS, follow the official unsign sequence: https://learn.microsoft.com/azure/dns/dnssec-unsign.
+4. **Faster path** (if keys are valid and only signatures are stale): regenerate or republish signatures instead of unsigning, when the provider supports it.
+5. **Communication**: notify dependents — DNSSEC failures look like total DNS outage to validating clients (Google Public DNS, Cloudflare 1.1.1.1, many ISPs).
 
 ---
 
@@ -238,7 +236,7 @@ If a misconfiguration causes resolution failures for DNSSEC-aware resolvers:
 - [ ] DNSKEY RRset published with both KSK and ZSK (or single CSK).
 - [ ] DS records submitted at registrar and verified visible in parent zone.
 - [ ] Chain validates end-to-end with `dig +dnssec` and DNSViz.
-- [ ] NSEC3 with parameters `1 0 0 -` (RFC 9276 compliant), or NSEC for internal zones.
+- [ ] Authenticated denial method understood for the platform: Azure RFC 9824 compact denial, provider-managed NSEC/NSEC3, or RFC 9276-aligned NSEC3 where configurable.
 - [ ] Auto-rollover policy enabled (managed) or scripted (self-managed).
 - [ ] Three monitoring signals wired: signature expiry, DS-DNSKEY consistency, external validation probe.
 - [ ] Rollback runbook documented with parent-TTL timing.
@@ -258,4 +256,4 @@ If a misconfiguration causes resolution failures for DNSSEC-aware resolvers:
 - BIND DNSSEC Policy: https://bind9.readthedocs.io/en/latest/dnssec-guide.html
 - DNSViz: https://dnsviz.net/
 
-**Analysis only — verify against vendor documentation before applying changes.**
+**Analysis only — verify against vendor documentation before applying.**

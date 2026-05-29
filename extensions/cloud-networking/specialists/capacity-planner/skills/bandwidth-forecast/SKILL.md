@@ -138,17 +138,17 @@ Lower bound = Forecast × (1 - 2σ/μ)
 - Premium add-on enables Global Reach and increased route limits (10,000 routes)
 
 #### Azure NAT Gateway
-- Per-flow throughput: ~44.29 Gbps
-- Aggregate per public IP: 50 Gbps
-- Maximum 16 public IPs per NAT gateway = 800 Gbps theoretical aggregate
-- Monitor: `ByteCount`, `PacketCount`, `SNATConnectionCount`
+- Bandwidth is a **per NAT gateway resource** limit, not multiplied by public IP count: Standard supports up to 50 Gbps per resource; StandardV2 supports up to 100 Gbps per resource where available.
+- Public IP count scales SNAT port inventory, not bandwidth. Use 64,512 SNAT ports per public IP for port-capacity planning only.
+- Monitor: `ByteCount`, `PacketCount`, `SNATConnectionCount`.
+- Verify current limits and regional availability via Azure limits/quotas before sizing.
 
 ### AWS Metrics
 
 #### Transit Gateway
-- Per-attachment bandwidth: 50 Gbps (burst)
-- Per-flow limit: 10 Gbps (within AZ)
-- Cross-AZ per-flow: 5 Gbps (due to internal ECMP)
+- VPC attachment throughput is documented per attachment per Availability Zone and direction; current official quota is up to 100 Gbps per VPC attachment per AZ with up to 7.5 million packets per second.
+- Realized throughput depends on AZ placement, traffic symmetry, flow distribution, and attachment architecture.
+- Verify current quotas in AWS Service Quotas before sizing.
 
 **CloudWatch Metrics:**
 - `BytesIn` / `BytesOut` — Per attachment
@@ -189,9 +189,9 @@ Lower bound = Forecast × (1 - 2σ/μ)
 - `interconnect.googleapis.com/link/circuit/receiving_light_level/value`
 
 #### Cloud VPN
-- Per-tunnel throughput: 3 Gbps (Classic VPN or HA VPN)
-- HA VPN with 4 tunnels: 12 Gbps aggregate
-- Maximum tunnels per VPN gateway: 8 (4 per interface × 2 interfaces for HA)
+- Size Cloud VPN by packet rate and packet size. The system limit is packet-rate based (250k packets per second per tunnel); throughput is packet-size dependent.
+- Treat 3 Gbps per tunnel as an upper-bound planning example for large packets, not a deterministic guarantee; aggregate estimates depend on ECMP, tunnel count, packet size, and peer device capacity.
+- Verify current GCP quotas before sizing.
 
 **Cloud Monitoring Metrics:**
 - `vpn.googleapis.com/tunnel_traffic/received_bytes_count`
@@ -206,7 +206,7 @@ Lower bound = Forecast × (1 - 2σ/μ)
 ## Data Sources
 
 ### Primary Data Sources
-1. **Flow Logs** — VPC Flow Logs (AWS/GCP), NSG Flow Logs (Azure)
+1. **Flow Logs** — VNet flow logs (Azure default), VPC Flow Logs (AWS/GCP); use Azure NSG flow logs only as legacy/migration input where already deployed (new creation blocked after 2025-06-30; retire 2027-09-30)
 2. **Connection Monitors** — Azure Network Watcher, AWS Reachability Analyzer
 3. **Metrics APIs** — Azure Monitor, CloudWatch, Cloud Monitoring
 4. **SNMP/Streaming Telemetry** — On-premises equipment feeding into cloud
@@ -240,4 +240,4 @@ Recommendation:
 
 ---
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

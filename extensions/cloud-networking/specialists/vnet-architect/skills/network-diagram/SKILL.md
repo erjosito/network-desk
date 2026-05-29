@@ -208,4 +208,4 @@ When generating a diagram from a user's network description:
 - Azure architecture diagrams: https://learn.microsoft.com/azure/architecture/networking/
 - AWS architecture icons and diagrams: https://aws.amazon.com/architecture/icons/
 
-**Analysis only — not a substitute for vendor documentation review.**
+**Analysis only — verify against vendor documentation before applying.**

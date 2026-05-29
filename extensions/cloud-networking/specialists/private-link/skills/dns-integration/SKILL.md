@@ -238,4 +238,4 @@ nslookup mystorageaccount.blob.core.windows.net
 4. **Using auto-registration instead of DNS zone groups** — auto-registration doesn't create PE records; DNS zone groups do.
 5. **Wrong zone name** — each PaaS service has a specific zone name. `privatelink.blob.core.windows.net` ≠ `privatelink.storage.core.windows.net`.
 
-> **Analysis only — verify against vendor documentation before applying.**
+**Analysis only — verify against vendor documentation before applying.**

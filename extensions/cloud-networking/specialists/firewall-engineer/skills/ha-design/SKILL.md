@@ -222,5 +222,4 @@ Sync {
 9. [ ] Rollback/recovery procedure documented for HA configuration changes.
 
 ---
-
-*Analysis only — verify against vendor documentation before applying.*
+**Analysis only — verify against vendor documentation before applying.**

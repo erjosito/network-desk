@@ -276,23 +276,17 @@ commit
 
 ### 9. Zscaler (ZIA Firewall Filtering Rule)
 
-```json
-// ZIA API: POST /api/v1/firewallRules
-{
-  "name": "Allow-DMZ-to-DB-MySQL",
-  "order": 1,
-  "action": "ALLOW",
-  "state": "ENABLED",
-  "srcIpGroups": [{"id": 101}],
-  "destAddresses": ["10.1.3.0/24"],
-  "nwApplications": ["MYSQL"],
-  "nwServices": [{"srcPorts": [{"start": 1, "end": 65535}], "destPorts": [{"start": 3306, "end": 3306}]}],
-  "description": "Allow DMZ web servers to MySQL",
-  "enableFullLogging": true
-}
-```
+ZIA firewall policy object names, fields, and API resource paths change over time. Prefer the ZIA Admin Portal or the current Zscaler API documentation instead of copying brittle endpoint examples; verify current `firewallFilteringRules` object names and required fields in the official firewall policy docs before generating automation.
 
-> Note: Zscaler ZIA is primarily for internet-bound traffic. For internal east-west traffic like DMZ-to-DB, consider ZPA or a local firewall. This example shows the API structure for reference.
+**Policy intent mapping:**
+- Rule name/description: `Allow-DMZ-to-DB-MySQL` / `Allow DMZ web servers to MySQL`
+- Action/state: allow, enabled
+- Source: DMZ web server IP group or location group
+- Destination: `10.1.3.0/24` or approved destination object
+- Application/service: MySQL / TCP destination port 3306
+- Logging: full session logging if supported by the current tenant and license
+
+> Note: Zscaler ZIA is primarily for internet-bound traffic. For internal east-west traffic like DMZ-to-DB, consider ZPA, Zscaler Cloud Connector, or a local firewall. Verify current API paths and fields in the official ZIA firewall policy documentation: https://help.zscaler.com/zia/firewall-policies
 
 ### 10. Sophos XG / XGS (CLI)
 
@@ -377,26 +371,31 @@ pfctl -f /tmp/rules.debug   # or via GUI: apply changes
 
 ### 13. VyOS (set commands)
 
+VyOS firewall syntax differs between 1.3 LTS (legacy `set firewall name` / `set zone-policy zone`) and newer 1.4/1.5 nftables-backed trains. For 1.4/1.5, prefer the `set firewall ipv4 name ...` rule-set form and current zone firewall syntax; verify the exact commands in the official zone-based firewall documentation before applying: https://docs.vyos.io/en/latest/configuration/firewall/zone.html
+
 ```bash
-# Create firewall ruleset
-set firewall name DMZ-to-DB default-action drop
+# VyOS 1.4/1.5-style IPv4 firewall rule-set template — verify current syntax for your release.
+set firewall ipv4 name DMZ-to-DB default-action drop
 
 # Allow MySQL rule
-set firewall name DMZ-to-DB rule 10 action accept
-set firewall name DMZ-to-DB rule 10 description "Allow DMZ web servers to MySQL"
-set firewall name DMZ-to-DB rule 10 source address 10.1.2.0/24
-set firewall name DMZ-to-DB rule 10 destination address 10.1.3.0/24
-set firewall name DMZ-to-DB rule 10 destination port 3306
-set firewall name DMZ-to-DB rule 10 protocol tcp
-set firewall name DMZ-to-DB rule 10 log enable
+set firewall ipv4 name DMZ-to-DB rule 10 action accept
+set firewall ipv4 name DMZ-to-DB rule 10 description "Allow DMZ web servers to MySQL"
+set firewall ipv4 name DMZ-to-DB rule 10 source address 10.1.2.0/24
+set firewall ipv4 name DMZ-to-DB rule 10 destination address 10.1.3.0/24
+set firewall ipv4 name DMZ-to-DB rule 10 destination port 3306
+set firewall ipv4 name DMZ-to-DB rule 10 protocol tcp
+set firewall ipv4 name DMZ-to-DB rule 10 log enable
 
-# Assign to zone policy
-set zone-policy zone DATABASE from DMZ firewall name DMZ-to-DB
+# Attach the rule-set to the DMZ → DATABASE zone transition using the current zone syntax for your release.
+# Example form to verify in docs before use:
+set firewall zone DATABASE from DMZ firewall name DMZ-to-DB
 
 # Apply
 commit
 save
 ```
+
+> For VyOS 1.3 LTS, the older `set firewall name ...` and `set zone-policy zone ...` examples may still apply. Always match examples to the running VyOS release.
 
 ### 14. iptables / nftables
 
@@ -447,5 +446,4 @@ nft list ruleset > /etc/nftables.conf
 6. **Commit atomically** — on platforms that support it (Junos, VyOS, PAN-OS), use commit/confirm with auto-rollback timers.
 
 ---
-
-*Analysis only — verify against vendor documentation before applying.*
+**Analysis only — verify against vendor documentation before applying.**

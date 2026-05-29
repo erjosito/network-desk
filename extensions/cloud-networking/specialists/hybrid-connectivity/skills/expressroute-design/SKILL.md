@@ -37,7 +37,12 @@ An ExpressRoute circuit represents a logical connection between on-premises infr
 
 **ExpressRoute Global Reach**: Enables data transfer between on-premises sites through two ExpressRoute circuits via Microsoft's backbone. Useful for inter-site connectivity without MPLS or internet VPN. Available in supported peering locations.
 
-**FastPath**: Bypasses the ExpressRoute virtual network gateway for data-path traffic, sending packets directly from the MSEE to the VNet VM. Reduces latency. Supported on Ultra Performance and ErGw3AZ gateway SKUs. Does not support VNet peering or UDRs on the gateway subnet.
+**FastPath**: Bypasses the ExpressRoute virtual network gateway for data-path traffic, sending packets directly from the MSEE to the VNet VM. Reduces latency. Support for VNet peering and user-defined routes depends on circuit type and documented constraints; verify the current FastPath matrix before relying on peering or UDR behavior: https://learn.microsoft.com/en-us/azure/expressroute/about-fastpath.
+
+| Circuit type | VNet peering with FastPath | UDR support with FastPath | Guidance |
+|--------------|----------------------------|---------------------------|----------|
+| ExpressRoute Direct | Supported under documented constraints | Supported under documented constraints | Validate gateway, route table, and NVA constraints in the current FastPath docs. |
+| Provider-provisioned ExpressRoute | Verify current support before design | Verify current support before design | Do not assume ExpressRoute Direct behavior applies to partner/provisioned circuits. |
 
 **ExpressRoute Direct**: Provides 10 Gbps or 100 Gbps physical port pairs directly into Microsoft's peering edge. Enables MACsec (802.1AE) encryption on the physical link. Supports multiple ExpressRoute circuits on the same Direct port pair with flexible bandwidth allocation. Required for circuits > 10 Gbps.
 
@@ -72,7 +77,7 @@ az network express-route peering create \
 
 **Dedicated Connection**: Physical port (1 Gbps, 10 Gbps, or 100 Gbps) at an AWS Direct Connect location. Customer manages the cross-connect to their router or colocated equipment. Lead time: typically 2–4 weeks.
 
-**Hosted Connection**: Sub-rate connection (50 Mbps to 10 Gbps) provisioned by an AWS Direct Connect Partner. The partner owns the physical port and provides bandwidth allocation. Faster provisioning, lower commitment.
+**Hosted Connection**: Sub-rate connection provisioned by an AWS Direct Connect Partner. Available bandwidths vary by partner and region, including higher options where supported; verify current hosted connection speeds in the AWS Direct Connect documentation before sizing: https://docs.aws.amazon.com/directconnect/latest/UserGuide/hosted_connection.html.
 
 ### Virtual Interfaces (VIFs)
 

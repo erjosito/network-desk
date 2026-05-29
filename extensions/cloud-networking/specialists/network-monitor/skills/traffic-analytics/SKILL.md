@@ -8,7 +8,7 @@ Analyze network flow data to extract actionable insights on traffic patterns, se
 
 ## Azure Traffic Analytics
 
-Traffic Analytics processes NSG flow logs and produces aggregated insights in a Log Analytics workspace. It correlates flow data with threat intelligence feeds, Azure resource metadata, and geographic IP databases.
+Traffic Analytics analyzes Azure Network Watcher flow logs and produces aggregated insights in a Log Analytics workspace. Prefer VNet flow logs for new deployments; use NSG flow logs only as legacy/migration inputs because new NSG flow log creation is blocked after 2025-06-30 and the feature retires on 2027-09-30. It correlates flow data with threat intelligence feeds, Azure resource metadata, and geographic IP databases.
 
 ### Processing Interval
 
@@ -28,7 +28,7 @@ az network watcher flow-log update \
 
 ### Log Analytics Workspace Requirement
 
-Traffic Analytics requires a Log Analytics workspace in a supported region. The processed data is written to the `AzureNetworkAnalytics_CL` custom log table. Ensure the workspace retention period aligns with your compliance requirements (30-730 days).
+Traffic Analytics requires a Log Analytics workspace in a supported region. Existing examples often use the legacy `AzureNetworkAnalytics_CL` custom log table; validate current table and field names in the target workspace, especially when using VNet flow logs. Ensure the workspace retention period aligns with your compliance requirements (30-730 days).
 
 ### Insight Categories
 
@@ -38,9 +38,9 @@ Traffic Analytics surfaces insights across these categories:
 - **Malicious Traffic**: Correlates flow data with Microsoft Threat Intelligence to flag known malicious IPs, botnets, and C2 servers communicating with your resources.
 - **Top Talkers**: Identifies VMs and subnets generating the most traffic by byte count or flow count. Critical for capacity planning and cost attribution.
 - **Port Utilization**: Shows which ports carry the most traffic. Detects unexpected port usage that may indicate lateral movement or data exfiltration.
-- **Denied Flows**: Aggregates NSG deny events to identify misconfigured rules, brute-force attempts, or reconnaissance scanning.
+- **Denied Flows**: Aggregates flow-log deny events (NSG semantics where legacy NSG flow logs are still deployed) to identify misconfigured rules, brute-force attempts, or reconnaissance scanning.
 
-### KQL Queries
+### KQL Queries (schema examples; validate current VNet flow-log / Traffic Analytics fields)
 
 **Top talkers by byte count (last 24 hours):**
 
@@ -192,7 +192,7 @@ Map flow log fields from each cloud into a common schema:
 | Source Port | `SrcPort_d` | `srcport` | `connection.src_port` |
 | Destination Port | `DestPort_d` | `dstport` | `connection.dest_port` |
 | Bytes | `InboundBytes_d` | `bytes` | `bytes_sent` |
-| Action | `FlowStatus_s` | `action` | `jsonPayload.disposition` |
+| Action | `FlowStatus_s` (legacy TA example; validate current VNet flow-log schema) | `action` | `jsonPayload.disposition` |
 
 ### Aggregation Approach
 
@@ -202,4 +202,4 @@ Forward normalized logs to a centralized platform (Azure Sentinel, Splunk, Elast
 
 For workloads connected via cloud interconnects (ExpressRoute, Direct Connect, Cloud Interconnect) or VPN tunnels, correlate flow logs from both sides of the link to compute end-to-end latency, detect asymmetric routing, and measure bandwidth utilization against provisioned capacity.
 
-Analysis only — verify against vendor documentation before applying.
+**Analysis only — verify against vendor documentation before applying.**

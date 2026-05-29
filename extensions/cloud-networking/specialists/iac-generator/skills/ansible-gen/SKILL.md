@@ -443,3 +443,5 @@ ansible-playbook playbooks/deploy-hub-spoke.yml -i inventory/prod/ --tags "vnet,
 # Limit to specific hosts/groups
 ansible-playbook playbooks/deploy-hub-spoke.yml -i inventory/prod/ --limit "azure"
 ```
+
+**Analysis only — verify against vendor documentation before applying.**

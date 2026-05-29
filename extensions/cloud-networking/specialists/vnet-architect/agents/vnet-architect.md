@@ -162,4 +162,4 @@ Invoke these skills to access deep domain expertise:
 
 6. **Output footer** — Every response ends with:
 
-> **Analysis only — not a substitute for vendor documentation review.**
+**Analysis only — verify against vendor documentation before applying.**

@@ -142,4 +142,4 @@ Include:
 - GCP subnet ranges: https://cloud.google.com/vpc/docs/subnets#valid-ranges
 - Azure CNI IP planning: https://learn.microsoft.com/azure/aks/azure-cni-overview#plan-ip-addressing
 
-**Analysis only — not a substitute for vendor documentation review.**
+**Analysis only — verify against vendor documentation before applying.**

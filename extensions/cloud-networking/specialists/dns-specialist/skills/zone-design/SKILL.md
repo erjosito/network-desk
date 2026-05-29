@@ -194,9 +194,9 @@ contoso.com (parent — platform team)
 
 ## DNSSEC Considerations
 
-- **Azure Public DNS**: DNSSEC signing is supported (preview). Enable via `az network dns dnssec-config create`. Requires adding DS record at registrar.
+- **Azure Public DNS**: DNSSEC signing is supported. Enable via `az network dns dnssec-config create`, add the DS record at the registrar, and verify current guidance: https://learn.microsoft.com/azure/dns/dnssec.
 - **Route 53**: Full DNSSEC signing support. Enable via `enable-hosted-zone-dnssec`. Manage KSK rotation.
 - **GCP Cloud DNS**: DNSSEC signing supported. Enable via `gcloud dns managed-zones update --dnssec-state on`.
 - **Private zones**: DNSSEC is not applicable — private zones are not exposed to the public DNS hierarchy.
 
-> **Analysis only — verify against vendor documentation before applying.**
+**Analysis only — verify against vendor documentation before applying.**
