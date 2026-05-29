@@ -14,6 +14,10 @@ const EXT_DEST = join(COPILOT_DIR, "extensions", "network-desk");
 
 const GITIGNORE_ENTRY = ".github/extensions/network-desk/";
 
+// Legacy bundle directory names that registered the same cn_* tools and would
+// conflict if left installed alongside network-desk (e.g. before the rename).
+const LEGACY_BUNDLE_NAMES = ["cloud-networking"];
+
 const SPECIALIST_NAMES = [
     "vnet-architect", "firewall-engineer", "load-balancer",
     "dns-specialist", "private-link", "hybrid-connectivity",
@@ -99,6 +103,15 @@ async function initProject() {
 
     const projectDest = join(projectRoot, ".github", "extensions", "network-desk");
 
+    // Remove legacy bundle installs (renamed) that register the same cn_* tools
+    for (const name of LEGACY_BUNDLE_NAMES) {
+        const legacyDest = join(projectRoot, ".github", "extensions", name);
+        if (await exists(legacyDest)) {
+            await rm(legacyDest, { recursive: true, force: true });
+            ok(`Removed legacy '${name}' extension (renamed to network-desk)`);
+        }
+    }
+
     if (await exists(projectDest)) {
         info("Existing project-level installation found — replacing...");
         await rm(projectDest, { recursive: true, force: true });
@@ -148,6 +161,15 @@ async function init() {
     }
     if (removed > 0) {
         ok(`Removed ${removed} individual specialist extension(s) (replaced by bundle)`);
+    }
+
+    // Remove legacy bundle installs (renamed) that register the same cn_* tools
+    for (const name of LEGACY_BUNDLE_NAMES) {
+        const p = join(extDir, name);
+        if (await exists(p)) {
+            await rm(p, { recursive: true, force: true });
+            ok(`Removed legacy '${name}' extension (renamed to network-desk)`);
+        }
     }
 
     if (await exists(EXT_DEST)) {
