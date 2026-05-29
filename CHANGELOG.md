@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added — Report Builder specialist (`cn_doc`)
+
+A new packaging specialist that turns any other specialist's analysis into a polished, shareable deliverable. It does **not** perform networking analysis itself — it structures and renders findings.
+
+- New specialist `report-builder` (`cn_role({ specialist: "cn_doc" })`), bringing the team to **20 specialists**. No new tools are added — it is served by the existing 5 parameterized tools (well under the 128-tool API limit).
+- Five skills: `report-structure` (audience-aware report layout), `html-report`, `pdf-report`, `docx-report`, and `xlsx-workbook` (real-formula spreadsheet models with named ranges).
+- Wires the previously orphaned `renderers/make_{html,pdf,docx,xlsx}.py` into a discoverable workflow. Skills include ordered renderer-path discovery and a dependency-fallback path (degrade to Markdown/HTML when a Python lib is missing).
+- The session presence note now points specialists at `cn_doc` for packaging findings, and routing recognizes report/export intents (e.g. "generate a PDF report") while ignoring incidental uses of "report" (e.g. "report packet loss").
+
 ### Added — Standard output-file layout for generated artifacts
 
 Generated diagrams, reports, and configs now follow one predictable on-disk structure under a `cloud-networking/` folder in the current working directory:

@@ -2,7 +2,7 @@
 
 ## Project: Cloud Networking Desk
 
-This is a Copilot CLI extension pack (`@dmauser/cloud-networking`) providing 19 specialist agents for cloud networking tasks across Azure, AWS, and GCP, plus 14 firewall vendor platforms.
+This is a Copilot CLI extension pack (`@dmauser/cloud-networking`) providing 20 specialist agents for cloud networking tasks across Azure, AWS, and GCP, plus 14 firewall vendor platforms.
 
 ## Build & Run
 
@@ -25,7 +25,7 @@ node bin/cli.mjs uninstall     # Remove
 
 ## Key Conventions
 
-- **5 tools only — hard 128-tool API limit.** The CLI/model rejects sessions exposing >128 tools (request fails with "transient API error. Retrying..."). With 19 specialists × (role + orchestrate + ~6 skills) this would be ~162 tools, so tools are **parameterized**, not registered per-specialist. NEVER register one tool per specialist/skill.
+- **5 tools only — hard 128-tool API limit.** The CLI/model rejects sessions exposing >128 tools (request fails with "transient API error. Retrying..."). With 20 specialists × (role + orchestrate + ~6 skills) this would be ~162 tools, so tools are **parameterized**, not registered per-specialist. NEVER register one tool per specialist/skill.
 - **The 5 tools:** `cn_capabilities`, `cn_route`, `cn_role({ specialist })`, `cn_orchestrate({ specialist })`, `cn_skill({ specialist, skill })`.
 - **Single source of truth:** the `REGISTRY` object (prefix → `{ dir, domain, icon, trigger, guidance, skills }`) generates routing, capabilities, orchestration prompts, and skill loading. Add specialists/skills by editing `REGISTRY` only.
 - **Specialist ids are `cn_`-prefixed:** `cn_vnet`, `cn_fw`, `cn_lb`, `cn_dns`, `cn_pl`, `cn_hyb`, `cn_nsec`, `cn_ntsh`, `cn_vwan`, `cn_nmon`, `cn_mcn`, `cn_price`, `cn_iac`, `cn_cnet`, `cn_cdn`, `cn_nauto`, `cn_sase`, `cn_ncap`, `cn_ipv6`. The `REGISTRY` is keyed by the bare prefix internally; `pub(prefix)` produces the `cn_` id, and `resolveSpecialist()` accepts the `cn_` id, the bare alias, or the directory name.
@@ -35,3 +35,4 @@ node bin/cli.mjs uninstall     # Remove
 - **No external dependencies** — only `@github/copilot-sdk/extension` and `node:*` builtins
 - **Guardrail:** Every specialist output ends with "Analysis only — verify against vendor documentation before applying."
 - **14 firewall vendors** in firewall-engineer: Azure FW, AWS NFW, GCP FW, PAN-OS, FortiGate, Check Point, Cisco ASA/FTD, Juniper SRX, Zscaler, Sophos XG, OPNsense, pfSense, VyOS, iptables/nftables
+

@@ -1,12 +1,13 @@
 // Extension: cloud-networking (standalone)
-// Self-contained cloud networking agent that bundles all 19 specialist
+// Self-contained cloud networking agent that bundles all specialist
 // roles and skills. No external extension dependencies required.
 //
 // Specialists: vnet-architect, firewall-engineer, load-balancer,
 // dns-specialist, private-link, hybrid-connectivity, network-security,
 // network-troubleshooter, vwan-sdwan, network-monitor, multi-cloud-net,
 // pricing-analyst, iac-generator, container-networking, cdn-edge,
-// network-automation, sase-sse, capacity-planner, ipv6-migration
+// network-automation, sase-sse, capacity-planner, ipv6-migration,
+// report-builder
 
 import { joinSession } from "@github/copilot-sdk/extension";
 import { readFile, writeFile } from "node:fs/promises";
@@ -394,6 +395,20 @@ const REGISTRY = {
             "troubleshoot": "IPv6 troubleshooting — connectivity, ICMPv6, PMTUD, NDP, DNS resolution, firewall misconfigs.",
         },
     },
+    doc: {
+        dir: "report-builder",
+        domain: "Documentation & Reporting",
+        icon: "📄",
+        trigger: /\b(create|generate|produce|prepare|build|export|render|package|compile)\b[^.\n]{0,60}\b(report|deliverable|documentation|write[-\s]?up|pdf|docx|word\s+document|xlsx|excel\s+(workbook|model)|html\s+report|workbook)\b|\b(report|deliverable|write[-\s]?up|analysis)\b[^.\n]{0,40}\b(as|to|into|in)\b[^.\n]{0,20}\b(pdf|docx|word|xlsx|excel|html|markdown)\b/i,
+        guidance: "Packages findings from the domain specialists into polished deliverables (Markdown/HTML/PDF/DOCX/XLSX). This is a packaging/rendering specialist — do the technical analysis with the relevant domain specialist FIRST, then use report-builder to structure and render it. Renderer scripts ship in the extension's `renderers/` directory; render to the standard `cloud-networking/<specialist>/reports/` location and keep the Markdown/JSON source alongside the output. Rendering only — never modifies live infrastructure.",
+        skills: {
+            "report-structure": "Standard report skeleton (exec summary → scope → findings table → diagram → recommendations → references), quality checklist, and format-selection matrix.",
+            "html-report": "Render a Markdown report to self-contained styled HTML via make_html.py (needs markdown2).",
+            "pdf-report": "Render a Markdown report to print-ready PDF via make_pdf.py (Playwright + Chromium); falls back to HTML if Chromium is unavailable.",
+            "docx-report": "Render a Markdown report to an editable Word doc with real styles + TOC via make_docx.py (needs python-docx).",
+            "xlsx-workbook": "Build a multi-sheet Excel workbook with REAL formulas + named ranges from a JSON --spec via make_xlsx.py (needs openpyxl).",
+        },
+    },
 };
 
 const PREFIXES = Object.keys(REGISTRY);
@@ -463,7 +478,7 @@ function buildCapabilitiesSummary() {
 
     _capabilitiesSummary = `# Cloud Networking — Available Specialists
 
-This extension exposes its 19 specialists through **five tools**. Specialists are
+This extension exposes its ${PREFIXES.length} specialists through **five tools**. Specialists are
 identified by their \`cn_\`-prefixed id (e.g. \`cn_vnet\`) and selected by *argument*,
 not by tool name. Skills are passed as a separate \`skill\` argument.
 
@@ -561,7 +576,7 @@ const SPECIALIST_PARAM = {
 const tools = [
     {
         name: "cn_capabilities",
-        description: "Returns a structured map of all 19 cloud networking specialists and their skills, plus how to invoke them via cn_role/cn_orchestrate/cn_skill. Use to discover what networking capabilities are available.",
+        description: `Returns a structured map of all ${PREFIXES.length} cloud networking specialists and their skills, plus how to invoke them via cn_role/cn_orchestrate/cn_skill. Use to discover what networking capabilities are available.`,
         parameters: { type: "object", properties: {} },
         skipPermission: true,
         handler: async () => buildCapabilitiesSummary(),
@@ -709,7 +724,9 @@ const OUTPUT_CONVENTION =
     "  cloud-networking/<specialist>/configs/   — generated IaC, firewall/device configs, scripts\n" +
     "`<specialist>` is the specialist's kebab-case name (e.g. vnet-architect, firewall-engineer, iac-generator, pricing-analyst). " +
     "Name files `<kebab-topic>-<YYYYMMDD>.<ext>` (e.g. `hub-spoke-3region-20260528.drawio`). Create missing subfolders. " +
-    "Confirm the path with the user before writing, write only inside the working directory, and never modify live infrastructure.";
+    "Confirm the path with the user before writing, write only inside the working directory, and never modify live infrastructure. " +
+    "To package a specialist's findings into a polished Markdown/HTML/PDF/DOCX/XLSX deliverable, use the report-builder specialist " +
+    "(`cn_role({ specialist: \"cn_doc\" })` then its `report-structure` and `*-report`/`xlsx-workbook` skills).";
 
 const PRESENCE_NOTE =
     "[cloud-networking] The cloud-networking extension (a.k.a. @cloud-networking) is LOADED in this session. " +
