@@ -108,6 +108,7 @@ const REGISTRY = {
     vnet: {
         dir: "vnet-architect",
         domain: "VNet/Subnet Architecture",
+        name: "VNet/Subnet Architect",
         icon: "🏗️",
         trigger: /\b(VNet|VPC|virtual\s+network|subnet|address\s+(space|plan)|CIDR|hub[-\s]?spoke|peering|network\s+(design|topology|diagram)|IP\s+plan)/i,
         guidance: "Cover Azure VNets, AWS VPCs, and GCP VPCs. Cite cloud provider documentation. Diagram policy: Mermaid (`network-diagram`) is the default — always include one for every design, preferring official cloud-provider icons (Iconify refs like `logos:microsoft-azure`, `logos:aws`, `logos:google-cloud`) and falling back to emojis when no icon is available. After delivering the Mermaid diagram, offer to also generate Excalidraw (`excalidraw-diagram`) or draw.io (`drawio-diagram`) versions on request — do not generate them by default.",
@@ -125,6 +126,7 @@ const REGISTRY = {
     fw: {
         dir: "firewall-engineer",
         domain: "Firewall Engineering",
+        name: "Firewall Engineer",
         icon: "🔥",
         trigger: /\b(firewall|FW\s+(rule|policy)|PAN[-\s]?OS|FortiGate|FortiOS|Check\s*Point|CloudGuard|ASA|FTD|Firepower|SRX|Zscaler|ZIA|ZPA|Sophos\s+XG|Azure\s+Firewall|AWS\s+Network\s+Firewall|Cloud\s+Armor|WAF\s+rule|rule\s+audit|firewall\s+policy|NGFW|network\s+virtual\s+appliance|NVA\s+firewall|OPNsense|pfSense|VyOS|iptables|nftables|netfilter)/i,
         guidance: "Covers 14 vendor platforms: Azure Firewall, AWS Network Firewall, GCP Cloud Firewall, Palo Alto, FortiGate, Check Point, Cisco ASA/FTD, Juniper SRX, Zscaler, Sophos XG, OPNsense, pfSense, VyOS, iptables/nftables. Analysis only — never apply changes without confirmation.",
@@ -143,6 +145,7 @@ const REGISTRY = {
     lb: {
         dir: "load-balancer",
         domain: "Load Balancing",
+        name: "Load Balancer",
         icon: "⚖️",
         trigger: /\b(load\s+balanc|ALB|NLB|GLB|App(lication)?\s+Gateway|Front\s+Door|Traffic\s+Manager|health\s+probe|backend\s+pool|SNAT\s+exhaust|SSL\s+offload|L[47]\s+balanc|ingress\s+controller)/i,
         guidance: "Covers Azure LB/App Gateway/Front Door, AWS ALB/NLB/GLB, GCP LB.",
@@ -159,6 +162,7 @@ const REGISTRY = {
     dns: {
         dir: "dns-specialist",
         domain: "DNS",
+        name: "DNS Specialist",
         icon: "🌐",
         trigger: /\b(DNS|domain\s+name|name\s+resolution|Route\s*53|Cloud\s+DNS|Private\s+DNS|DNS\s+(zone|resolver|forward|record|migration)|split[-\s]?horizon|conditional\s+forward)/i,
         guidance: "Covers Azure DNS, AWS Route 53, GCP Cloud DNS, and hybrid DNS resolution.",
@@ -174,6 +178,7 @@ const REGISTRY = {
     pl: {
         dir: "private-link",
         domain: "Private Link / Endpoints",
+        name: "Private Link Engineer",
         icon: "🔒",
         trigger: /\b(Private\s+(Link|Endpoint|Service\s+Connect)|PSC|service\s+endpoint|PE\s+(subnet|DNS)|PrivateLink)/i,
         guidance: "Covers Azure Private Link/Endpoints, AWS PrivateLink, GCP Private Service Connect.",
@@ -188,6 +193,7 @@ const REGISTRY = {
     hyb: {
         dir: "hybrid-connectivity",
         domain: "Hybrid Connectivity",
+        name: "Hybrid Connectivity",
         icon: "🔗",
         trigger: /\b(ExpressRoute|Direct\s+Connect|Cloud\s+Interconnect|S2S\s+VPN|P2S\s+VPN|site[-\s]?to[-\s]?site|point[-\s]?to[-\s]?site|VPN\s+gateway|IPsec|IKEv[12]|BGP\s+(peer|neighbor|session)|hybrid\s+(connect|network))/i,
         guidance: "Covers ExpressRoute, VPN gateways, AWS Direct Connect, GCP Cloud Interconnect.",
@@ -204,6 +210,7 @@ const REGISTRY = {
     nsec: {
         dir: "network-security",
         domain: "Network Security",
+        name: "Network Security",
         icon: "🛡️",
         trigger: /\b(NSG|network\s+security\s+group|security\s+group|ASG|DDoS|micro[-\s]?segment|zero[-\s]?trust\s+network|flow\s+log\s+(analys|secur)|network\s+compliance|CIS\s+bench|network\s+segmentation)/i,
         guidance: "Covers NSGs, security groups, DDoS protection, micro-segmentation across all clouds.",
@@ -221,6 +228,7 @@ const REGISTRY = {
     ntsh: {
         dir: "network-troubleshooter",
         domain: "Network Troubleshooting",
+        name: "Network Troubleshooter",
         icon: "🔧",
         trigger: /\b(troubleshoot|packet\s+capture|traceroute|Network\s+Watcher|IP\s+flow\s+verify|connection\s+troubleshoot|latency\s+(issue|analys|spike)|routing\s+(table|debug|issue)|MTU|SNAT\s+port|NAT\s+(gateway|debug|issue)|Reachability\s+Analyzer)/i,
         guidance: "Uses Network Watcher, VPC Reachability Analyzer, and standard diagnostic tools. For packet-level investigations: pair `packet-capture` (capture mechanics) with `pcap-analysis` (deep analysis of the resulting .pcap/.pcapng).",
@@ -238,6 +246,7 @@ const REGISTRY = {
     vwan: {
         dir: "vwan-sdwan",
         domain: "Virtual WAN / SD-WAN",
+        name: "Virtual WAN / SD-WAN",
         icon: "🌍",
         trigger: /\b(Virtual\s+WAN|vWAN|VWAN|routing\s+intent|secured\s+hub|SD[-\s]?WAN|inter[-\s]?hub|vWAN\s+hub)/i,
         guidance: "Covers Azure Virtual WAN hubs, routing intent, and SD-WAN partner integrations.",
@@ -253,6 +262,7 @@ const REGISTRY = {
     nmon: {
         dir: "network-monitor",
         domain: "Network Monitoring",
+        name: "Network Monitor",
         icon: "📊",
         trigger: /\b(network\s+monitor|Connection\s+Monitor|traffic\s+analytics|flow\s+log|network\s+(alert|dashboard|baseline|observ)|NSG\s+flow|VPC\s+flow|network\s+metric)/i,
         guidance: "Covers flow logs, traffic analytics, connection monitors, and alerting across all clouds.",
@@ -269,6 +279,7 @@ const REGISTRY = {
     mcn: {
         dir: "multi-cloud-net",
         domain: "Multi-Cloud Networking",
+        name: "Multi-Cloud Networking",
         icon: "☁️",
         trigger: /\b(multi[-\s]?cloud\s+(network|connect|transit)|cross[-\s]?cloud|cloud[-\s]?to[-\s]?cloud|transit\s+(architecture|design)|cloud\s+interconnect\s+design|service\s+mapping\s+(across|between)\s+cloud)/i,
         guidance: "Covers cross-cloud connectivity architectures, service equivalency mapping, and cost analysis.",
@@ -283,6 +294,7 @@ const REGISTRY = {
     price: {
         dir: "pricing-analyst",
         domain: "Network Pricing",
+        name: "Pricing Analyst",
         icon: "💰",
         trigger: /\b(pric(e|ing)|cost\s+(estimat|compar|analy|optim|break)|egress\s+cost|data\s+transfer\s+cost|TCO|total\s+cost|network\s+cost|billing|budget|monthly\s+cost|how\s+much\s+(does|will|is)|cheaper|expensive|save\s+money|cost\s+saving|right[-\s]?siz)/i,
         guidance: "Covers Azure, AWS, and GCP networking costs. Prices are indicative — always verify against current vendor pricing pages.",
@@ -300,6 +312,7 @@ const REGISTRY = {
     iac: {
         dir: "iac-generator",
         domain: "IaC Generator",
+        name: "IaC Generator",
         icon: "📐",
         trigger: /\b(bicep|terraform|arm\s+template|ansible|infra(structure)?[-\s]+(as[-\s]+code|code)|IaC|generate\s+(bicep|terraform|arm|ansible)|network\s+deployment\s+(template|code)|deploy\s+network(ing)?\s+(template|code))/i,
         guidance: "Generates production-ready Infrastructure-as-Code for networking across Azure, AWS, and GCP. Supports Bicep, Terraform, Ansible, ARM. Code generation only — never executes deployments. Always provide validation commands before deployment commands.",
@@ -313,6 +326,7 @@ const REGISTRY = {
     cnet: {
         dir: "container-networking",
         domain: "Container Networking",
+        name: "Container Networking",
         icon: "🐳",
         trigger: /\b(CNI|container\s+network|kubernetes\s+network|k8s\s+network|network\s+polic(y|ies)|service\s+mesh|istio|linkerd|cilium|calico|ingress\s+controller|Gateway\s+API|pod[-\s]+(to[-\s]+pod|network|cidr)|cluster\s+mesh|AKS\s+network|EKS\s+network|GKE\s+network)/i,
         guidance: "Covers Kubernetes/container networking across AKS, EKS, and GKE — CNI plugins, network policies, service mesh, ingress controllers, Gateway API, and multi-cluster connectivity.",
@@ -328,6 +342,7 @@ const REGISTRY = {
     cdn: {
         dir: "cdn-edge",
         domain: "CDN & Edge Networking",
+        name: "CDN & Edge Networking",
         icon: "🌐",
         trigger: /\b(CDN|content\s+delivery|Front\s+Door|CloudFront|Cloud\s+CDN|edge\s+(network|routing|compute)|cache\s+(optim|strateg|key|purg)|origin\s+(shield|group|failover)|Anycast|POP\s+(location|select)|WAF\s+at\s+edge)/i,
         guidance: "Covers Azure Front Door, AWS CloudFront, GCP Cloud CDN, edge compute, caching strategies, and WAF at the edge.",
@@ -342,6 +357,7 @@ const REGISTRY = {
     nauto: {
         dir: "network-automation",
         domain: "Network Automation & GitOps",
+        name: "Network Automation & GitOps",
         icon: "🔄",
         trigger: /\b(network\s+automat|GitOps\s+network|CI[\s/]?CD\s+network|pipeline\s+network|drift\s+detect|policy[-\s]+as[-\s]+code|network\s+testing|network\s+rollback|terraform\s+(pipeline|ci|automation)|bicep\s+(pipeline|ci|automation))/i,
         guidance: "Covers CI/CD pipelines for network changes, GitOps workflows, drift detection, policy-as-code, automated testing, and rollback strategies.",
@@ -356,6 +372,7 @@ const REGISTRY = {
     sase: {
         dir: "sase-sse",
         domain: "SASE / SSE",
+        name: "SASE / SSE",
         icon: "🛡️",
         trigger: /\b(SASE|SSE|zero\s+trust\s+network|ZTNA|secure\s+web\s+gateway|SWG|CASB|cloud\s+access\s+security|FWaaS|Prisma\s+Access|Netskope|security\s+service\s+edge|private\s+access|internet\s+access\s+gateway)/i,
         guidance: "Covers SASE/SSE architecture, Zero Trust Network Access, SWG, CASB, SD-WAN integration, and vendor comparison (Zscaler, Palo Alto Prisma, Netskope, Microsoft, Cisco, Fortinet).",
@@ -370,6 +387,7 @@ const REGISTRY = {
     ncap: {
         dir: "capacity-planner",
         domain: "Network Capacity Planning",
+        name: "Network Capacity Planning",
         icon: "📏",
         trigger: /\b(capacity\s+plan|bandwidth\s+forecast|gateway\s+siz(e|ing)|throughput\s+calc|network\s+scalab|growth\s+model|network\s+limit|subscription\s+limit|scale\s+limit|network\s+capacity)/i,
         guidance: "Covers bandwidth forecasting, gateway/service sizing, throughput calculations, scalability limits, and growth modeling for cloud networking resources.",
@@ -384,6 +402,7 @@ const REGISTRY = {
     ipv6: {
         dir: "ipv6-migration",
         domain: "IPv6 Migration",
+        name: "IPv6 Migration",
         icon: "🔢",
         trigger: /\b(IPv6|dual[-\s]?stack|NAT64|DNS64|464XLAT|IPv6\s+(migrat|transition|address|compat)|SLAAC|GUA|ULA|link[-\s]?local\s+address)/i,
         guidance: "Covers dual-stack design, IPv6 transition strategies, addressing schemes, NAT64/DNS64/464XLAT compatibility, and IPv6 troubleshooting across Azure, AWS, and GCP.",
@@ -398,6 +417,7 @@ const REGISTRY = {
     doc: {
         dir: "report-builder",
         domain: "Documentation & Reporting",
+        name: "Report Builder",
         icon: "📄",
         trigger: /\b(create|generate|produce|prepare|build|export|render|package|compile)\b[^.\n]{0,60}\b(report|deliverable|documentation|write[-\s]?up|pdf|docx|word\s+document|xlsx|excel\s+(workbook|model)|html\s+report|workbook)\b|\b(report|deliverable|write[-\s]?up|analysis)\b[^.\n]{0,40}\b(as|to|into|in)\b[^.\n]{0,20}\b(pdf|docx|word|xlsx|excel|html|markdown)\b/i,
         guidance: "Packages findings from the domain specialists into polished deliverables (Markdown/HTML/PDF/DOCX/XLSX). This is a packaging/rendering specialist — do the technical analysis with the relevant domain specialist FIRST, then use report-builder to structure and render it. Renderer scripts ship in the extension's `renderers/` directory; render to the standard `network-desk/<specialist>/reports/` location and keep the Markdown/JSON source alongside the output. Rendering only — never modifies live infrastructure.",
@@ -460,8 +480,13 @@ function inferSpecialistFromSkill(raw) {
 
 // ── Output builders ────────────────────────────────────────────────────
 
+// Friendly display name for a specialist (falls back to domain if unset).
+function friendlyName(p) {
+    return REGISTRY[p].name || REGISTRY[p].domain;
+}
+
 function specialistList() {
-    return PREFIXES.map((p, i) => `| ${i + 1} | ${REGISTRY[p].icon} | ${REGISTRY[p].domain} | \`${pub(p)}\` | ${Object.keys(REGISTRY[p].skills).length} |`).join("\n");
+    return PREFIXES.map((p, i) => `| ${i + 1} | ${REGISTRY[p].icon} | ${friendlyName(p)} | \`${pub(p)}\` | ${REGISTRY[p].domain} | ${Object.keys(REGISTRY[p].skills).length} |`).join("\n");
 }
 
 let _capabilitiesSummary = null;
@@ -473,17 +498,17 @@ function buildCapabilitiesSummary() {
         const skills = Object.entries(def.skills)
             .map(([name, desc]) => `  - \`${name}\` — ${desc}`)
             .join("\n");
-        return `### ${def.icon} ${def.domain} — \`specialist: "${pub(p)}"\`\n${skills}`;
+        return `### ${def.icon} ${friendlyName(p)} — \`specialist: "${pub(p)}"\`\n${skills}`;
     }).join("\n\n");
 
     _capabilitiesSummary = `# Network Desk — Available Specialists
 
-This extension exposes its ${PREFIXES.length} specialists through **five tools**. Specialists are
-identified by their \`cn_\`-prefixed id (e.g. \`cn_vnet\`) and selected by *argument*,
-not by tool name. Skills are passed as a separate \`skill\` argument.
+This extension exposes its ${PREFIXES.length} specialists through **five tools**. The **Specialist**
+column is the friendly name; **Invoke as** is the \`cn_\`-prefixed id you pass as the
+\`specialist\` *argument* (e.g. \`cn_vnet\`) — not a tool name. Skills are passed as a separate \`skill\` argument.
 
-| # | | Domain | specialist | # skills |
-|---|---|--------|-----------|----------|
+| # | | Specialist | Invoke as (\`specialist\`) | Domain | # skills |
+|---|---|-----------|---------------------------|--------|----------|
 ${rows}
 
 ## How to use
