@@ -1,189 +1,115 @@
-# Skill: VNet/VPC Peering Advisor
+# Skill: VNet / VPC Peering Advisor (`vnet_skill_peering_advisor`)
 
-## Purpose
+Cross-cloud peering design — Azure VNet Peering, AWS VPC Peering, GCP VPC Network Peering. Owns the configure-correctly workflow, the per-cloud caveats (Azure gateway transit, AWS non-transitivity, GCP custom-route import/export), and the "Peering vs VPN vs Private Link / PSC" decision. The exact CLI commands, limit tables, and pitfall fixes live in the vault.
 
-This skill provides expert guidance on configuring virtual network peering across Azure, AWS, and GCP. It covers peering setup, gateway transit, transitive routing limitations, common pitfalls, and a decision framework for choosing between peering, VPN, and Private Link/PrivateLink/Private Service Connect.
+---
 
-## Core Knowledge
+## Knowledge loading contract
 
-### Azure VNet Peering
+This is a **thin specialist skill**. It owns the cross-cloud peering decision (peering vs. VPN vs. PrivateLink/PSC), the per-cloud gotchas (Azure `allow-forwarded-traffic` + `use-remote-gateways`, AWS non-transitivity, GCP `--export-custom-routes`/`--import-custom-routes`), the overlapping-CIDR workaround sequence, and the scale-out gate (when to abandon peering for managed transit — vWAN / TGW / NCC). The exact CLI commands and current limit tables live in the vault.
 
-Azure supports two peering types:
+Mandatory steps every time you use this skill:
 
-**Regional (same-region) peering** — Traffic stays on the Azure backbone and has no bandwidth cap from peering itself. Peering data transfer pricing is region-dependent; verify current regional and global peering rates on the Azure Virtual Network pricing page: https://azure.microsoft.com/en-us/pricing/details/virtual-network/.
+1. Call `cn_vault_page({ page: "VNet-VPC-Peering" })` for canonical CLI per cloud, settings tables, current peering limits, and the decision guide.
+2. Cite the vault page when stating peering limits, CLI flag semantics, or current pricing references.
 
-**Global peering** — Cross-region peering over the Microsoft backbone. Incurs inter-region data transfer charges. Same configuration as regional peering but with `--allow-forwarded-traffic` critical for transit scenarios.
+If the user asks about managed-transit alternatives at scale (vWAN, TGW, NCC), redirect to the relevant sibling specialist.
 
-```bash
-# Create bidirectional peering
-# Step 1: Hub → Spoke
-az network vnet peering create \
-  --name hub-to-spoke1 \
-  --resource-group hub-rg \
-  --vnet-name hub-vnet \
-  --remote-vnet /subscriptions/<sub>/resourceGroups/spoke-rg/providers/Microsoft.Network/virtualNetworks/spoke1-vnet \
-  --allow-vnet-access true \
-  --allow-forwarded-traffic true \
-  --allow-gateway-transit true
+---
 
-# Step 2: Spoke → Hub
-az network vnet peering create \
-  --name spoke1-to-hub \
-  --resource-group spoke-rg \
-  --vnet-name spoke1-vnet \
-  --remote-vnet /subscriptions/<sub>/resourceGroups/hub-rg/providers/Microsoft.Network/virtualNetworks/hub-vnet \
-  --allow-vnet-access true \
-  --allow-forwarded-traffic true \
-  --use-remote-gateways true
-```
+## When to use peering-advisor
 
-**Key settings explained:**
+| Scenario | Behaviour |
+|---|---|
+| "How do I peer two VNets / VPCs?" | Run the per-cloud configure workflow |
+| "Spoke-to-spoke traffic via hub isn't working" | Non-transitivity gotcha — apply UDR / TGW / NCC fix |
+| "Should I use peering, VPN, or Private Link?" | Decision guide (vault page §Decision Guide) |
+| "We have CIDR overlap" — can we still peer? | NAT / re-IP / Private Link workaround sequence |
+| "We're hitting peering limits" | Pivot to managed transit (redirect) |
+| Azure gateway transit (spoke → hub VPN/ER) | Gateway-transit checklist (4 items on the vault page) |
+| Hub-and-spoke design / global landing zone | Redirect: `cn_skill({ specialist: "cn_vnet", skill: "address-planner" })` (CIDR plan) + this skill (peering setup) |
+| Managed Azure transit at scale | Redirect: `cn_skill({ specialist: "cn_vwan", skill: "vwan-design" })` |
+| Managed AWS transit at scale | Redirect: `cn_skill({ specialist: "cn_cnet", skill: "tgw-design" })` |
+| Managed GCP transit at scale | Redirect: `cn_skill({ specialist: "cn_cnet", skill: "ncc-design" })` |
+| Private Link / PrivateLink / PSC as peering alternative | Redirect: `cn_skill({ specialist: "cn_pl", skill: "service-exposure" })` |
+| Address-space / CIDR planning | Redirect: `cn_skill({ specialist: "cn_vnet", skill: "address-planner" })` |
 
-| Setting | On Hub Side | On Spoke Side | Effect |
-|---------|------------|---------------|--------|
-| `allow-vnet-access` | true | true | Enables IP connectivity between peered VNets |
-| `allow-forwarded-traffic` | true | true | Allows traffic forwarded by an NVA (not originating from the VNet) to traverse the peering |
-| `allow-gateway-transit` | true | — | Hub shares its VPN/ExpressRoute gateway with the spoke |
-| `use-remote-gateways` | — | true | Spoke uses the hub's gateway for on-prem connectivity |
+---
 
-**Limits:** 500 peerings per VNet (hard limit). Global peering does not support Basic SKU load balancers.
+## Reference pages (load these first)
 
-### AWS VPC Peering
+| Topic | Vault page | Load with |
+|---|---|---|
+| Canonical peering — per-cloud CLI, settings tables, common pitfalls, decision guide | [[VNet-VPC-Peering]] | `cn_vault_page({ page: "VNet-VPC-Peering" })` |
+| Hub-and-spoke pattern (peering is the implementation; pattern explains *why*) | [[Hub-and-Spoke]] | `cn_vault_page({ page: "Hub-and-Spoke" })` |
+| Transit hub (when peering hits scale limits) | [[Transit-Hub]] | `cn_vault_page({ page: "Transit-Hub" })` |
+| Cross-cloud service mapping (when user is translating across clouds) | [[Cloud-Network-Service-Mapping]] | `cn_vault_page({ page: "Cloud-Network-Service-Mapping" })` |
 
-AWS VPC peering creates a direct network route between two VPCs. It is **always non-transitive** — if VPC-A peers with VPC-B and VPC-B peers with VPC-C, VPC-A cannot reach VPC-C through VPC-B.
+Row #1 is mandatory.
 
-```bash
-# Create peering connection
-aws ec2 create-vpc-peering-connection \
-  --vpc-id vpc-aaa111 \
-  --peer-vpc-id vpc-bbb222 \
-  --peer-region us-west-2          # omit for same-region
+---
 
-# Accept peering (must be done from the peer VPC's account/region)
-aws ec2 accept-vpc-peering-connection \
-  --vpc-peering-connection-id pcx-abc123
+## Required inputs — collect before answering
 
-# Add route in each VPC's route table
-aws ec2 create-route \
-  --route-table-id rtb-aaa \
-  --destination-cidr-block 10.1.0.0/16 \
-  --vpc-peering-connection-id pcx-abc123
-```
+1. **Cloud(s)** — Azure / AWS / GCP / mixed.
+2. **CIDRs** — both VNets/VPCs; confirm no overlap.
+3. **Topology** — hub-and-spoke / mesh / single-pair.
+4. **Direction** — bidirectional (the default) or unidirectional access.
+5. **Gateway transit required?** (Azure) — does the spoke need to reach on-prem via the hub gateway?
+6. **Custom routes to exchange?** (GCP) — BGP/static routes from Cloud Router that must propagate to the peer.
+7. **Scale** — number of VNets/VPCs in the topology now and in 12 months.
+8. **Encryption requirement** — peering uses platform backbone (not user-encrypted); if user needs IPsec, route to VPN.
 
-**Critical restrictions:**
-- **No overlapping CIDRs** — Peering will fail if either VPC's primary or secondary CIDR overlaps with the peer.
-- **No transitive routing** — Use Transit Gateway for hub-spoke patterns.
-- **No edge-to-edge routing** — Traffic from a VPN/Direct Connect attached to VPC-A cannot traverse a peering to reach VPC-B. Use TGW instead.
-- **Limits:** 125 active peerings per VPC (can request increase to 500). 50 route table entries per route table referencing peering connections.
+---
 
-### GCP VPC Network Peering
+## Workflow
 
-GCP VPC peering operates differently from Azure and AWS:
+1. **Collect inputs** above. Especially confirm CIDR non-overlap before anything else.
+2. **Load `VNet-VPC-Peering`**.
+3. **Confirm peering is the right tool** using the vault's decision guide:
+   - Need full network-to-network connectivity? → peering.
+   - Encrypted tunnel needed? → VPN.
+   - Single service access only / CIDR overlap acceptable? → Private Link / PrivateLink / PSC.
+   - 50+ networks? → managed transit (vWAN / TGW / NCC) — redirect.
+4. **Configure both sides** — peering is two resources in Azure and GCP (per-side); AWS uses a single connection + accept. Cite the vault page CLI.
+5. **Apply per-cloud gotchas**:
+   - **Azure** — set `allow-forwarded-traffic = true` on both sides if an NVA is in the path; set `allow-gateway-transit = true` on hub and `use-remote-gateways = true` on spoke for shared VPN/ER gateway.
+   - **AWS** — peering is non-transitive: if you need hub-and-spoke transit, abandon peering and use TGW.
+   - **GCP** — subnet routes are automatic, but custom/BGP routes need `--export-custom-routes` + `--import-custom-routes` on both sides.
+6. **Plan UDRs / route tables** for non-transitive topologies — spoke-to-spoke via hub requires explicit UDR on each spoke pointing to the hub NVA.
+7. **Check current limits** (vault page table) — Azure 500/VNet (hard), AWS 125/VPC (up to 500), GCP 25/VPC (quota-extensible). If close to the limit → pivot to managed transit.
+8. **Address CIDR overlap** with NAT / re-IP / Private Link substitution.
+9. **Emit** in the format below.
 
-- **Subnet routes are exchanged automatically** — When two VPC networks are peered, all subnet routes are immediately visible to both sides. No manual route table entries needed.
-- **Custom routes require explicit import/export** — Static routes and routes learned from Cloud Router (BGP) are NOT exchanged by default. Enable `--export-custom-routes` and `--import-custom-routes` on peering creation.
-- **Non-transitive** — Like AWS, GCP peering does not support transitive routing. VPC-A peered with VPC-B and VPC-B peered with VPC-C does not give VPC-A access to VPC-C.
+---
 
-```bash
-# Create peering (both sides must create independently)
-# Side A:
-gcloud compute networks peerings create peer-a-to-b \
-  --network vpc-a \
-  --peer-network vpc-b \
-  --peer-project project-b \
-  --export-custom-routes \
-  --import-custom-routes \
-  --export-subnet-routes-with-public-ip
+## Output format
 
-# Side B:
-gcloud compute networks peerings create peer-b-to-a \
-  --network vpc-b \
-  --peer-network vpc-a \
-  --peer-project project-a \
-  --export-custom-routes \
-  --import-custom-routes
-```
+Every peering-advisor answer should emit:
 
-**Limits:** 25 peerings per VPC network. Internal DNS resolution across peered networks is supported but requires configuring DNS peering zones.
+1. **Inputs assumed** — one line each.
+2. **Decision** — peering vs. VPN vs. Private Link, with one-line rationale (cite vault page).
+3. **Configuration plan** — per-side CLI commands (pointer to vault page rather than duplicating), with the per-cloud gotchas explicitly called out.
+4. **Routing plan** — UDRs / route tables for non-transitive scenarios, gateway-transit flags for Azure.
+5. **Scale check** — current count vs. limit; flag if pivot to managed transit is needed.
+6. **CIDR check** — confirmation no overlap, or explicit workaround sequence (NAT / re-IP / PL).
+7. **What this excludes** — managed-transit setup (vWAN / TGW / NCC), VPN tunnel configuration, Private Link service exposure detail.
+8. **Footer** — `Analysis only — verify against vendor documentation before applying.`
 
-## Common Pitfalls
+---
 
-### 1. Overlapping CIDRs
+## Common workflow mistakes (do not repeat these)
 
-**Symptom:** Peering creation fails or routes are not effective.
+These are workflow anti-patterns specific to this skill — not a substitute for the vault page's "Common Pitfalls" section.
 
-**Prevention:**
-```bash
-# Azure: check for overlaps before peering
-az network vnet list --query "[].{Name:name, Prefixes:addressSpace.addressPrefixes}" -o table
-
-# AWS: check VPC CIDRs
-aws ec2 describe-vpcs --query "Vpcs[].{Id:VpcId, CIDR:CidrBlock}" --output table
-```
-
-**Fix:** If CIDRs overlap, options are: (a) re-IP one VNet/VPC, (b) use NAT (Azure NAT Gateway with Virtual Network NAT), or (c) use Private Link / AWS PrivateLink instead of peering (service-level connectivity without full network peering).
-
-### 2. Missing UDRs for Transit
-
-**Symptom:** Spoke-to-spoke traffic fails even though both spokes peer with the hub.
-
-**Root cause:** Peering is non-transitive. Without a UDR pointing spoke traffic to a hub NVA/firewall, packets are dropped.
-
-**Fix:** Create UDRs on spoke subnets:
-```bash
-# Point all spoke traffic to hub firewall
-az network route-table route create \
-  --route-table-name spoke1-rt -g spoke1-rg \
-  --name to-spokes --address-prefix 10.0.0.0/8 \
-  --next-hop-type VirtualAppliance \
-  --next-hop-ip-address 10.0.1.4
-```
-
-### 3. Peering Limits
-
-**Provider limits:**
-| Cloud | Limit | Increase? |
-|-------|-------|-----------|
-| Azure | 500 per VNet | No (hard limit) |
-| AWS | 125 per VPC | Yes, up to 500 via support ticket |
-| GCP | 25 per VPC network | Yes, via quota increase request |
-
-If approaching limits, consolidate VNets/VPCs or switch to managed transit (Azure Virtual WAN, AWS Transit Gateway, GCP Network Connectivity Center).
-
-### 4. Gateway Transit Misconfiguration (Azure)
-
-**Symptom:** Spoke cannot reach on-premises through hub's VPN/ExpressRoute gateway.
-
-**Checklist:**
-- Hub peering: `allow-gateway-transit = true`
-- Spoke peering: `use-remote-gateways = true`
-- Hub must have an active VPN or ExpressRoute gateway deployed
-- Spoke cannot have its own gateway deployed simultaneously
-
-## Decision Guide: Peering vs VPN vs Private Link
-
-| Criteria | VNet/VPC Peering | Site-to-Site VPN | Private Link / PrivateLink / PSC |
-|----------|-----------------|------------------|----------------------------------|
-| **Connectivity scope** | Full network-to-network | Full network-to-network (encrypted) | Single service endpoint |
-| **Overlapping CIDRs** | ❌ Not supported | ⚠️ Requires NAT | ✅ Supported (no IP routing) |
-| **Encryption** | Platform backbone (not user-encrypted) | IPsec encrypted | Platform backbone |
-| **Bandwidth** | Line-rate (no cap) | Gateway SKU dependent (1.25–10 Gbps Azure) | Service-dependent |
-| **Transitive routing** | ❌ (requires NVA/TGW) | ✅ (with BGP route propagation) | N/A |
-| **Cost** | Peering data transfer charges vary by provider and region; verify current pricing | Gateway hour + data transfer | Per-hour + per-GB processed |
-| **Best for** | Full network integration, hub-spoke | Encrypted cross-cloud or on-prem | Consuming a specific PaaS/SaaS service securely |
-
-**Decision flow:**
-1. Need full network-to-network connectivity with no CIDR overlap? → **Peering**
-2. Need encrypted tunnel or cross-cloud connectivity? → **VPN**
-3. Need access to a single service with overlapping CIDRs or minimal exposure? → **Private Link**
-4. At scale (50+ networks)? → **Managed transit** (Virtual WAN, TGW, NCC)
-
-## References
-
-- Azure VNet peering: https://learn.microsoft.com/azure/virtual-network/virtual-network-peering-overview
-- AWS VPC peering: https://docs.aws.amazon.com/vpc/latest/peering/what-is-vpc-peering.html
-- GCP VPC peering: https://cloud.google.com/vpc/docs/vpc-peering
-- Azure subscription limits (networking): https://learn.microsoft.com/azure/azure-resource-manager/management/azure-subscription-service-limits#networking-limits
-- Azure Virtual Network pricing: https://azure.microsoft.com/en-us/pricing/details/virtual-network/
+1. **Recommending peering without checking CIDR overlap.** Peering will silently fail or produce ineffective routes. CIDR check is step zero, not step three.
+2. **Promising transit through a peering.** None of the three clouds support transitive peering. If the user asks "A → B → C", the answer is UDR-to-NVA or managed transit, never "just peer them all".
+3. **Forgetting `allow-forwarded-traffic` on Azure NVA topologies.** Without this flag, packets forwarded by an NVA across the peering are dropped.
+4. **Forgetting `use-remote-gateways` / `allow-gateway-transit` for Azure spoke → on-prem.** Both flags must be set (one per side); spoke cannot also have its own gateway.
+5. **Assuming GCP custom routes propagate by default.** Subnet routes do; BGP-learned routes do not. Always set `--export-custom-routes` + `--import-custom-routes` when Cloud Router is involved.
+6. **Recommending peering at 50+ networks.** Pivot to managed transit (vWAN / TGW / NCC) — peering scales poorly to large meshes (limits + operational burden).
+7. **Confusing peering with VPN for encryption.** Peering uses the platform backbone (Microsoft / AWS / Google) — encrypted in transit by the provider, but not user-controlled IPsec. If the user requires explicit IPsec, use VPN.
+8. **Treating Private Link / PSC as "peering lite".** PL/PSC is service-level, not network-level — different mental model, different DNS story, different pricing. Don't propose it as a drop-in for peering without surfacing the service-vs-network distinction.
+9. **Hand-rolling cross-cloud peering.** Cross-cloud peering does not exist (Azure↔AWS↔GCP). Pivot to VPN / Megaport / Equinix / cloud-to-cloud transit.
 
 **Analysis only — verify against vendor documentation before applying.**
