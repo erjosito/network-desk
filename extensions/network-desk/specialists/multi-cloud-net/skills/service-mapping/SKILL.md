@@ -1,108 +1,109 @@
-# Service Mapping — Cross-Cloud Network Service Equivalency
+# Skill: Cloud Network Service Mapping (`mcn_skill_service_mapping`)
 
-## Overview
+Cross-cloud equivalency for networking services — Azure ↔ AWS ↔ GCP. Used to translate a design from one cloud to another, plan a migration, or assess interoperability in a multi-cloud architecture. Owns the "what is the equivalent of X?" workflow and the "what is fundamentally different (not just renamed)?" callouts. The detailed per-service comparison tables live in the vault.
 
-This skill provides detailed comparison tables mapping equivalent networking services across Azure, AWS, and GCP. Understanding the differences in scope, behavior, and configuration is critical when designing multi-cloud architectures. Each table highlights key distinctions that affect interoperability, migration planning, and consistent policy enforcement.
+---
 
-## Virtual Network
+## Knowledge loading contract
 
-| Feature | Azure VNet | AWS VPC | GCP VPC |
-|---|---|---|---|
-| **Scope** | Regional (single region) | Regional (single region) | Global (spans all regions) |
-| **Subnets** | Regional (span all AZs in region) | Zonal (one AZ per subnet) | Regional (span all zones in region) |
-| **Secondary Ranges** | Not natively supported; use multiple address spaces | Not natively supported; use secondary CIDRs on VPC | Supported natively (alias IP ranges on subnets) |
-| **Max CIDRs** | Multiple address spaces per VNet | Up to 5 CIDRs per VPC (adjustable) | Subnets define ranges; no VPC-level CIDR |
-| **Peering** | VNet Peering (regional + global) | VPC Peering (intra/inter-region) | VPC Peering (global, within same org or cross-project) |
-| **Transitive Routing** | Via Azure Virtual WAN, NVA, or Route Server | Via Transit Gateway (TGW) | Via HA VPN or NVA (no native transit peering) |
-| **Max Subnets** | 3,000 per VNet | 200 per VPC (adjustable) | Varies by quota |
+This is a **thin specialist skill**. It owns the workflow for translating designs across clouds, the discipline of distinguishing "renamed but equivalent" from "fundamentally different behaviour" (e.g. GCP global VPC vs. Azure / AWS regional; GCP distributed firewall vs. centralised Azure FW), and the cross-cloud-design anti-patterns. The detailed per-service comparison tables (VNet/VPC, NSG/SG, LB, ER/DX/Interconnect, Private Endpoint/PrivateLink/PSC, DNS, Firewall) live in the vault.
 
-**Key Differences:** GCP's global VPC model is fundamentally different — a single VPC spans all regions, and subnets are regional. Azure and AWS VNets/VPCs are regional constructs requiring peering for cross-region connectivity. This affects multi-cloud designs: GCP workloads may live in one VPC with regional subnets while Azure/AWS require multiple VNets/VPCs connected via peering or transit hubs.
+Mandatory steps every time you use this skill:
 
-## Security Groups / Network ACLs
+1. Call `cn_vault_page({ page: "Cloud-Network-Service-Mapping" })` for the canonical comparison tables across all 7 service families.
+2. Load relevant service pages when a specific service is mentioned (e.g. `ExpressRoute`, `Direct-Connect`, `Cloud-Interconnect`).
+3. Cite the vault page when stating a feature mapping or behavioural difference; never claim parity from memory.
 
-| Feature | Azure NSG | AWS Security Group | GCP Firewall Rule |
-|---|---|---|---|
-| **Statefulness** | Stateful | Stateful | Stateful (VPC firewall rules) |
-| **Scope** | Attached to subnet or NIC | Attached to ENI (instance-level) | Applied to VPC (network-level) |
-| **Rule Priority** | Explicit priority (100–4096) | No priority (all rules evaluated) | Explicit priority (0–65535) |
-| **Default Deny** | Inbound: deny all; Outbound: allow all | Inbound: deny all; Outbound: allow all | Implied deny ingress; implied allow egress |
-| **Deny Rules** | Supported | Not supported (allow-only) | Supported (allow and deny) |
-| **Stateless Option** | Not available (NSGs are stateful only) | Network ACLs (stateless, subnet-level) | Hierarchical firewall policies (org-level) |
-| **Tags/Targets** | ASG (Application Security Groups) | Security Group references | Network tags, service accounts |
-| **Max Rules** | 1,000 per NSG | 60 inbound + 60 outbound per SG | Varies by quota |
+If a service or scenario is not in the vault, fall back to `cn_search({ query: "<keywords>", specialist: "cn_mcn" })`.
 
-**Key Differences:** AWS Security Groups are allow-only (no deny rules); use Network ACLs for deny rules. Azure NSGs support both allow and deny with explicit priority ordering. GCP firewall rules are VPC-wide and use target tags or service accounts for scoping — there is no per-instance firewall group attachment.
+---
 
-## Load Balancing
+## When to use service-mapping
 
-| Feature | Azure Load Balancer | AWS ALB / NLB | GCP Load Balancer |
-|---|---|---|---|
-| **L4 (TCP/UDP)** | Azure LB (Standard) | NLB (Network Load Balancer) | Network TCP/UDP LB (regional), TCP Proxy (global) |
-| **L7 (HTTP/HTTPS)** | Application Gateway | ALB (Application Load Balancer) | HTTP(S) LB (global) |
-| **Global L7** | Azure Front Door | CloudFront + ALB (not a single LB) | Global External HTTP(S) LB (single anycast VIP) |
-| **Scope** | Regional (Standard LB) | Regional (ALB, NLB) | Regional or Global |
-| **Cross-Region** | Azure Front Door, Traffic Manager | Global Accelerator + regional LBs | Global LB with multi-region NEGs |
-| **WebSocket** | Application Gateway | ALB | HTTP(S) LB |
-| **SSL Termination** | Application Gateway, Front Door | ALB | HTTP(S) LB, SSL Proxy LB |
-| **Private (Internal)** | Internal LB (Standard) | Internal ALB / NLB | Internal TCP/UDP LB, Internal HTTP(S) LB |
-| **Pricing Model** | Per rule + data processed | Per hour + LCU (ALB) / per hour + data (NLB) | Per rule + data processed (per-GB) |
+| Scenario | Behaviour |
+|---|---|
+| "What's the equivalent of Azure X in AWS / GCP?" | Look up the relevant table in the vault page |
+| "We're migrating from Azure to AWS — what changes for networking?" | Run the migration translation workflow |
+| "Why doesn't my AWS deny rule work like an Azure NSG?" | Behavioural-difference callout (AWS SG is allow-only; use NACL or GCP-style deny) |
+| "Can I peer cross-cloud?" | No — pivot to VPN / Megaport / Equinix / cross-cloud transit (redirect) |
+| "Are these features really equivalent?" | Behavioural-difference workflow — surface gaps the user hasn't realised |
+| Multi-cloud addressing plan | Redirect: `cn_skill({ specialist: "cn_mcn", skill: "addressing-plan" })` |
+| Multi-cloud latency / region selection | Redirect: `cn_skill({ specialist: "cn_mcn", skill: "latency-optimization" })` |
+| Cross-cloud connectivity (SD-WAN / Megaport / Equinix / cloud-to-cloud VPN) | Redirect: `cn_skill({ specialist: "cn_cnet", skill: "interconnect-design" })` |
+| Cross-cloud egress / cost comparison | Redirect: `cn_skill({ specialist: "cn_price", skill: "price-compare" })` |
 
-**Key Differences:** GCP offers a truly global L7 load balancer with a single anycast VIP that routes to the nearest healthy backend worldwide — Azure and AWS require separate constructs (Front Door / CloudFront) for global distribution. AWS separates L4 (NLB) and L7 (ALB) more distinctly. Azure's Standard LB and Application Gateway serve different layers.
+---
 
-## Private Connectivity (Dedicated Circuits)
+## Reference pages (load these first)
 
-| Feature | Azure ExpressRoute | AWS Direct Connect | GCP Cloud Interconnect |
-|---|---|---|---|
-| **Port Speeds** | 1, 2, 5, 10, 100 Gbps | 1, 10, 100 Gbps (dedicated); 50 Mbps–10 Gbps (hosted) | 10, 100 Gbps (dedicated); 50 Mbps–50 Gbps (partner) |
-| **SLA** | 99.95% (single circuit); 99.99% (ExpressRoute Direct, zone-redundant) | 99.99% (resiliency model with 2+ connections) | 99.99% (4-nines with redundant attachments) |
-| **Pricing** | Port fee (monthly) + circuit fee (metered or unlimited) | Port-hour fee + data transfer out (per GB) | VLAN attachment fee + egress (per GB) |
-| **Peering Types** | Private peering (VNets), Microsoft peering (M365, PaaS) | Private VIF (VPC), Public VIF, Transit VIF (TGW) | Private (VPC), Partner (via carrier) |
-| **BGP** | Required (customer ASN + Microsoft ASN 12076) | Required (customer ASN + AWS ASN 7224/default) | Required (customer ASN + Google ASN 16550) |
-| **Encryption** | MACsec (ExpressRoute Direct), IPsec over ER | MACsec (100 Gbps ports), site-to-site VPN over DX | HA VPN over Interconnect (IPsec) |
-| **Global Reach** | ExpressRoute Global Reach (connect circuits across regions) | Not natively available | Not natively available |
+| Topic | Vault page | Load with |
+|---|---|---|
+| Canonical cross-cloud service mapping — VNet/VPC, NSG/SG, LB, dedicated circuits, Private Endpoint / PrivateLink / PSC, DNS, Firewall | [[Cloud-Network-Service-Mapping]] | `cn_vault_page({ page: "Cloud-Network-Service-Mapping" })` |
+| ExpressRoute (Azure) | [[ExpressRoute]] | `cn_vault_page({ page: "ExpressRoute" })` |
+| Direct Connect (AWS) | [[Direct-Connect]] | `cn_vault_page({ page: "Direct-Connect" })` |
+| Cloud Interconnect (GCP) | [[Cloud-Interconnect]] | `cn_vault_page({ page: "Cloud-Interconnect" })` |
+| Private Endpoint (Azure) | [[Private-Endpoint]] | `cn_vault_page({ page: "Private-Endpoint" })` |
+| PrivateLink (AWS) | [[PrivateLink]] | `cn_vault_page({ page: "PrivateLink" })` |
+| Private Service Connect (GCP) | [[Private-Service-Connect]] | `cn_vault_page({ page: "Private-Service-Connect" })` |
+| Multi-cloud addressing (always paired for migration scenarios) | [[Multi-Cloud-Addressing-Plan]] | `cn_vault_page({ page: "Multi-Cloud-Addressing-Plan" })` |
 
-**Key Differences:** Azure ExpressRoute offers Global Reach to connect two ExpressRoute circuits across regions without backhauling through on-premises — unique among the three providers. AWS Direct Connect has the most flexible hosting options with both dedicated and hosted connection types. GCP Dedicated Interconnect requires minimum 10 Gbps ports (use Partner Interconnect for smaller bandwidths).
+Row #1 is mandatory. The rest are mandatory when the specific service / scenario is in scope.
 
-## Private Endpoints / Private Connectivity to PaaS
+---
 
-| Feature | Azure Private Endpoint | AWS PrivateLink | GCP Private Service Connect |
-|---|---|---|---|
-| **Mechanism** | NIC injected into VNet subnet with private IP | ENI injected into VPC subnet with private IP | Forwarding rule with private IP in consumer VPC |
-| **Supported Services** | 60+ Azure PaaS services (Storage, SQL, Cosmos DB, etc.) | AWS services + custom (NLB-backed) | Google APIs, published services (ILB-backed) |
-| **Custom Services** | Private Link Service (Standard LB-backed) | PrivateLink Endpoint Service (NLB-backed) | Published services via ILB and service attachment |
-| **DNS Integration** | Private DNS Zone auto-registration | Route 53 Resolver + PHZ | Service Directory or Cloud DNS response policies |
-| **Cross-Account/Subscription** | Supported (approval workflow) | Supported (acceptance model) | Supported (connection acceptance) |
-| **Cross-Region** | Supported (Global VNet Peering + Private Endpoint) | Regional interface endpoints; endpoint services can opt in to cross-Region access for consumers | Supported (global access flag) |
-| **Pricing** | Per hour + data processed | Per hour + data processed per AZ | Per hour + data processed |
+## Required inputs — collect before answering
 
-**Key Differences:** All three providers offer similar private connectivity models, but cross-region behavior varies. Azure can reach private endpoints over global VNet peering. GCP Private Service Connect supports global access when enabled. AWS interface endpoints remain regional, while providers of endpoint services can opt in to cross-Region PrivateLink access for consumers; validate service support, added latency, inter-region data charges, and feature limitations before using it.
+1. **Source cloud + destination cloud** — translation direction.
+2. **Source service** — what is the user trying to map (VNet / NSG / LB / ER / PE / DNS / firewall / etc.).
+3. **Use case** — "what's the equivalent name?" vs. "are they actually equivalent?" vs. "we're migrating, what breaks?".
+4. **Production constraints** — overlapping CIDRs, existing peering, BGP, encryption requirements.
 
-## DNS
+---
 
-| Feature | Azure Private DNS | AWS Route 53 Resolver | GCP Cloud DNS |
-|---|---|---|---|
-| **Private Zones** | Azure Private DNS Zones (linked to VNets) | Route 53 Private Hosted Zones (associated with VPCs) | Cloud DNS Private Zones (bound to VPC networks) |
-| **Conditional Forwarding** | DNS Private Resolver (inbound/outbound endpoints) | Route 53 Resolver (inbound/outbound endpoints) | Cloud DNS forwarding zones, DNS peering |
-| **Hybrid DNS** | Private Resolver endpoints in VNet | Resolver endpoints in VPC | DNS server policies with inbound forwarding |
-| **Cross-Cloud DNS** | Forward to on-prem/other cloud via Private Resolver outbound | Forward via Resolver outbound endpoints | Forward via DNS forwarding zones |
-| **Auto-Registration** | Supported (VM hostnames auto-registered) | Not supported (use DHCP options or scripts) | Not supported (use GCE internal DNS) |
-| **Max Zones** | 1,000 private zones per subscription | 500 private zones per account | Varies by quota |
+## Workflow
 
-**Key Differences:** Azure supports auto-registration of VM hostnames in Private DNS Zones, which is unique. For cross-cloud DNS resolution, all three require conditional forwarding via resolver endpoints or forwarding zones — traffic flows from one cloud's resolver to the target cloud's DNS endpoint over the private interconnect or VPN.
+1. **Collect inputs** above.
+2. **Load `Cloud-Network-Service-Mapping`**.
+3. **Locate the relevant comparison table** — there are 7 (VNet, NSG/SG, LB, dedicated circuits, Private Endpoint / PrivateLink / PSC, DNS, Firewall). Quote the row, not the whole table.
+4. **Surface the "Key Differences" callout** for that table — these are where designs break. Examples to always flag:
+   - GCP VPC is **global**; Azure/AWS are **regional**. Subnets follow the opposite (GCP regional, AWS zonal, Azure regional).
+   - AWS SG has **no deny rules** (allow-only). Use NACL for deny. Azure NSG and GCP firewall have deny.
+   - GCP firewall is **distributed** (rules enforced at VM); Azure/AWS firewalls are **centralised** (route traffic through).
+   - GCP **truly-global L7 LB** (single anycast VIP); Azure/AWS need Front Door / CloudFront to approach this.
+   - Azure ExpressRoute **Global Reach** (cross-region without back-hauling) — unique among the three.
+5. **Translate the design** — map the source-cloud topology to the destination-cloud equivalents service-by-service.
+6. **Identify gaps** — features that don't translate (e.g. AWS NACL stateless behaviour, GCP hierarchical FW, Azure private-DNS auto-registration).
+7. **Recommend the next sibling skill** — addressing-plan (CIDR design), latency-optimization (region pairs), interconnect-design (cross-cloud connectivity).
+8. **Emit** in the format below.
 
-## Cloud Firewall
+---
 
-| Feature | Azure Firewall | AWS Network Firewall | GCP Cloud Firewall |
-|---|---|---|---|
-| **Type** | Managed, stateful (L3-L7) | Managed, stateful (L3-L7) | Distributed, stateful (L3-L4), plus L7 with IPS |
-| **IDPS** | Premium SKU (signature-based) | Suricata-compatible rules | Intrusion Prevention Service (IPS, L7 inspection) |
-| **FQDN Filtering** | Supported (application rules) | Supported (Suricata rules, domain lists) | Supported (FQDN objects in firewall policies) |
-| **TLS Inspection** | Premium SKU | Supported | Supported (with Certificate Authority integration) |
-| **Deployment** | Centralized in hub VNet (dedicated subnet) | Centralized in inspection VPC (firewall subnet) | Distributed (applied at VPC level, no dedicated subnet) |
-| **Pricing** | Per hour (Standard/Premium) + data processed | Per hour (endpoint) + data processed | Per endpoint + data processed; or based on policy tier |
-| **Throughput** | Up to 100 Gbps (Premium) | Up to 100 Gbps | Distributed — scales with VM/network throughput |
-| **Policy Scope** | Firewall Policy (can span multiple firewalls via Firewall Manager) | Firewall Policy (per firewall) | Hierarchical policies (org → folder → project) |
+## Output format
 
-**Key Differences:** GCP Cloud Firewall is fundamentally distributed — rules are enforced at the VM level across the entire VPC, not at a centralized chokepoint. Azure Firewall and AWS Network Firewall are centralized appliances deployed in dedicated subnets, requiring UDR/route table configuration to steer traffic through them. GCP's hierarchical firewall policies (at org/folder level) provide top-down policy enforcement that is unique among the three providers.
+Every service-mapping answer should emit:
+
+1. **Inputs assumed** — one line each.
+2. **Translation table** — source service → destination service, citing the vault row.
+3. **Behavioural differences to plan around** — bulleted, each linked to the vault's "Key Differences" callout.
+4. **Migration risks** — features that don't translate, common gotchas (deny rules, peering scope, DNS auto-registration, transitive routing).
+5. **Next-step handoffs** — addressing / latency / interconnect / pricing.
+6. **What this excludes** — actual IP plan, region pair selection, cross-cloud transport design.
+7. **Footer** — `Analysis only — verify against vendor documentation before applying.`
+
+---
+
+## Common workflow mistakes (do not repeat these)
+
+These are cross-cloud-design anti-patterns specific to this skill — not a substitute for the vault page's "Key Differences" callouts.
+
+1. **Treating "renamed" as "equivalent".** Azure Firewall ≠ GCP Cloud Firewall (centralised vs. distributed). NLB ≠ Azure Standard LB Global tier (regional vs. global). Always surface behavioural deltas.
+2. **Forgetting AWS SG has no deny rules.** Engineers coming from Azure expect deny semantics; the answer must include the NACL workaround.
+3. **Forgetting GCP VPC is global.** Designs that assume per-region VPCs will be wrong — GCP has one VPC with regional subnets across all regions.
+4. **Forgetting peering is non-transitive in all three.** Even when a user asks "how do I peer A → B → C", the answer is never "peer A to B and B to C". Pivot to managed transit (vWAN / TGW / NCC).
+5. **Quoting "cross-cloud peering" as if it existed.** It doesn't. Cross-cloud is VPN / Megaport / Equinix / cloud-to-cloud LB / public PaaS — never direct VPC peering.
+6. **Conflating Azure ExpressRoute Global Reach with AWS / GCP equivalents.** There is no native equivalent on AWS or GCP — flag this as unique Azure capability.
+7. **Quoting numeric limits from memory.** Subnet / peering / endpoint limits drift; always cite the vault page or push to the provider's current limits page.
+8. **Skipping the DNS impact of a migration.** Auto-registration (Azure), Route 53 resolver endpoints (AWS), DNS forwarding zones (GCP) all behave differently. Always surface in a translation answer.
+9. **Quoting Private Endpoint cross-region behaviour without checking the table.** Azure can reach PE over global VNet peering; GCP PSC has a "global access" flag; AWS interface endpoints are regional with opt-in cross-region for endpoint services. Specifics belong in the vault, not in the head.
 
 **Analysis only — verify against vendor documentation before applying.**
