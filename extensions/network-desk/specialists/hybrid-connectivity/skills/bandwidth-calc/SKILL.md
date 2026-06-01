@@ -1,115 +1,102 @@
-# Skill: Bandwidth Calculation and Planning (hyb_bandwidth-calc)
+# Skill: Bandwidth Calculation and Planning (`hyb_skill_bandwidth_calc`)
 
-Plan and size network circuits for hybrid cloud connectivity. This skill covers bandwidth measurement, capacity formulas, QoS marking, cost estimation, and upgrade decision criteria.
-
----
-
-## Bandwidth Measurement Fundamentals
-
-### Key Metrics
-- **Sustained throughput**: Average bandwidth consumed over a billing period. Typically measured at the 95th percentile (discard top 5% of samples). Most providers bill on this metric for metered circuits.
-- **Peak throughput**: Maximum bandwidth observed in a measurement interval. Critical for determining whether a circuit can absorb burst traffic without packet loss.
-- **Burst capacity**: The ability to temporarily exceed the committed bandwidth. Some providers offer burstable circuits (e.g., 500 Mbps committed, burstable to 1 Gbps).
-
-### Measurement Tools
-```bash
-# Azure ExpressRoute circuit stats
-az network express-route stats show \
-  --resource-group MyRG --name MyERCircuit
-
-# Azure VPN Gateway bandwidth metrics (Azure Monitor)
-az monitor metrics list \
-  --resource /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Network/virtualNetworkGateways/{gw} \
-  --metric TunnelBandwidth --interval PT1H
-
-# AWS Direct Connect bandwidth (CloudWatch)
-aws cloudwatch get-metric-statistics \
-  --namespace AWS/DX \
-  --metric-name ConnectionBpsIngress \
-  --dimensions Name=ConnectionId,Value=dxcon-xxxx \
-  --start-time 2024-01-01T00:00:00Z --end-time 2024-01-31T23:59:59Z \
-  --period 3600 --statistics Average Maximum
-```
+Size hybrid-connectivity circuits (ExpressRoute / Direct Connect / Cloud Interconnect / VPN). Owns the sizing methodology — 95th-percentile baseline, growth + utilisation headroom, protocol-overhead allowance, QoS class plan, and the upgrade trigger criteria. The actual measurement CLI snippets, DSCP code-point table, per-cloud DSCP preservation behaviour, and per-cloud pricing tiers live in the vault.
 
 ---
 
-## Circuit Sizing Formulas
+## Knowledge loading contract
 
-### Basic Sizing
-```
-Required Circuit = (Current 95th Percentile Throughput) × (1 + Growth Factor) / (Target Utilization)
-```
+This is a **thin specialist skill**. It owns the sizing-formula reasoning, the headroom defaults (60% target utilisation, 25% growth, 95th-percentile baseline), the QoS class plan, and the upgrade-vs-add-circuit framing. The Azure / AWS / GCP measurement CLI commands, the full DSCP marking table, per-cloud DSCP preservation behaviour, and the per-cloud circuit pricing live in the vault.
 
-**Example**: Current sustained usage is 350 Mbps, expected 25% growth over 2 years, target 60% utilization:
-```
-Required = 350 Mbps × 1.25 / 0.60 = 729 Mbps → select 1 Gbps circuit
-```
+Mandatory steps every time you use this skill:
 
-### Aggregation Planning
-When multiple sites share a circuit (e.g., via SD-WAN or MPLS hub):
-```
-Aggregate Bandwidth = Σ(Site Bandwidth × Concurrency Factor)
-```
-Typical concurrency factors: 0.3–0.5 for bursty office traffic, 0.7–0.9 for sustained data transfer workloads.
+1. Call `cn_vault_page({ page: "Hybrid-Bandwidth-Planning" })` for measurement CLI / DSCP class table / cloud preservation behaviour / pricing per circuit.
+2. Cite the vault page when stating bandwidth metrics, DSCP code points, or circuit pricing.
 
-### Protocol Overhead
-- **Ethernet frame**: 14 bytes header + 4 bytes FCS = 18 bytes overhead per frame
-- **IP header**: 20 bytes (minimum, no options)
-- **TCP header**: 20 bytes (minimum, no options)
-- **IPsec overhead**: ESP header (8 bytes) + IV (8–16 bytes) + padding + ESP trailer (2 bytes) + ESP auth (12–32 bytes) ≈ 50–73 bytes per packet
-- **VPN effective throughput**: For 1500-byte Ethernet frames with IPsec, effective payload is approximately 1400 bytes, yielding ~93% efficiency. For small packets (64 bytes), overhead dominates — effective throughput can drop to ~50%.
+If pricing detail beyond the vault is needed, redirect: `cn_skill({ specialist: "cn_price", skill: "circuit-pricing" })`.
 
 ---
 
-## QoS Marking (DSCP)
+## When to use bandwidth-calc
 
-When multiple traffic types share a hybrid circuit, apply Differentiated Services Code Point (DSCP) markings to prioritize critical traffic:
-
-| Traffic Class | DSCP Value | Per-Hop Behavior | Use Case |
-|--------------|------------|-------------------|----------|
-| Voice (EF) | 46 | Expedited Forwarding | VoIP, real-time communication |
-| Video (AF41) | 34 | Assured Forwarding 4,1 | Video conferencing |
-| Business Critical (AF31) | 26 | Assured Forwarding 3,1 | ERP, database replication |
-| Standard (AF21) | 18 | Assured Forwarding 2,1 | Web applications, email |
-| Best Effort (BE) | 0 | Default | Internet browsing, updates |
-| Scavenger (CS1) | 8 | Low priority | Backups, file sync |
-
-**Cloud Provider DSCP Behavior**:
-- **Azure ExpressRoute**: Preserves DSCP markings end-to-end on Private Peering. Microsoft peering may remark.
-- **AWS Direct Connect**: Preserves DSCP markings on the Direct Connect link. Markings are stripped at the VPC boundary.
-- **GCP Cloud Interconnect**: Preserves DSCP markings on the interconnect. GCP internal network does not guarantee DSCP-based QoS.
+| Scenario | Behaviour |
+|---|---|
+| "How big should my ExpressRoute / DX / Interconnect be?" | Sizing workflow — baseline → growth → headroom → tier selection |
+| "Should we upgrade the circuit?" | Apply upgrade trigger criteria (95p > 60%, peak > 80%, loss > 0.01%) |
+| "Plan QoS for the link" | DSCP class plan from vault table; warn on cross-cloud preservation |
+| "Aggregate sites onto a single circuit" | Concurrency-factor sizing |
+| Indicative cost figure for a circuit | Quote the vault tier; for full TCO redirect to `cn_skill({ specialist: "cn_price", skill: "circuit-pricing" })` |
+| VPN-vs-ExpressRoute economic break-even | Redirect: `cn_skill({ specialist: "cn_price", skill: "vpn-pricing" })` or `circuit-pricing` |
+| ExpressRoute SKU / peering topology | Redirect: `cn_skill({ specialist: "cn_hyb", skill: "expressroute-design" })` |
+| VPN gateway / IPsec policy selection | Redirect: `cn_skill({ specialist: "cn_hyb", skill: "vpn-design" })` |
 
 ---
 
-## Cost Estimation per Cloud
+## Reference pages (load these first)
 
-### Azure ExpressRoute
-- Circuit monthly fee: varies by bandwidth and provider ($55/month for 50 Mbps to $13,000/month for 10 Gbps at Standard tier).
-- Premium add-on: ~1.5× Standard price.
-- Egress: Metered plan charges per GB ($0.025/GB typical); Unlimited plan includes all egress in flat fee.
-- Gateway: ErGw1AZ (~$150/month), ErGw2AZ (~$550/month), ErGw3AZ (~$1,100/month).
+| Topic | Vault page | Load with |
+|---|---|---|
+| Canonical hybrid bandwidth planning — metrics, formulas, DSCP, cloud preservation, pricing tiers, upgrade triggers | [[Hybrid-Bandwidth-Planning]] | `cn_vault_page({ page: "Hybrid-Bandwidth-Planning" })` |
 
-### AWS Direct Connect
-- Port hours: Dedicated connection billed per hour ($0.30/hr for 1 Gbps, $2.25/hr for 10 Gbps).
-- Data transfer out: $0.02/GB (same region), varies by region and destination.
-- Hosted connections: priced by partner.
-
-### GCP Cloud Interconnect
-- Port fee: $1,700/month per 10 Gbps Dedicated Interconnect link.
-- VLAN attachment: $0.05/hr per attachment.
-- Egress: Interconnect egress is discounted vs. internet egress ($0.02/GB for same-continent vs. $0.085/GB internet).
+Mandatory.
 
 ---
 
-## When to Upgrade
+## Required inputs — collect before answering
 
-Trigger an upgrade evaluation when:
-- **95th percentile utilization exceeds 60%** sustained for 30+ days
-- **Peak utilization exceeds 80%** regularly (indicates insufficient burst headroom)
-- **Packet loss > 0.01%** during peak periods (indicates congestion)
-- **Application latency increases** correlating with bandwidth utilization (queuing delay)
-- **Growth projection** shows 60% utilization within 6 months at current trajectory
+1. **Current sustained throughput (95p)** over a representative billing period; if absent, surface the gap and recommend a measurement window first.
+2. **Peak throughput** observed.
+3. **Growth assumption** — % over the planning horizon (default 25% / 2 yr if unstated).
+4. **Target utilisation** — default 60%; lower for latency-sensitive flows.
+5. **Workload mix** — sustained data transfer vs. bursty office traffic (drives concurrency factor when aggregating sites).
+6. **VPN vs. dedicated circuit** — drives protocol-overhead allowance (~7% for IPsec on standard MTU).
+7. **QoS in scope** — voice / video / business-critical / best-effort split.
+8. **Cloud(s)** — affects DSCP preservation and tier pricing.
 
-**Upgrade vs. Add Circuit**: Adding a second circuit provides both additional bandwidth and redundancy. Upgrading a single circuit improves capacity but not resilience. For production workloads, prefer adding a diverse circuit over upgrading a single circuit.
+---
+
+## Workflow
+
+1. **Collect inputs** above; if 95p is missing, recommend collecting it first.
+2. **Load `Hybrid-Bandwidth-Planning`**.
+3. **Apply the sizing formula** — `Required = 95p × (1 + growth) / target_utilisation` from the vault.
+4. **Add protocol overhead** for VPN (~7% on 1500-byte MTU; up to ~50% on small packets — surface as a risk for VoIP / DNS / RTP).
+5. **Round up to the next vendor tier** from the vault tier table; pick the cheapest tier that fits the 24-month horizon.
+6. **Plan QoS** — assign each workload class to a DSCP from the vault table; warn that cross-cloud DSCP preservation varies (Azure preserves on ExR Private Peering; AWS preserves on the DX link but strips at the VPC boundary; GCP doesn't guarantee internal DSCP).
+7. **Decide upgrade vs. add a parallel circuit** — for production, prefer adding a diverse circuit (resilience plus capacity); for non-production, upgrade in place.
+8. **Quote indicative cost** from the vault tier table; for deal-level pricing redirect to `cn_price` skills.
+9. **Emit** in the format below.
+
+---
+
+## Output format
+
+Every bandwidth-calc answer should emit:
+
+1. **Inputs assumed** — one line each, flagging any that the user didn't provide.
+2. **Sized circuit tier** — value + formula trace.
+3. **Headroom check** — months of headroom at current growth before re-evaluation.
+4. **QoS plan** — workload → DSCP class table.
+5. **DSCP preservation caveat** — cloud-specific behaviour the customer must know.
+6. **Upgrade triggers** — when to re-evaluate.
+7. **Indicative monthly cost** + pointer to `cn_price` for deal-level.
+8. **What this excludes** — circuit topology / SKU selection / peering design / pricing negotiation.
+9. **Footer** — `Analysis only — verify against vendor documentation before applying.`
+
+---
+
+## Common workflow mistakes (do not repeat these)
+
+1. **Sizing from peak instead of 95p.** Peak is too aggressive — circuits are billed and dimensioned at 95p. Use peak only for burst-headroom checks.
+2. **Skipping growth headroom.** A circuit sized to current utilisation will be re-procured in 6-12 months. Always apply ≥20% growth for a 2-year horizon.
+3. **Sizing a VPN tunnel like a dedicated circuit.** IPsec overhead is ~7% on standard MTU and much worse on small packets — voice / DNS / RTP need explicit small-packet sizing.
+4. **Promising DSCP preservation end-to-end on multi-cloud paths.** Different clouds behave differently; surface the caveats from the vault table.
+5. **Recommending tier upgrade where resilience is the gap.** Single big circuit doesn't survive a fibre cut. For production, prefer a diverse parallel circuit.
+6. **Quoting circuit price without flagging egress.** Circuit fee ≠ total cost. Always note that egress / port-hours / gateway are separate; redirect to `cn_price` for full TCO.
+7. **Concurrency factor of 1.0 when aggregating sites.** Office traffic isn't simultaneous; using concurrency 0.3-0.5 avoids over-provisioning. Sustained data-transfer workloads do warrant 0.7-0.9.
+8. **Sizing without a measurement window.** Estimating "I think we do about 300 Mbps" is a sign to measure first, then size.
+9. **Treating "burstable" tiers as guaranteed.** Burstable circuits price-protect routine peaks, not sustained burst use. Size against the committed rate.
+
+**Pricing is indicative — verify against current vendor pricing pages before budgeting.**
 
 **Analysis only — verify against vendor documentation before applying.**

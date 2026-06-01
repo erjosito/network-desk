@@ -1,195 +1,104 @@
-# Skill: BGP Routing Design (hyb_routing-design)
+# Skill: BGP Routing Policies (`hyb_skill_routing_design`)
 
-Design BGP routing architectures for hybrid cloud connectivity. This skill covers AS path manipulation, route filtering, BGP communities, local preference, MED, BFD, route summarization, and default route injection.
-
----
-
-## AS Path Manipulation
-
-AS path is the primary BGP path selection attribute (after local preference and weight). Manipulating AS path length influences how remote ASes select their preferred path to reach your prefixes.
-
-### AS Path Prepending
-Artificially lengthens the AS path to make a route less preferred by external peers. Used to influence **inbound** traffic engineering when you advertise the same prefix through multiple points of presence.
-
-```
-# On-premises router — prepend AS 65001 twice on backup ExpressRoute circuit
-route-map BACKUP-ER-OUT permit 10
-  set as-path prepend 65001 65001
-!
-router bgp 65001
-  neighbor 10.0.0.1 route-map BACKUP-ER-OUT out
-```
-
-**Caution**: Prepending beyond 3x rarely provides additional benefit and may trigger AS-path length limits on receiving routers. Some providers filter paths with AS path length > 10.
-
-### AS Path Filtering (AS-Path ACLs)
-Filter routes based on the AS path attribute. Used to accept/reject routes from specific ASes or through specific transit paths.
-
-```
-# Accept only routes originating from AS 12076 (Microsoft)
-ip as-path access-list 10 permit ^12076$
-!
-route-map ACCEPT-MSFT permit 10
-  match as-path 10
-route-map ACCEPT-MSFT deny 20
-!
-router bgp 65001
-  neighbor 10.0.0.1 route-map ACCEPT-MSFT in
-```
+Design BGP routing *policies* for hybrid cloud — AS-PATH manipulation, prefix filtering, BGP communities, Local-Preference, MED, BFD, route summarisation, and default-route injection (forced tunnelling). Pairs with `bgp-design` (which owns topology). Owns the policy-by-intent methodology: what to filter, what to summarise, when to use communities vs. attribute manipulation, and the forced-tunnelling decision. The Cisco / Juniper / FRR syntax samples, cloud-specific community values, and per-cloud BFD parameter tables live in the vault.
 
 ---
 
-## Route Filtering
+## Knowledge loading contract
 
-### Prefix Lists
-Filter routes based on IP prefix and prefix length. More efficient and predictable than access lists for route filtering.
+This is a **thin specialist skill**. It owns the policy-by-intent reasoning, the summarisation discipline (always advertise the smallest viable set to cloud), the community-naming convention (`AS:purpose`), and the forced-tunnelling trade-off framing. The actual prepend / prefix-list / community / BFD / aggregate-address syntax lives in the vault.
 
-```
-# Accept only Azure VNet prefixes — deny all others
-ip prefix-list AZURE-VNETS seq 10 permit 10.1.0.0/16
-ip prefix-list AZURE-VNETS seq 20 permit 10.2.0.0/16
-ip prefix-list AZURE-VNETS seq 30 permit 172.16.0.0/12 le 24
-ip prefix-list AZURE-VNETS seq 999 deny 0.0.0.0/0 le 32
-!
-route-map FROM-AZURE permit 10
-  match ip address prefix-list AZURE-VNETS
-route-map FROM-AZURE deny 20
-```
+Mandatory steps every time you use this skill:
 
-### Outbound Route Filtering
-Control which on-premises prefixes are advertised to cloud providers. Never advertise more specific routes than necessary — use summary routes to reduce the routing table and prevent hitting cloud-side route limits.
-
-```
-# Advertise only summary route to Azure (not individual /24 subnets)
-ip prefix-list TO-AZURE seq 10 permit 10.0.0.0/8
-ip prefix-list TO-AZURE seq 999 deny 0.0.0.0/0 le 32
-!
-route-map TO-AZURE-OUT permit 10
-  match ip address prefix-list TO-AZURE
-```
-
-**Cloud Provider Route Limits**:
-- Azure ExpressRoute Private Peering: 4,000 routes (Standard), 10,000 routes (Premium)
-- AWS Direct Connect Private VIF: 100 routes from AWS to on-premises
-- GCP Cloud Router: 100 learned routes per BGP session (configurable up to 1,000 with quota increase)
+1. Call `cn_vault_page({ page: "BGP-Routing-Policies" })` for canonical AS-PATH, prefix-list, community, Local-Pref, MED, BFD, summarisation, default-route syntax + per-cloud community tables.
+2. Cite the vault page when stating community values, BFD parameter defaults, prefix-limit numbers, or BGP path-selection order.
+3. For topology / multi-circuit failover decisions, pair-load: `cn_vault_page({ page: "BGP-Design" })` — also exposed via `cn_skill({ specialist: "cn_hyb", skill: "bgp-design" })`.
 
 ---
 
-## BGP Communities
+## When to use routing-design
 
-### Standard Communities (AA:NN Format)
-Tag routes with community values to signal routing policy intent to peers. Communities can be matched by route maps on receiving routers to apply specific policies.
-
-### Well-Known Communities
-- **NO_EXPORT (65535:65281)**: Do not advertise to external BGP peers.
-- **NO_ADVERTISE (65535:65282)**: Do not advertise to any BGP peer.
-- **NO_EXPORT_SUBCONFED (65535:65283)**: Do not advertise outside the local confederation sub-AS.
-
-### Cloud Provider Communities
-
-**Azure ExpP Route Regional Communities**:
-- Format: `12076:5XYYY` where X = region group, YYY = region identifier.
-- Example: `12076:51004` = East US, `12076:51006` = East US 2, `12076:52004` = West Europe.
-- Use to identify the Azure region from which a route was advertised. Apply on-premises routing policy based on region proximity.
-
-**AWS Direct Connect Communities**:
-- `7224:8100` — routes in the same AWS region as the Direct Connect location.
-- `7224:8200` — routes in the same continent as the Direct Connect location.
-- `7224:8300` — global routes (all AWS regions).
-- Customer can set communities on advertised routes to control scope: `7224:9100` (local region), `7224:9200` (continent), `7224:9300` (global).
+| Scenario | Behaviour |
+|---|---|
+| "Make ExR primary, VPN backup" | Local-Pref pattern (vault page) + matching cloud-side weight |
+| "Influence inbound traffic from cloud" | AS-PATH prepend on the backup advertisement |
+| "Use BGP communities for region steering" | Community-based Local-Pref pattern + AS:purpose naming |
+| "Summarise our routes to stay under cloud limits" | Aggregate-address + summary-only |
+| "Implement forced tunnelling" | Default-route advertisement + scalability/latency warning |
+| "Lower failover time to sub-second" | BFD parameters; warn it isn't available on VPN |
+| MED — should I set it? | Only when proven needed; many providers ignore it |
+| Topology — single vs. multi-region, A-A vs. A-P, prefix-limit planning | Redirect: `cn_skill({ specialist: "cn_hyb", skill: "bgp-design" })` |
+| Multi-circuit failover behaviour / RTO calculation | Redirect: `cn_skill({ specialist: "cn_hyb", skill: "failover-design" })` |
+| ExpressRoute peering choice / Global Reach | Redirect: `cn_skill({ specialist: "cn_hyb", skill: "expressroute-design" })` |
 
 ---
 
-## Local Preference
+## Reference pages (load these first)
 
-Local preference is the highest-priority BGP path selection attribute (after weight, which is Cisco-specific). It determines the preferred **outbound** path from the local AS. **Higher local preference is preferred.**
+| Topic | Vault page | Load with |
+|---|---|---|
+| Canonical routing-policy reference — AS-PATH, prefix filters, communities, Local-Pref, MED, BFD, summarisation, default-route | [[BGP-Routing-Policies]] | `cn_vault_page({ page: "BGP-Routing-Policies" })` |
+| BGP design (topology + filters + convergence — paired) | [[BGP-Design]] | `cn_vault_page({ page: "BGP-Design" })` |
 
-### Primary/Backup Path Design
-```
-# Primary path via ExpressRoute — LP 200
-route-map ER-PRIMARY-IN permit 10
-  set local-preference 200
-!
-# Backup path via VPN — LP 100
-route-map VPN-BACKUP-IN permit 10
-  set local-preference 100
-!
-router bgp 65001
-  neighbor 10.0.0.1 route-map ER-PRIMARY-IN in   # ExpressRoute peer
-  neighbor 10.0.1.1 route-map VPN-BACKUP-IN in    # VPN peer
-```
-
-Under normal conditions, all traffic to Azure prefixes uses the ExpressRoute path (LP 200). If the ExpressRoute BGP session goes down, the VPN path (LP 100) becomes the only available route and traffic fails over automatically.
+Row #1 is mandatory. Row #2 is mandatory when topology or filter direction is in scope.
 
 ---
 
-## MED (Multi-Exit Discriminator)
+## Required inputs — collect before answering
 
-MED influences **inbound** path selection by a neighboring AS. **Lower MED is preferred.** MED is compared only among routes from the same neighboring AS (unless `bgp always-compare-med` is configured).
-
-```
-# Advertise routes with lower MED on preferred circuit
-route-map TO-AZURE-PRIMARY permit 10
-  set metric 100
-!
-route-map TO-AZURE-SECONDARY permit 10
-  set metric 200
-```
-
-**Important**: Azure ExpressRoute MSEEs compare MED across paths. AWS VGW/TGW also evaluate MED. GCP Cloud Router honors MED on Interconnect VLAN attachments. However, not all cloud providers or ISPs honor MED in all scenarios — always validate with the specific provider.
+1. **Desired path selection** — which circuit is primary, which is backup, per region.
+2. **Direction of influence** — inbound (cloud → on-prem) needs AS-PATH prepend / MED; outbound (on-prem → cloud) needs Local-Pref / weight.
+3. **CE vendor** — drives syntax flavour.
+4. **Cloud community usage** — is the customer already tagging routes? Does the cloud honour customer-set communities?
+5. **Forced tunnelling intent** — yes/no/partial; split-tunnel exceptions (Microsoft 365, SaaS).
+6. **Convergence target** — sub-second (BFD) or 30-90 s (BGP timers).
+7. **Prefix counts** — to decide if summarisation is required against cloud limits.
 
 ---
 
-## Bidirectional Forwarding Detection (BFD)
+## Workflow
 
-BFD provides sub-second failure detection for BGP sessions, dramatically reducing convergence time compared to BGP hold timer expiry (default 90 seconds).
-
-### BFD Parameters
-- **Desired Min TX Interval**: How often to send BFD packets (e.g., 300ms).
-- **Required Min RX Interval**: Minimum interval at which BFD packets can be received (e.g., 300ms).
-- **Detect Multiplier**: Number of missed BFD packets before declaring failure (e.g., 3 — session down after 3 × 300ms = 900ms).
-
-### Configuration
-```
-# Enable BFD on BGP neighbor
-router bgp 65001
-  neighbor 10.0.0.1 fall-over bfd
-!
-interface GigabitEthernet0/0
-  bfd interval 300 min_rx 300 multiplier 3
-```
-
-**Cloud Provider BFD Support**:
-- **Azure ExpressRoute**: BFD enabled by default on MSEEs. Customer router must enable BFD on the BGP session.
-- **AWS Direct Connect**: BFD supported. Configure on customer router with 300ms intervals and multiplier 3 (recommended minimum).
-- **GCP Cloud Router**: BFD supported with configurable intervals (minimum 1000ms TX/RX, multiplier 5 by default).
+1. **Collect inputs** above.
+2. **Load `BGP-Routing-Policies`** (and `BGP-Design` if topology is also in scope).
+3. **Express intent as attribute table** — for each pair (prefix, direction), assign Local-Pref / AS-PATH prepend / community / MED with rationale.
+4. **Write filters** — prefix-list + AS-PATH ACL both directions; cite vault page snippets.
+5. **Decide community scheme** — `AS:purpose`; reuse the buckets in the vault page (`:100` prod, `:200` non-prod, `:300` DMZ, `:999` blackhole).
+6. **Plan summarisation** — `aggregate-address … summary-only`; ensure totals stay below cloud per-session limits with ≥25% margin.
+7. **Decide forced tunnelling** — only with split-tunnel exceptions for Microsoft 365 / SaaS; surface latency + bottleneck cost.
+8. **Configure BFD** — on ExR / DX / Interconnect with `interval 300 min_rx 300 multiplier 3` per the vault; never on VPN tunnels (use `timers 10 30` instead).
+9. **Verify path symmetry** — for stateful firewalls, ensure forward and return take the same circuit; mismatched Local-Pref vs. MED is the usual cause.
+10. **Emit** in the format below.
 
 ---
 
-## Route Summarization
+## Output format
 
-Aggregate more-specific routes into summary routes to reduce routing table size, improve convergence time, and stay within cloud provider route limits.
+Every routing-design answer should emit:
 
-```
-# Summarize 10.0.0.0/24 through 10.0.15.0/24 as 10.0.0.0/20
-router bgp 65001
-  aggregate-address 10.0.0.0 255.255.240.0 summary-only
-```
-
-The `summary-only` keyword suppresses the more-specific routes — only the aggregate is advertised. Remove `summary-only` to advertise both the aggregate and the specifics (useful for backup path signaling).
+1. **Inputs assumed** — one line each.
+2. **Intent table** — per (prefix, direction), the attributes set + rationale.
+3. **Filter list** — what's allowed in/out per neighbour.
+4. **Community plan** — values + their semantic meaning.
+5. **Summarisation plan** — aggregates vs. specifics; expected advertised count vs. cloud limit.
+6. **Default-route decision** — if forced tunnelling, the split-tunnel exception list.
+7. **Convergence plan** — BFD where, timers where, GR.
+8. **Verification** — traceroute symmetry check + per-cloud monitoring (vault page).
+9. **What this excludes** — topology design / circuit type selection / VPN crypto policy.
+10. **Footer** — `Analysis only — verify against vendor documentation before applying.`
 
 ---
 
-## Default Route Injection
+## Common workflow mistakes (do not repeat these)
 
-Advertise a default route (0.0.0.0/0) from on-premises to cloud to force internet-bound traffic from cloud VMs through the on-premises security stack (forced tunneling).
-
-**Azure**: Enable forced tunneling by advertising 0.0.0.0/0 via BGP over ExpressRoute or VPN. This overrides the system route for internet traffic on all subnets associated with the VNet gateway.
-
-**AWS**: Advertise 0.0.0.0/0 via BGP over Direct Connect or VPN. Ensure VPC route table has route propagation enabled from VGW.
-
-**GCP**: Advertise 0.0.0.0/0 via Cloud Router BGP. Configure `--advertise-mode custom` on the Cloud Router to control which routes GCP advertises back.
-
-**Caution**: Forced tunneling increases latency for internet-bound traffic and creates a bottleneck at the on-premises egress point. Consider split tunneling for Microsoft 365 and SaaS traffic.
+1. **Setting Local-Pref on the cloud side.** Local-Pref is *inside* your AS only — it does nothing once the route is announced to the cloud. To influence cloud-side path, use AS-PATH prepend (on outbound) or community (if cloud honours it).
+2. **Advertising every /24 to the cloud.** Cloud accepts limited prefixes per BGP session (AWS DX private VIF = 100). Summarise; reserve specifics for failover signalling.
+3. **`summary-only` on the only path.** If the aggregate fails, traffic to specifics is lost. Use `summary-only` per circuit, not globally.
+4. **Setting MED across different ASes by default.** Many ASes ignore MED unless `bgp always-compare-med` is set; the BGP tiebreaker order goes Local-Pref → AS-PATH → Origin → MED, so MED rarely wins.
+5. **Forced tunnelling without split-tunnel exceptions.** Microsoft 365 / SaaS go through the DC, adding 100+ ms and saturating the DC egress. Always plan exceptions.
+6. **BFD on VPN tunnels.** Most cloud VPN endpoints don't support BFD on the tunnel. Use BGP timers `10 30` instead.
+7. **Skipping `maximum-prefix … restart`.** Without it, a leak storm burns the CE control plane.
+8. **Communities with no documentation.** Six months later nobody remembers what `65001:42` means. Document the scheme in the runbook.
+9. **Asymmetric Local-Pref on A-A circuits.** Forward path picks circuit A, return path picks circuit B → stateful firewall drops the response. Mirror attributes.
+10. **Treating "BGP up" as "service working".** BGP can be up while the underlying tunnel drops traffic. Pair with synthetic monitoring (`cn_nmon`).
 
 **Analysis only — verify against vendor documentation before applying.**
