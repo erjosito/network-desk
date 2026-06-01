@@ -1,190 +1,111 @@
-# Skill: Hub-Spoke Topology Design
+# Skill: Hub-Spoke Topology Design (`vnet_skill_hub_spoke_design`)
 
-## Purpose
+Design hub-spoke topologies across Azure (VNet peering), AWS (Transit Gateway), and GCP (Shared VPC or VPC Peering). Owns the topology decision (hub-spoke / mesh / managed transit / isolated), the shared-services-belong-in-the-hub rule, the spoke-to-spoke pattern selection, and the transit-routing pitfalls (Azure / AWS / GCP peering is non-transitive). The exact CLI for VNet peering / TGW attachments / Shared VPC, the per-cloud shared-services subnet sizing table, and the spoke-to-spoke comparison matrix live in the vault.
 
-This skill provides expert guidance on designing hub-spoke network topologies across Azure, AWS, and GCP. It covers topology selection, shared service placement in the hub, spoke-to-spoke communication patterns, transit routing, and decision criteria for choosing between hub-spoke, mesh, and managed transit services.
+---
 
-## Core Knowledge
+## Knowledge loading contract
 
-### Hub-Spoke Architecture Fundamentals
+This is a **thin specialist skill**. It owns the "when (not) to use hub-spoke" framing, the centralized-vs-direct spoke-to-spoke decision, the four anti-patterns (hub without firewall / workloads in hub / missing UDRs / single point of failure), and the topology-selection matrix. The Azure peering flags (`--allow-forwarded-traffic`, `--use-remote-gateways`, `--allow-gateway-transit`), the AWS TGW attach + route-table CLI, the GCP Shared VPC enable / VPC peering import-export flags, and the shared-services subnet sizing table all live in the vault.
 
-The hub-spoke model centralizes shared network services (firewall, DNS, bastion, monitoring) in a "hub" network while workloads reside in isolated "spoke" networks. All inter-spoke and egress traffic routes through the hub, enabling centralized security inspection and policy enforcement.
+Mandatory steps every time you use this skill:
 
-**When to use hub-spoke:**
-- Centralized egress/ingress control is required (compliance, cost optimization)
-- Multiple workload teams need network isolation from each other
-- Shared services (firewall, DNS forwarder, jump boxes) serve all workloads
-- Route summarization at the hub simplifies on-premises route advertisements
+1. Call `cn_vault_page({ page: "Hub-and-Spoke" })` for canonical CLI per cloud, shared-services placement table, spoke-to-spoke comparison matrix, and the topology-selection decision matrix.
+2. Cite the vault page when stating peering flag semantics, AWS TGW route-table mechanics, or GCP custom-route import/export.
 
-**When NOT to use hub-spoke:**
-- Fewer than 3 VNets/VPCs (overhead exceeds benefit)
-- Ultra-low latency spoke-to-spoke traffic where the hub hop is unacceptable
-- Workloads that are entirely independent with no shared services
+If a cloud/scenario isn't covered, fall back to `cn_search({ query: "<keywords>", specialist: "cn_vnet" })`.
 
-### Cloud-Specific Implementations
+---
 
-#### Azure: Hub-Spoke with VNet Peering
+## When to use hub-spoke-design
 
-```
-Hub VNet (10.0.0.0/16)
-├── AzureFirewallSubnet (10.0.1.0/26)         ← Azure Firewall or NVA
-├── GatewaySubnet (10.0.255.0/27)              ← VPN/ExpressRoute Gateway
-├── AzureBastionSubnet (10.0.2.0/26)           ← Bastion host
-├── DnsResolverInbound (10.0.3.0/28)           ← Private DNS Resolver
-└── SharedServices (10.0.10.0/24)              ← Domain controllers, monitoring
+| Scenario | Behaviour |
+|---|---|
+| "Design a hub-spoke for our 5 VNets" | Topology selection + shared-services subnet plan + peering flag plan |
+| "Should this be hub-spoke or mesh?" | Apply decision matrix (VNet count / latency / centralized security need) |
+| "How do spoke A and spoke B talk?" | Pattern selection — via hub firewall (default) vs direct peering (low-latency trusted pairs) |
+| AWS hub-spoke design | Transit Gateway pattern + per-environment route tables |
+| GCP hub-spoke design | Shared VPC (recommended for orgs) vs VPC peering with custom route import/export |
+| "We have 50+ VNets" | Redirect to managed transit (vWAN / Network Connectivity Center) — also `cn_skill({ specialist: "cn_vwan", skill: "vwan-design" })` |
+| Spoke address-space planning | Redirect: `cn_skill({ specialist: "cn_vnet", skill: "address-planner" })` |
+| VNet peering between spokes (advice on flags) | Redirect: `cn_skill({ specialist: "cn_vnet", skill: "peering-advisor" })` |
+| Firewall in the hub — policy design | Redirect: `cn_skill({ specialist: "cn_fw", skill: "policy-design" })` |
+| Routing intent / inspection through firewall in vWAN | Redirect: `cn_skill({ specialist: "cn_vwan", skill: "routing-intent" })` |
+| Diagram of the topology | Redirect: `cn_skill({ specialist: "cn_vnet", skill: "network-diagram" })` |
+| Multi-cloud transit / GCP NCC / AWS Cloud WAN | Redirect: `cn_skill({ specialist: "cn_mcn", skill: "transit-design" })` |
 
-Spoke-Prod VNet (10.1.0.0/16) ←── peered ──→ Hub
-Spoke-Dev VNet (10.2.0.0/16)  ←── peered ──→ Hub
-```
+---
 
-**Key settings for Azure peering in hub-spoke:**
-```bash
-# Spoke-to-Hub peering (on the spoke side)
-az network vnet peering create \
-  --name spoke-to-hub \
-  --resource-group spoke-rg \
-  --vnet-name spoke-vnet \
-  --remote-vnet /subscriptions/.../hub-vnet \
-  --allow-forwarded-traffic true \
-  --use-remote-gateways true          # Use hub's VPN/ER gateway
+## Reference pages (load these first)
 
-# Hub-to-Spoke peering (on the hub side)
-az network vnet peering create \
-  --name hub-to-spoke \
-  --resource-group hub-rg \
-  --vnet-name hub-vnet \
-  --remote-vnet /subscriptions/.../spoke-vnet \
-  --allow-forwarded-traffic true \
-  --allow-gateway-transit true         # Share gateway with spokes
-```
+| Topic | Vault page | Load with |
+|---|---|---|
+| Canonical hub-spoke pattern — when to use, per-cloud implementations, shared-services placement table, spoke-to-spoke matrix, topology-selection matrix, anti-patterns | [[Hub-and-Spoke]] | `cn_vault_page({ page: "Hub-and-Spoke" })` |
 
-**Spoke-to-spoke via hub firewall** — Requires UDR on each spoke subnet pointing 0.0.0.0/0 (or the other spoke's CIDR) to the Azure Firewall's private IP:
-```bash
-az network route-table route create \
-  --resource-group spoke-rg \
-  --route-table-name spoke-rt \
-  --name to-other-spokes \
-  --address-prefix 10.0.0.0/8 \
-  --next-hop-type VirtualAppliance \
-  --next-hop-ip-address 10.0.1.4      # Azure Firewall private IP
-```
+Mandatory.
 
-#### AWS: Hub-Spoke with Transit Gateway
+---
 
-AWS VPC peering is non-transitive, making Transit Gateway (TGW) the standard hub-spoke building block:
+## Required inputs — collect before answering
 
-```
-Transit Gateway (TGW)
-├── Attachment: Hub VPC (10.0.0.0/16) — shared services, NAT, firewall
-├── Attachment: Prod VPC (10.1.0.0/16)
-├── Attachment: Dev VPC (10.2.0.0/16)
-└── Attachment: VPN/Direct Connect
-```
+1. **Cloud(s)** in scope — Azure / AWS / GCP / multi.
+2. **Number of VNets/VPCs** — drives topology (hub-spoke if 3-50; managed transit at 50+).
+3. **Centralized security required?** — yes drives hub-spoke; no opens mesh / isolated.
+4. **Shared services in scope** — firewall / VPN-ER gateway / bastion / DNS resolver / monitoring.
+5. **Spoke-to-spoke latency budget** — drives via-firewall vs direct peering.
+6. **Operational team size** — drives managed-transit (low ops) vs hub-spoke (medium) vs mesh (high N×N).
+7. **On-prem connectivity** — drives gateway-in-hub vs per-network.
+8. **Environment isolation needs** — drives TGW route-table split (AWS) / multiple UDRs (Azure) / Shared VPC service-project segregation (GCP).
 
-```bash
-# Create Transit Gateway
-aws ec2 create-transit-gateway \
-  --description "Hub TGW" \
-  --options DefaultRouteTableAssociation=enable,DefaultRouteTablePropagation=enable
+---
 
-# Attach a VPC
-aws ec2 create-transit-gateway-vpc-attachment \
-  --transit-gateway-id tgw-abc123 \
-  --vpc-id vpc-spoke1 \
-  --subnet-ids subnet-az1 subnet-az2
-```
+## Workflow
 
-**Spoke isolation with TGW route tables:** Create separate route tables for prod vs dev to prevent cross-environment traffic:
-```bash
-aws ec2 create-transit-gateway-route-table \
-  --transit-gateway-id tgw-abc123 \
-  --tags Key=Name,Value=prod-rt
+1. **Collect inputs** above.
+2. **Load `Hub-and-Spoke`**.
+3. **Apply the topology-selection matrix** — hub-spoke if 3-50 VNets, centralized security needed, shared services present; mesh if 2-10 tightly-coupled; managed transit if 50+ or global; isolated if 1-3 independent.
+4. **Per cloud, pick the construct** — Azure: VNet peering with hub-spoke flags; AWS: Transit Gateway with per-env route tables; GCP: Shared VPC (preferred) or VPC peering with custom route import/export.
+5. **Plan shared-services subnets** — firewall (Azure /26 min), VPN/ER gateway (Azure GatewaySubnet /27 min), Bastion (Azure /26), DNS Resolver (Azure /28), shared services (/24).
+6. **Plan spoke-to-spoke** — default via hub firewall (UDR pointing to firewall private IP); only direct peering for trusted low-latency pairs that bypass inspection.
+7. **For Azure** — set `--allow-forwarded-traffic true` on both sides; `--use-remote-gateways true` on spoke side; `--allow-gateway-transit true` on hub side. Add UDR for spoke-to-spoke via firewall.
+8. **For AWS** — split prod/dev TGW route tables to enforce isolation; for inspection, route TGW traffic through an inspection VPC.
+9. **For GCP** — prefer Shared VPC for organisations (single network, no peering); for independent VPCs use peering with `--export-custom-routes` and `--import-custom-routes`.
+10. **Surface anti-patterns** — hub without firewall / inspection = expensive routing-only; workloads in hub = blast-radius problem; missing UDRs = silent direct-egress; single-point-of-failure on firewall/gateway = use zone-redundant SKUs and A-A gateways.
+11. **Decide HA posture** — zone-redundant firewall + Active-Active VPN gateway (Azure); TGW attached to subnets in multiple AZs (AWS); regional Cloud Router HA (GCP).
+12. **Emit** in the format below.
 
-# Associate prod VPC attachment to prod route table
-aws ec2 associate-transit-gateway-route-table \
-  --transit-gateway-route-table-id tgw-rtb-prod \
-  --transit-gateway-attachment-id tgw-attach-prod
-```
+---
 
-#### GCP: Hub-Spoke with Shared VPC or VPC Peering
+## Output format
 
-GCP offers two hub-spoke models:
+Every hub-spoke answer should emit:
 
-**Shared VPC (recommended for organizations):** A host project owns the VPC; service projects attach workloads to subnets in the shared VPC. No peering needed — it's a single network.
+1. **Inputs assumed** — one line each.
+2. **Topology choice** — hub-spoke / mesh / managed transit / isolated + matrix-row rationale.
+3. **Hub layout** — per-subnet plan with CIDRs (firewall, gateway, bastion, DNS, shared services).
+4. **Spoke list** — per spoke with CIDR + peering flags.
+5. **Spoke-to-spoke plan** — via-firewall vs direct + UDR plan (Azure) / TGW route-table plan (AWS).
+6. **Per-cloud CLI pointers** — cite vault snippets for VNet peering / TGW attach / Shared VPC.
+7. **HA posture** — zone-redundant SKUs, A-A gateways, multi-AZ TGW attachments.
+8. **Anti-pattern check** — confirm the design avoids the 4 anti-patterns.
+9. **Pointer to diagram** — `cn_skill({ specialist: "cn_vnet", skill: "network-diagram" })`.
+10. **What this excludes** — spoke address-space planning (`cn_vnet/address-planner`), firewall rules (`cn_fw/policy-design`), routing-intent specifics (`cn_vwan/routing-intent`), monitoring (`cn_nmon`).
+11. **Footer** — `Analysis only — verify against vendor documentation before applying.`
 
-```bash
-# Enable Shared VPC on host project
-gcloud compute shared-vpc enable host-project-id
+---
 
-# Associate service project
-gcloud compute shared-vpc associated-projects add service-project-id \
-  --host-project host-project-id
-```
+## Common workflow mistakes (do not repeat these)
 
-**VPC Network Peering:** For independent VPCs that need connectivity. Subnet routes exchange automatically; custom/dynamic routes require explicit import/export.
-
-```bash
-gcloud compute networks peerings create hub-to-spoke \
-  --network hub-vpc \
-  --peer-network spoke-vpc \
-  --peer-project spoke-project \
-  --export-custom-routes \
-  --import-custom-routes
-```
-
-### Shared Services Placement in the Hub
-
-| Service | Hub Subnet | Sizing | Notes |
-|---------|-----------|--------|-------|
-| Firewall / NVA | Dedicated (e.g., AzureFirewallSubnet) | /26 minimum (Azure Firewall requirement) | All spoke traffic routes through firewall via UDR |
-| VPN/ER Gateway | GatewaySubnet (Azure) or dedicated VPC (AWS) | /27 minimum (Azure) | Enables on-prem connectivity shared with spokes |
-| Bastion / Jump Box | Dedicated subnet | /26 (Azure Bastion) or /28 | Secure RDP/SSH without public IPs on spokes |
-| DNS Resolver | Dedicated subnet | /28 | Private DNS resolution for on-prem ↔ cloud |
-| Monitoring agents | SharedServices subnet | /24 | Prometheus, Grafana, Log Analytics forwarders |
-| DevOps agents | SharedServices subnet | /24 | Self-hosted build agents, runners |
-
-### Spoke-to-Spoke Communication Patterns
-
-| Pattern | How It Works | Latency | Security | Use When |
-|---------|-------------|---------|----------|----------|
-| Via hub firewall/NVA | UDRs route spoke traffic to hub firewall → firewall forwards to destination spoke | +2–5ms (hub hop) | Full L3/L7 inspection | Default — security inspection required |
-| Direct VNet peering | Additional peering between spokes (bypasses hub) | Minimal | No centralized inspection | Low-latency, trusted spoke pairs |
-| Azure Virtual WAN | Managed hub with automatic spoke-to-spoke routing | ~same as peering | Depends on secured hub config | 50+ VNets, global scale |
-| AWS TGW | All spokes attached to TGW; route tables control paths | +0.5–1ms per hop | TGW + firewall appliance VPC | AWS standard pattern |
-
-### Transit Routing Considerations
-
-1. **Azure:** VNet peering is non-transitive. Spoke A cannot reach Spoke B through the hub unless a firewall/NVA in the hub forwards traffic AND UDRs on both spokes point to the NVA. Enable "Allow Forwarded Traffic" on all peerings.
-
-2. **AWS:** VPC peering is non-transitive. Transit Gateway provides transitive routing natively. For inspection, route TGW traffic through a centralized firewall VPC (inspection VPC pattern).
-
-3. **GCP:** VPC peering is non-transitive. For transitive routing, use a Network Virtual Appliance (NVA) in the hub VPC with custom route import/export enabled on peerings, or use Network Connectivity Center for managed transit.
-
-## Decision Matrix: Topology Selection
-
-| Criteria | Hub-Spoke | Mesh | Virtual WAN / TGW | Isolated |
-|----------|-----------|------|-------------------|----------|
-| Number of VNets/VPCs | 3–50 | 2–10 | 50+ | 1–3 |
-| Centralized security | ✅ Required | ❌ Not enforced | ✅ Configurable | ✅ Per-network |
-| Spoke-to-spoke latency | Medium (hub hop) | Low (direct) | Low–Medium | N/A |
-| Operational complexity | Medium | High (N×N peerings) | Low (managed) | Low |
-| Cost | Firewall + Gateway | Peering fees only | Managed service fee | Minimal |
-| On-prem connectivity | Shared via hub gateway | Per-network gateways | Integrated | Per-network |
-| Best for | Enterprise standard | Small tightly-coupled clusters | Large-scale / global | Compliance isolation |
-
-## Anti-Patterns to Avoid
-
-1. **Hub without firewall** — A hub that only routes traffic without inspection defeats the purpose. Use at minimum NSG/security group rules if a full firewall isn't justified.
-2. **Oversized hub** — Don't place workloads in the hub. It should contain only shared network services. Workloads belong in spokes.
-3. **Missing UDRs** — Peering alone doesn't route spoke-to-spoke traffic through the hub. Without UDRs, spoke traffic goes directly to the internet or is dropped.
-4. **Single point of failure** — Deploy firewalls and gateways in zone-redundant SKUs. Use Active/Active VPN gateways. In AWS, attach TGW to subnets in multiple AZs.
-
-## References
-
-- Azure hub-spoke topology: https://learn.microsoft.com/azure/architecture/networking/architecture/hub-spoke
-- Azure Virtual WAN: https://learn.microsoft.com/azure/virtual-wan/virtual-wan-about
-- AWS Transit Gateway: https://docs.aws.amazon.com/vpc/latest/tgw/what-is-transit-gateway.html
-- GCP Shared VPC: https://cloud.google.com/vpc/docs/shared-vpc
-- GCP Network Connectivity Center: https://cloud.google.com/network-connectivity/docs/network-connectivity-center/concepts/overview
+1. **Hub-spoke for fewer than 3 VNets.** Overhead exceeds benefit. Use peering or isolated.
+2. **Forgetting `--allow-forwarded-traffic` on Azure peerings.** Spoke-to-spoke via firewall silently fails — packets are dropped by the peering.
+3. **Forgetting `--use-remote-gateways true` on the spoke side.** Spoke can't use the hub's VPN/ER gateway and tries to provision its own.
+4. **Missing UDR on spoke subnets.** Spoke A's traffic to spoke B goes via the cheapest path the OS knows (often direct internet egress, since peering alone is non-transitive). Always add UDR pointing to firewall private IP.
+5. **AWS TGW without per-env route tables.** Default route table associates all attachments to one table → no isolation between prod and dev.
+6. **GCP VPC peering without `--export-custom-routes` / `--import-custom-routes`.** Subnet routes flow automatically but the hub's static / dynamic routes don't reach the spoke.
+7. **Putting workloads in the hub.** Hub blast radius explodes; security boundary blurs. Hub holds shared services only.
+8. **Non-zone-redundant firewall in production hub.** A single Azure Firewall in one zone is a one-AZ outage from total inspection loss. Use zone-redundant SKU (3 zones).
+9. **Recommending GCP VPC peering when Shared VPC fits.** Shared VPC is the recommended GCP hub-spoke for organisations and eliminates the peering complexity.
+10. **Recommending mesh "because it's simple".** N×N peerings become unmanageable past ~5 VNets and there's no central security control.
+11. **Treating AWS VPC peering as transitive.** It isn't. Spoke A ↔ Hub ↔ Spoke B requires TGW (or NVA in hub with custom route tables); plain VPC peering won't work.
 
 **Analysis only — verify against vendor documentation before applying.**

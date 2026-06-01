@@ -1,213 +1,104 @@
-# Skill: Network Diagram Generation (Mermaid — primary format)
+# Skill: Mermaid Network Diagram Generation (`vnet_skill_network_diagram`)
 
-## Purpose
+Generate Mermaid `flowchart` and `architecture-beta` network diagrams from topology descriptions — the **default** diagram format because it renders inline in GitHub, VS Code, and most chat clients without setup. Owns the diagram-generation workflow (identify networks → subnets → appliances → connections → layout → style → validate), the always-offer-alternatives discipline (Excalidraw / draw.io as opt-in), the icon-selection hierarchy (official cloud icon → emoji → plain text), and the readability rules (2-level depth, `<br/>` line breaks, multi-diagram split for 10+ VNets). The exact shape table, connection-type syntax, labeling rules, hub-spoke / multi-region / AWS TGW templates, and icon-pack references live in the vault.
 
-**Mermaid is the default diagram format for this specialist.** It renders inline in GitHub READMEs, GitHub Issues/PRs, VS Code preview, and most chat clients with zero setup — making it the right first choice for every design output.
+---
 
-This skill generates Mermaid flowchart and `architecture-beta` diagrams from network topology descriptions. It defines standard node shapes, labeling conventions, and reusable templates for common cloud network architectures.
+## Knowledge loading contract
 
-## ⚠️ Always prefer cloud-provider icons; fall back to emojis
+This is a **thin specialist skill**. It owns the *Mermaid-first* default, the icon-selection hierarchy, the alternative-format offer, the depth-2 rule, and the per-environment colour-coding convention. The shape table, syntax for each connection type, labelling rules, and full ready-to-paste templates (hub-spoke / multi-region / AWS TGW) all live in the vault.
 
-When the diagram contains cloud resources, **always** reference the official cloud-provider icon for each service rather than describing it generically. Mermaid supports this through the `architecture-beta` diagram type (which accepts Iconify icon refs like `logos:microsoft-azure`) and through `iconShape` references in newer flowcharts.
+Mandatory steps every time you use this skill:
 
-**Icon-selection order — use the first that's available:**
+1. Call `cn_vault_page({ page: "Mermaid-Network-Diagram-Generation" })` for canonical shape table, connection-type syntax, labelling rules, generation workflow, ready-to-paste templates, and icon-pack reference list.
+2. Cite the vault page when quoting Mermaid syntax — do not invent flowchart or `architecture-beta` constructs.
+3. For draw.io or Excalidraw output (opt-in only), redirect to the sibling skills (don't generate by default).
 
-1. **Official cloud-provider icon set** (preferred):
-   - **Azure** → `logos:microsoft-azure`, or the `azure` Iconify pack; reference services by canonical product name: *Azure Firewall*, *Virtual Network*, *VPN Gateway*, *ExpressRoute Gateway*, *Application Gateway*, *Front Door*, *Private Endpoint*, *Azure DNS*.
-   - **AWS** → `logos:aws`, `simple-icons:amazonaws`; reference *VPC*, *Subnet (Public/Private)*, *Network Firewall*, *Transit Gateway*, *NAT Gateway*, *ALB/NLB*, *Route 53*, *Direct Connect*, *PrivateLink*.
-   - **GCP** → `logos:google-cloud`; reference *VPC Network*, *Cloud Firewall*, *Cloud Load Balancing*, *Cloud DNS*, *Cloud Interconnect*, *Cloud Router*, *Private Service Connect*.
-   - **Kubernetes** → `logos:kubernetes` for pods, services, ingress, network policies.
+If a topology / pattern isn't covered, fall back to `cn_search({ query: "<keywords>", specialist: "cn_vnet" })`.
 
-2. **Emoji fallback** (when no icon is available — including chat clients that don't render Iconify, vendor firewalls without stencils, or terminal-rendered diagrams):
+---
 
-   | Component | Emoji | Use For |
-   |-----------|------|---------|
-   | VNet / VPC | 🌐 | Network container |
-   | Subnet | 🟦 / 🟩 / 🟧 | Tiered subnets (web/app/db) |
-   | Firewall / NVA | 🛡️ / 🔥 | Azure FW, AWS NFW, Palo Alto, FortiGate, etc. |
-   | VPN Gateway | 🔐 | Site-to-site VPN endpoints |
-   | ExpressRoute / Direct Connect / Interconnect | ⚡ | Dedicated private links |
-   | Load Balancer | ⚖️ | ALB/NLB, App Gateway, Front Door |
-   | DNS | 🌍 | Azure DNS, Route 53, Cloud DNS |
-   | Private Endpoint / PrivateLink | 🔒 | Service exposure |
-   | Bastion / Jump Host | 🪟 | Management access |
-   | Container / Pod | 🐳 / ⎈ | K8s workloads |
-   | On-Prem DC | 🏢 | Customer datacenter |
-   | Internet | ☁️ | Public network |
-   | Users / Clients | 👥 | End users |
-   | Database | 🗄️ | Backend stores |
-   | Region marker | 📍 | Multi-region designs |
-   | Monitoring | 📊 | Flow logs, NSG analytics |
-   | Alert / Issue | ⚠️ | Highlighted concerns |
+## When to use network-diagram
 
-3. **Plain text label** (last resort): put the canonical product name in the node label (`"Azure Firewall<br/>10.0.1.4"`, not `"Firewall"`) so readers still know the resource type even without an icon.
+| Scenario | Behaviour |
+|---|---|
+| "Diagram our hub-spoke" | Mermaid `flowchart TB` from the hub-spoke template; substitute CIDRs |
+| "Multi-region with global peering" | Multi-region template; one subgraph per region |
+| "AWS Transit Gateway topology" | TGW template; per-VPC subgraphs around a single TGW node |
+| "I want it in Excalidraw" | Redirect: `cn_skill({ specialist: "cn_vnet", skill: "excalidraw-diagram" })` |
+| "Give me the draw.io version" | Redirect: `cn_skill({ specialist: "cn_vnet", skill: "drawio-diagram" })` |
+| 10+ VNets in one diagram | Split — one overview (VNets as single nodes) + per-VNet detail diagrams |
+| Address planning / CIDR allocation | Redirect: `cn_skill({ specialist: "cn_vnet", skill: "address-planner" })` (then diagram from the plan) |
+| Hub-spoke design (NOT just the picture) | Redirect: `cn_skill({ specialist: "cn_vnet", skill: "hub-spoke-design" })` |
+| Cloud-specific architecture decision | Redirect to the relevant design skill before diagramming |
 
-Generic shapes (rectangle, ellipse, hexagon) remain appropriate for non-cloud abstractions: internet cloud, users, on-prem datacenter outline, or annotations.
+---
 
-## 🔁 Always offer alternative formats
+## Reference pages (load these first)
 
-At the end of every diagram response, append a short offer like:
+| Topic | Vault page | Load with |
+|---|---|---|
+| Canonical Mermaid network-diagram generation — shape table, connection-type syntax, labelling rules, icon hierarchy, ready-to-paste templates (hub-spoke, multi-region, AWS TGW), generation workflow, readability rules | [[Mermaid-Network-Diagram-Generation]] | `cn_vault_page({ page: "Mermaid-Network-Diagram-Generation" })` |
+| Drawio companion (opt-in alternative) | [[Drawio-Diagram-Generation]] | `cn_vault_page({ page: "Drawio-Diagram-Generation" })` |
+| Excalidraw companion (opt-in alternative) | [[Excalidraw-Diagram-Generation]] | `cn_vault_page({ page: "Excalidraw-Diagram-Generation" })` |
 
-> *Want this diagram in another format? I can also generate it as:*
-> - *Excalidraw* (`.excalidraw` JSON — hand-drawn / whiteboard style) — say "give me the Excalidraw version" and I'll call `vnet_skill_excalidraw_diagram`.
-> - *draw.io* (`.drawio` XML with native Azure/AWS/GCP stencils) — say "give me the draw.io version" and I'll call `vnet_skill_drawio_diagram`.
+Row #1 is mandatory.
 
-Do **not** generate the alternative formats by default — they're opt-in to keep the primary response focused.
+---
 
-## Core Knowledge
+## Required inputs — collect before answering
 
-### Standard Node Shapes
+1. **VNets/VPCs in scope** — names, CIDRs, regions.
+2. **Subnets** — within each network, with CIDR + purpose.
+3. **Appliances** — firewalls, gateways, load balancers, bastion, with IPs.
+4. **Connections** — peerings, VPNs, ExpressRoute, internet egress paths.
+5. **Cloud(s)** — drives icon set.
+6. **Layout preference** — top-down (default for hierarchical) or left-right (for pipelines/flows).
+7. **Scale** — 10+ VNets implies splitting into overview + detail diagrams.
 
-Use consistent Mermaid shapes to represent network components:
+---
 
-| Component | Mermaid Shape | Syntax | Example |
-|-----------|--------------|--------|---------|
-| VNet / VPC | Subgraph | `subgraph id["Label"]` | `subgraph hub["Hub VNet (10.0.0.0/16)"]` |
-| Subnet | Rectangle | `id["Label"]` | `web["Web Subnet 10.1.1.0/24"]` |
-| Firewall / NVA | Trapezoid | `id[/"Label"\]` | `fw[/"Azure Firewall 10.0.1.4"\]` |
-| Gateway | Hexagon | `id{{"Label"}}` | `gw{{"VPN Gateway 10.0.255.4"}}` |
-| Load Balancer | Stadium | `id(["Label"])` | `lb(["ALB - Web Tier"])` |
-| On-Premises | Cylinder | `id[("Label")]` | `onprem[("On-Prem DC 192.168.0.0/16")]` |
-| Internet | Circle | `id(("Label"))` | `inet(("Internet"))` |
-| VM / Instance | Rectangle | `id["Label"]` | `vm1["Web VM 10.1.1.10"]` |
+## Workflow
 
-### Connection Types
+1. **Collect inputs** above.
+2. **Load `Mermaid-Network-Diagram-Generation`**.
+3. **Apply the 7-step generation workflow** from the vault (identify networks → subnets → appliances → connections → layout → style → validate).
+4. **Pick layout direction** — `TB` for hierarchical hub-spoke, `LR` for pipelines / traffic-flow diagrams.
+5. **Pick icons in this order** — official cloud icon set (`logos:microsoft-azure`, `logos:aws`, `logos:google-cloud`, `logos:kubernetes`); emoji fallback for chat clients / vendor firewalls without stencils; plain canonical product names as the last resort.
+6. **Reuse the matching template** — hub-spoke / multi-region / AWS TGW. Don't reinvent.
+7. **Apply labelling rules** — include CIDRs on all VNets and subnets; include IPs on firewalls and gateways; label connections with type + protocol; use `<br/>` for line breaks.
+8. **Apply colour coding** — hub blue, prod green, dev orange (style directives).
+9. **Validate** — every CIDR matches the input address plan; no orphaned nodes; connection types are accurate; no nested subgraphs > 2 levels.
+10. **Emit the diagram in a fenced ```mermaid block, then append the alternative-format offer**.
+11. **If user asks to save** — write to `network-desk/vnet-architect/diagrams/<topic>-<YYYYMMDD>.mmd`.
 
-| Connection | Mermaid Syntax | Use For |
-|------------|---------------|---------|
-| VNet/VPC Peering | `A <-->|"VNet Peering"| B` | Bidirectional peering |
-| VPN Tunnel | `A -.-|"S2S VPN / IPsec"| B` | Encrypted tunnel (dashed line) |
-| ExpressRoute / Direct Connect | `A ===|"ExpressRoute"| B` | Dedicated private connection (thick line) |
-| Traffic flow (one-way) | `A -->|"HTTPS"| B` | Directed traffic |
-| Route / UDR | `A -.->|"UDR 0.0.0.0/0"| B` | Route pointing to next hop (dashed arrow) |
+---
 
-### Labeling Conventions
+## Output format
 
-1. **Always include CIDR ranges** in VNet/VPC and subnet labels: `"Web Subnet 10.1.1.0/24"`
-2. **Include IP addresses** for key appliances: `"Azure Firewall 10.0.1.4"`
-3. **Label connections** with the type and protocol: `|"VNet Peering"|`, `|"S2S VPN"|`
-4. **Use region annotations** for multi-region diagrams: include region in the subgraph title
-5. **Color coding** (where supported): use `style` directives for hub (blue), prod (green), dev (orange)
+Every network-diagram answer should emit:
 
-### Template: Hub-Spoke Topology
+1. **Inputs interpreted** — short table of VNets / subnets / appliances assumed.
+2. **The Mermaid diagram** in a fenced ```mermaid block, with consistent shape conventions.
+3. **Legend** as a brief bullet list — node shape → meaning; line style → connection type.
+4. **Alternative-format offer** — the standard "Want this in Excalidraw / draw.io? Say so and I'll call `excalidraw-diagram` / `drawio-diagram`" footer.
+5. **What this excludes** — design decisions (use design skills), pricing, security analysis.
+6. **Footer** — `Analysis only — verify against vendor documentation before applying.`
 
-```mermaid
-graph TB
-    subgraph hub["Hub VNet (10.0.0.0/16) - East US"]
-        fw[/"Azure Firewall<br/>10.0.1.0/26"\]
-        gw{{"VPN Gateway<br/>10.0.255.0/27"}}
-        bastion["Bastion<br/>10.0.2.0/26"]
-        dns["DNS Resolver<br/>10.0.3.0/28"]
-    end
+---
 
-    subgraph spoke1["Spoke-Prod (10.1.0.0/16)"]
-        web1["Web Tier<br/>10.1.1.0/24"]
-        app1["App Tier<br/>10.1.2.0/24"]
-        db1["Data Tier<br/>10.1.3.0/24"]
-    end
+## Common workflow mistakes (do not repeat these)
 
-    subgraph spoke2["Spoke-Dev (10.2.0.0/16)"]
-        dev["Dev Workloads<br/>10.2.0.0/20"]
-    end
-
-    hub <-->|"VNet Peering"| spoke1
-    hub <-->|"VNet Peering"| spoke2
-    gw -.-|"S2S VPN"| onprem[("On-Premises<br/>192.168.0.0/16")]
-    fw -->|"Egress"| inet(("Internet"))
-
-    spoke1 -.->|"UDR → 10.0.1.4"| fw
-    spoke2 -.->|"UDR → 10.0.1.4"| fw
-
-    style hub fill:#e6f3ff,stroke:#0078d4
-    style spoke1 fill:#e6ffe6,stroke:#28a745
-    style spoke2 fill:#fff3e6,stroke:#f0ad4e
-```
-
-### Template: Multi-Region with Global Peering
-
-```mermaid
-graph TB
-    subgraph region1["East US"]
-        subgraph hub1["Hub-East (10.0.0.0/16)"]
-            fw1[/"Firewall<br/>10.0.1.0/26"\]
-            gw1{{"ER Gateway<br/>10.0.255.0/27"}}
-        end
-        subgraph spoke1a["Prod-East (10.1.0.0/16)"]
-            app1["App Tier"]
-        end
-        hub1 <-->|"Regional Peering"| spoke1a
-    end
-
-    subgraph region2["West Europe"]
-        subgraph hub2["Hub-West (10.4.0.0/16)"]
-            fw2[/"Firewall<br/>10.4.1.0/26"\]
-            gw2{{"ER Gateway<br/>10.4.255.0/27"}}
-        end
-        subgraph spoke2a["Prod-West (10.5.0.0/16)"]
-            app2["App Tier"]
-        end
-        hub2 <-->|"Regional Peering"| spoke2a
-    end
-
-    hub1 <-->|"Global VNet Peering"| hub2
-    gw1 ===|"ExpressRoute"| onprem[("On-Prem DC")]
-    gw2 ===|"ExpressRoute"| onprem
-```
-
-### Template: AWS Transit Gateway
-
-```mermaid
-graph TB
-    tgw{{"Transit Gateway"}}
-
-    subgraph shared["Shared Services VPC (10.0.0.0/16)"]
-        nat["NAT Gateway"]
-        fw_aws[/"Network Firewall"\]
-    end
-
-    subgraph prod["Prod VPC (10.1.0.0/16)"]
-        pub1["Public 10.1.0.0/24<br/>AZ-1a"]
-        priv1["Private 10.1.10.0/24<br/>AZ-1a"]
-    end
-
-    subgraph dev["Dev VPC (10.2.0.0/16)"]
-        pub2["Public 10.2.0.0/24"]
-        priv2["Private 10.2.10.0/24"]
-    end
-
-    tgw <-->|"Attachment"| shared
-    tgw <-->|"Attachment"| prod
-    tgw <-->|"Attachment"| dev
-    tgw -.-|"VPN"| onprem[("On-Premises")]
-    nat -->|"Egress"| inet(("Internet"))
-```
-
-### Generation Workflow
-
-When generating a diagram from a user's network description:
-
-1. **Identify all networks** — List every VNet/VPC with its CIDR and region.
-2. **Identify subnets** — List subnets within each network with their CIDRs and purposes.
-3. **Identify appliances** — Firewalls, gateways, load balancers, bastion hosts with their IPs.
-4. **Map connections** — Peering, VPN, ExpressRoute, internet egress paths.
-5. **Select layout direction** — Use `graph TB` (top-to-bottom) for hierarchical layouts, `graph LR` (left-to-right) for pipeline/flow layouts.
-6. **Apply styling** — Color-code by environment (prod/dev/staging) or by region.
-7. **Validate** — Ensure every labeled CIDR matches the address plan, no orphaned nodes exist, and connection types are accurate.
-
-Mermaid renders inline by default. If the user asks to save it, write the fenced diagram to `network-desk/vnet-architect/diagrams/<topic>-<YYYYMMDD>.md` (or `.mmd`), e.g. `hub-spoke-3region-20260528.mmd`.
-
-### Tips for Readable Diagrams
-
-- **Limit depth to 2 levels** — VNet/VPC as subgraph, subnets as nodes inside. Don't nest subgraphs within subgraphs beyond this.
-- **Use `<br/>` for line breaks** in labels to avoid overly wide nodes.
-- **Group related subnets** visually (web/app/db tiers in a vertical stack within a subgraph).
-- **For large topologies (10+ VNets)**, create multiple diagrams: one overview (VNets as single nodes, no subnet detail) and per-VNet detail diagrams.
-- **Include a legend** as a comment block above the diagram explaining shape conventions.
-
-## References
-
-- Mermaid flowchart syntax: https://mermaid.js.org/syntax/flowchart.html
-- Azure architecture diagrams: https://learn.microsoft.com/azure/architecture/networking/
-- AWS architecture icons and diagrams: https://aws.amazon.com/architecture/icons/
+1. **Defaulting to draw.io / Excalidraw.** Mermaid is the default; only generate alternative formats when the user explicitly asks. Always offer them in the footer.
+2. **Generic shape with no icon.** A box labelled "Firewall" with no icon and no IP / product name loses context. Always use canonical product name + icon when possible.
+3. **Nested subgraphs beyond 2 levels.** Region → VNet → subnet works; Region → VNet → subnet → microsegment does not render usefully.
+4. **No CIDRs on VNets/subnets.** Diagrams without CIDRs are decorative, not operational. Include CIDR on every VNet and subnet label.
+5. **Forgetting `<br/>` in long labels.** Wide nodes break the layout. Use `<br/>` to wrap.
+6. **One diagram with 20+ VNets.** Unreadable. Split into one overview + per-VNet detail diagrams.
+7. **Inventing Mermaid syntax.** If unsure of `architecture-beta` directives or icon refs, load the vault page first.
+8. **Skipping the alternative-format offer.** Users often want Excalidraw for whiteboard-style design reviews; mention it.
+9. **Colour-coding without consistency.** If hub is blue once, it's blue everywhere. Define the palette in the legend.
+10. **Saving without a date in the filename.** `hub-spoke.mmd` collides; `hub-spoke-3region-20260528.mmd` doesn't.
+11. **Diagramming before the design exists.** If the user is asking "should this be hub-spoke or mesh?" — redirect to the design skill first.
 
 **Analysis only — verify against vendor documentation before applying.**
