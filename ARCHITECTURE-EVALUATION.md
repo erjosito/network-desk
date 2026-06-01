@@ -553,7 +553,7 @@ The vault layer is **not free**:
 | **+50 LOC** in `extension.mjs` (852 → 902) and +16 KB `vault-search.mjs` | Both fully tested. |
 | **+17 % wall-clock latency per prompt** (Tier 3: 104.6 s vs 89.2 s mean) | Pays for itself in recall (+14 pp answerable, +14 pp on regex-easy category). Avoidable for sessions that don't need cross-specialist search by simply not calling `cn_search`. |
 | **+169 % tool-call count per prompt** (mean 58 vs 21.6) | Driven by smaller vault pages — each call is smaller but more frequent. The model trades few big reads for many small focused reads. |
-| **Content duplication between `specialists/**/SKILL.md` and `vault/**/*.md`** (the big one — see below) | Today: 124 SKILL.md files contain only 3 `[[wikilinks]]` to the vault → most topics are documented in two places. Edits have to be made in both layers, or one drifts. **Mitigation today:** the `tools/suggest-wikilinks.mjs` lint flags places where SKILL.md content has a canonical vault page so they can be linked rather than restated. **Resolution (planned, not done):** a *specialist-thinning* pass that reduces every `SKILL.md` from its current ~10 KB monolithic shape (persona + workflow + output spec + deep reference content) down to ~1 KB (persona + workflow + output spec + pointers to vault pages), leaving the vault as the single source of truth for reference content. The two layers would then have non-overlapping roles (workflow vs reference), each with one owner. |
+| **Content duplication between `specialists/**/SKILL.md` and `vault/**/*.md`** (the big one — see below) | Today: 124 SKILL.md files contain only 3 `[[wikilinks]]` to the vault → topics covered by both are documented in two places. **Empirical measurement** via `tools/skill-vault-overlap.mjs` (which scans every SKILL.md for unlinked mentions of vault page names): **14 skills HEAVY duplication, 34 MODERATE, 76 LIGHT** (out of 124). The duplication is concentrated in skills where the vault has good coverage (cleanest clusters: `private-link` 3/5 HEAVY, `pricing-analyst` 3/8, `hybrid-connectivity` 2/7, `vwan-sdwan` 2/6). The other 61 % of skills contain workflow content with no measurable vault counterpart. Edits to the duplicated content have to be made in both layers, or one drifts. **Mitigation today:** the new `tools/skill-vault-overlap.mjs` report (`tools/reports/skill-thinning-plan.md`) classifies every skill by overlap intensity, listing top vault targets and specialist-unique sections per file. **Resolution (planned, not done):** selectively thin the 14 HEAVY skills first (highest ROI), then the 34 MODERATE skills section-by-section, leaving the 76 LIGHT skills as-is — those carry genuine specialist workflow that has no vault counterpart and should either stay inline or be ported to vault as new pages. |
 
 #### Honest assessment of the duplication today
 
@@ -562,18 +562,35 @@ tree without modifying it. Tier 1 shows the two trees are byte-identical
 (both 144 files, 1 455 364 bytes, identical SHA-256s). The vault is
 *additive*: it gives `cn_search` something to index and gives Obsidian
 maintainers a graph view, but it does not yet *replace* any SKILL.md
-content. Consequently a new fact about, say, *PAN-OS HA modes on Azure*
-should be added to **two** files: `Vendors/PAN-OS.md` (the vault page)
-**and** `specialists/firewall-engineer/skills/vendor-migrate/SKILL.md`
-(the existing skill) — otherwise `cn_skill` and `cn_search` give the
-model inconsistent answers depending on which entry point the LLM picks.
+content.
 
-This is a real maintenance tax and the largest open problem with the
-current CKB design. The specialist-thinning cleanup (described above —
-reduce SKILL.md files to persona + workflow + output-format spec +
-pointers, with the vault as canonical reference) is the natural next
-step; until then, the duplication should be considered a documented
-limitation rather than an architectural feature.
+A scan of all 124 `SKILL.md` files by `tools/skill-vault-overlap.mjs`
+(which counts unlinked mentions of vault page names/aliases in each
+SKILL.md body) gives a more precise picture than "everything is
+duplicated":
+
+| Class | # skills | Description |
+|---|---:|---|
+| **HEAVY** | 14 (11 %) | Many distinct vault targets matched, few specialist-unique sections — most of the SKILL.md prose is restating a page that already exists in the vault. These are the highest-ROI thinning candidates. |
+| **MODERATE** | 34 (27 %) | Some sections overlap with vault, others are specialist-unique (workflow, output specs). Thinning is section-by-section, not whole-file. |
+| **LIGHT** | 76 (61 %) | Little vault overlap — most prose is specialist-unique workflow with no vault counterpart. Thinning would simply delete information unless that information is first ported to the vault. |
+
+So a new fact about, say, *PAN-OS HA modes on Azure* should be added to
+**two** files today (`Vendors/PAN-OS.md` AND
+`specialists/firewall-engineer/skills/vendor-migrate/SKILL.md`) — but
+only because `vendor-migrate` happens to overlap with the vault. For
+the 76 LIGHT skills, the SKILL.md often *is* the only place that
+information lives.
+
+This is a real maintenance tax on the 38 % of skills that overlap, and
+the largest open problem with the current CKB design. The
+specialist-thinning cleanup is the natural next step, but should be
+**selective**, not universal: thin the 14 HEAVY skills first (biggest
+win per unit of effort), then the 34 MODERATE skills section by
+section, and leave the 76 LIGHT skills as-is unless their content is
+explicitly ported to the vault first. Until that pass lands, the
+duplication should be considered a documented limitation rather than
+an architectural feature.
 
 ### 3.6 Measured comparison (the three-tier benchmark)
 
@@ -823,20 +840,31 @@ Concretely, the empirical signal from Tier 2 + Tier 3 supports F':
 #### The thin-specialists design (rightmost subgraph above) is what we should ship next
 
 The right end-state is **F' fully realised**: specialists become thin
-(persona + workflow + output format + guardrails + a skill catalog
-whose entries are pointers to vault pages, ~1 KB each), the vault is
-the single source of truth for reference content, `cn_route` and
-`cn_orchestrate` retain their UX/framing/discovery value at near-zero
-cost, and `cn_skill` loads small workflow files instead of monolithic
-reference dumps. This eliminates the duplication from [3.5](#35-the-trade-offs-accepted)
-without giving up the per-specialty workflow value that distinguishes
-F' from C.
+*where they overlap with the vault* (persona + workflow + output format
++ guardrails + a skill catalog whose entries are pointers to vault
+pages, ~1 KB each), the vault is the single source of truth for
+reference content, `cn_route` and `cn_orchestrate` retain their
+UX/framing/discovery value at near-zero cost, and `cn_skill` loads
+small workflow files instead of monolithic reference dumps.
 
-A side benefit: once `cn_skill` returns ~1 KB workflow files instead of
-~10 KB reference dumps, the Tier 3 token cost gap (CKB +17 % latency,
-+168 % tool calls) should narrow substantially — most of CKB's extra
-tool calls today are the model re-reading reference content that's
-already in the vault page it just searched.
+The thinning is **selective, not universal.** Empirical measurement
+(see [3.5](#35-the-trade-offs-accepted)) shows the overlap is
+concentrated: only 14/124 skills are HEAVY candidates, 34 are MODERATE
+(section-by-section), and 76 are LIGHT (specialist-unique workflow that
+either stays inline or gets ported to the vault first as a new page).
+A blanket "thin everything to 1 KB" would delete genuine workflow
+content for the majority of skills.
+
+The cleanup eliminates the duplication from
+[3.5](#35-the-trade-offs-accepted) without giving up the per-specialty
+workflow value that distinguishes F' from C.
+
+A side benefit: once `cn_skill` returns ~1 KB workflow files (for the
+HEAVY+MODERATE skills) instead of ~10 KB reference dumps, the Tier 3
+token cost gap (CKB +17 % latency, +168 % tool calls) should narrow.
+The effect will be most visible on prompts that route to one of the
+HEAVY-cluster specialists (private-link, pricing-analyst,
+hybrid-connectivity, vwan-sdwan).
 
 ---
 
@@ -861,14 +889,18 @@ the same three-tier comparison runs.
 #### Known open work in this fork
 
 The CKB implementation as it ships today is not the fully realised form of
-Pattern F'. The most important remaining piece is the **specialist
-thinning** described in [3.5](#35-the-trade-offs-accepted) and
+Pattern F'. The most important remaining piece is the **selective
+specialist thinning** described in [3.5](#35-the-trade-offs-accepted) and
 [3.8](#38-do-we-need-specialists-at-all-ckb-f-vs-a-vault-only-single-agent-c):
-until each `SKILL.md` is reduced to persona + workflow + output-format
-spec + pointers (and the vault becomes the single source of truth for
-reference content), edits have to be made in two places. The
-architecture is sound and the benchmarks show the recall win; the
-maintenance ergonomics still need the cleanup pass.
+the 14 HEAVY-overlap skills can be aggressively reduced to
+persona + workflow + output spec + pointers; the 34 MODERATE skills
+need section-by-section work; the 76 LIGHT skills carry
+specialist-unique workflow with no vault counterpart and should be
+left as-is (or have their content ported to the vault before any
+thinning). Until that pass lands, edits to the overlapping content
+have to be made in two places. The architecture is sound and the
+benchmarks show the recall win; the maintenance ergonomics still need
+the cleanup pass.
 
 ---
 
