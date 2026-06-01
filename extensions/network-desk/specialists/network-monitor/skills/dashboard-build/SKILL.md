@@ -1,184 +1,110 @@
-# Dashboard Build
+# Skill: Dashboard Build (`nmon_skill_dashboard_build`)
 
-## Skill: `nmon_dashboard_build`
-
-Design and build network monitoring dashboards that surface the golden signals of network health. This skill covers Azure Monitor Workbooks, CloudWatch dashboards, Grafana integration, and dashboard design best practices.
+Design and build network monitoring dashboards (Azure Monitor Workbooks, CloudWatch dashboards, Grafana multi-cloud). Owns the *golden-signals framing* for network (latency / traffic / errors / saturation), the *3-level drill-down hierarchy* (Executive → Service → Resource), the *parameter-first dashboard design* (one workbook per use-case, parameterised per env/region rather than copy-pasting per scope), the *legacy NSG-flow-log retirement awareness* (use VNet flow logs for new builds; NSG flow logs are migration-only), and the *annotation discipline* (deploys + maintenance windows must annotate dashboards). The KQL snippets, CloudWatch widget catalogue, math-expression patterns, Grafana data-source per cloud, multi-cloud layout, and refresh-interval defaults live in the vault.
 
 ---
 
-## Azure Monitor Workbooks
+## Knowledge loading contract
 
-Azure Monitor Workbooks provide interactive, KQL-powered reports and dashboards that combine metrics, logs, and parameters into a single view.
+This is a **thin specialist skill**. It owns the *golden-signals framing*, the *L1/L2/L3 drill-down*, *parameterise-don't-copy*, *VNet-over-NSG-flow-logs* discipline, the *annotate-deploys* rule, and the *what-belongs-on-which-level* judgement. KQL snippets, widget catalogue, Grafana data-source CLI, and per-cloud field names live in the vault.
 
-### Creating a Network Health Workbook
+Mandatory steps every time you use this skill:
 
-Workbooks support multiple visualization types for network data:
+1. Call `cn_vault_page({ page: "Network-Dashboard-Build" })` for canonical KQL panels (VPN tunnels, ExpressRoute utilization, denied flows), CloudWatch widget types + math-expressions, Grafana data-source config per cloud, multi-cloud layout template, dashboard best practices.
+2. For raw flow-log analysis underlying these dashboards, redirect to `traffic-analytics`.
+3. For alerting on the same metrics, redirect to `cn_skill({ specialist: "cn_nmon", skill: "alert-design" })`.
 
-- **Time charts**: Latency trends, throughput over time, packet loss percentage.
-- **Grids/Tables**: Top talkers, denied flow summary, connection monitor status.
-- **Maps**: Geographic traffic distribution from Traffic Analytics data.
-- **Tiles/Stat panels**: Single-value summaries (current VPN tunnel count, active ExpressRoute circuits).
-- **Graphs**: Network topology with traffic flow overlays.
-
-### Parameterized Workbooks
-
-Add parameters so users can filter dashboards dynamically:
-
-```kql
-// Subscription parameter
-ResourceContainers
-| where type == "microsoft.resources/subscriptions"
-| project label=name, value=subscriptionId
-
-// Resource Group parameter (cascading from Subscription)
-ResourceContainers
-| where type == "microsoft.resources/subscriptions/resourcegroups"
-| where subscriptionId == "{Subscription}"
-| project label=name, value=name
-```
-
-Parameters enable a single workbook to serve multiple teams, environments, or regions without duplication.
-
-### Key Network KQL Panels
-
-**VPN Tunnel Status Timeline:**
-
-```kql
-AzureDiagnostics
-| where ResourceType == "VIRTUALNETWORKGATEWAYS"
-| where Category == "TunnelDiagnosticLog"
-| extend TunnelStatus = iff(status_s == "Connected", 1, 0)
-| summarize AvgStatus = avg(TunnelStatus) by bin(TimeGenerated, 5m), remoteIP_s
-| render timechart
-```
-
-**ExpressRoute Circuit Utilization:**
-
-```kql
-AzureMetrics
-| where ResourceProvider == "MICROSOFT.NETWORK"
-| where Resource contains "EXPRESSROUTE"
-| where MetricName == "BitsInPerSecond" or MetricName == "BitsOutPerSecond"
-| summarize AvgBps = avg(Average) by bin(TimeGenerated, 5m), MetricName
-| render timechart
-```
-
-**Denied Flows Heatmap (legacy Traffic Analytics schema example):**
-
-Use VNet flow logs and current Traffic Analytics schema fields for new Azure dashboards. The `AzureNetworkAnalytics_CL` / `NSGRule_s` example below is for legacy-schema orientation; NSG flow logs are legacy/migration-only (new creation blocked after 2025-06-30; retire 2027-09-30).
-
-```kql
-AzureNetworkAnalytics_CL
-| where SubType_s == "FlowLog" and FlowStatus_s == "D"
-| summarize DeniedCount = count() by bin(TimeGenerated, 1h), NSGRule_s
-| render timechart
-```
+If a vendor/visualization isn't covered, fall back to `cn_search({ query: "<keywords>", specialist: "cn_nmon" })`.
 
 ---
 
-## Key Network Metrics to Visualize
+## When to use dashboard-build
 
-Design dashboards around these core network health signals:
-
-| Metric | Unit | Source | Significance |
-|---|---|---|---|
-| **Throughput** | bps / Mbps / Gbps | Flow logs, interface metrics | Capacity utilization, congestion detection |
-| **Latency** | ms (P50, P95, P99) | Connection Monitor, ping probes | Application performance impact |
-| **Packet Loss** | % | Connection Monitor, gateway diagnostics | Network quality degradation |
-| **DNS Query Volume** | queries/sec | DNS analytics, resolver logs | Service dependency health, DNS attack detection |
-| **Firewall Hit Counts** | hits/sec per rule | Azure Firewall diagnostics, NVA logs | Security rule effectiveness, attack surface |
-| **VPN Tunnel Status** | up/down + duration | Gateway diagnostics | Hybrid connectivity health |
-| **ExpressRoute Utilization** | % of circuit bandwidth | ExpressRoute metrics | Private connectivity capacity planning |
-| **SNAT Port Utilization** | % of allocated ports | Load balancer metrics | Connection exhaustion risk |
-| **BGP Route Count** | routes per peer | Route Server, ER gateway metrics | Routing stability, prefix leak detection |
+| Scenario | Behaviour |
+|---|---|
+| "Build a network health dashboard for our Azure estate" | Apply golden signals → 3 levels → workbook with parameters → KQL from vault |
+| "We need a single pane across Azure/AWS/GCP" | Grafana multi-cloud layout from vault; data-source config per cloud |
+| "What should a network ops L1 dashboard show?" | L1 executive overview pattern; aggregate health + traffic lights |
+| "How do we visualise SNAT exhaustion / ER utilisation?" | Cite the panels from vault; emit KQL stub |
+| "Show denied flows heatmap" | VNet flow logs first; flag NSG flow logs as migration-only |
+| Raw flow-log analysis / hunting | Redirect: `cn_skill({ specialist: "cn_nmon", skill: "traffic-analytics" })` |
+| Alert thresholds on these metrics | Redirect: `cn_skill({ specialist: "cn_nmon", skill: "alert-design" })` |
+| Synthetic monitoring | Redirect: `cn_skill({ specialist: "cn_nmon", skill: "synthetic-monitoring" })` |
+| Connection monitoring (Azure NW / Reachability / VPC Reachability) | Redirect: `cn_skill({ specialist: "cn_nmon", skill: "connection-monitoring" })` |
 
 ---
 
-## CloudWatch Dashboards
+## Reference pages (load these first)
 
-### Widget Types for Network Monitoring
+| Topic | Vault page | Load with |
+|---|---|---|
+| Canonical dashboard reference — Azure Monitor Workbooks (parameter cascades, KQL panels for VPN/ER/denied flows), CloudWatch widget types + math expressions, Grafana data-source per cloud, multi-cloud dashboard layout, golden-signals framework, drill-down hierarchy, time-range defaults | [[Network-Dashboard-Build]] | `cn_vault_page({ page: "Network-Dashboard-Build" })` |
 
-- **Line widgets**: Time-series metrics (NetworkIn/Out, TunnelDataIn/Out, NAT Gateway bytes).
-- **Number widgets**: Single-stat values (active VPN tunnels, healthy targets in target group).
-- **Stacked area**: Aggregate bandwidth across multiple ENIs or Transit Gateway attachments.
-- **Alarm status widgets**: Grid of alarm states (green/yellow/red) for at-a-glance health.
-- **Log widgets**: CloudWatch Insights query results embedded directly in dashboards.
-
-### Cross-Account Dashboards
-
-Use CloudWatch cross-account observability to consolidate network metrics from multiple AWS accounts into a single dashboard. The monitoring account aggregates metrics from source accounts via organization-level sharing.
-
-### Math Expressions
-
-Compute derived metrics inline:
-
-```
-# Packet loss percentage
-METRICS("m1") = NetworkPacketsIn
-METRICS("m2") = NetworkPacketsOut
-e1 = (1 - m2/m1) * 100   # Approximate packet loss
-```
+Mandatory.
 
 ---
 
-## Grafana Integration
+## Required inputs — collect before answering
 
-Grafana provides a unified dashboarding layer across all three clouds with native data source plugins.
-
-### Azure Monitor Data Source
-
-- Supports Azure Monitor metrics, Log Analytics (KQL), and Azure Resource Graph queries.
-- Configure with service principal or managed identity authentication.
-- Use template variables bound to Azure subscriptions, resource groups, and resource names for dynamic filtering.
-
-### CloudWatch Data Source
-
-- Native integration with all CloudWatch namespaces (AWS/VPC, AWS/TransitGateway, AWS/NATGateway, AWS/VPN).
-- Supports math expressions and multi-region querying.
-- Configure with IAM access keys or assume-role for cross-account access.
-
-### GCP Cloud Monitoring Data Source
-
-- Query GCP monitoring metrics using MQL (Monitoring Query Language) or PromQL via the Prometheus-compatible API.
-- Authenticate with service account JSON key or Workload Identity Federation.
-- Access VPC flow log metrics, Cloud NAT metrics, Cloud VPN metrics, and Interconnect metrics.
-
-### Multi-Cloud Dashboard Layout
-
-Design a single Grafana dashboard with rows per cloud:
-
-1. **Row 1 — Overview**: Aggregate health score across all clouds using stat panels (green/yellow/red).
-2. **Row 2 — Azure**: ExpressRoute utilization, VPN tunnel status, VNet flow-log denied-flow trends (legacy NSG denied-flow panels only where still deployed), Application Gateway latency.
-3. **Row 3 — AWS**: Transit Gateway throughput, NAT Gateway metrics, VPN tunnel status, Direct Connect utilization.
-4. **Row 4 — GCP**: Cloud VPN throughput, Interconnect utilization, Cloud NAT port allocation, firewall rule hit counts.
-5. **Row 5 — Cross-Cloud Links**: Latency between clouds (measured via synthetic probes), bandwidth utilization on interconnects.
+1. **Cloud(s) + tool stack** — Azure Monitor / CloudWatch / GCP Monitoring / Grafana / Datadog / Splunk.
+2. **Audience** — executives / NOC L1 / SRE on-call / network engineer.
+3. **Scope** — single env / single region / per-app / multi-cloud.
+4. **Existing telemetry** — workspace IDs, log retention, sampling rate.
+5. **Refresh cadence** — real-time ops (30s) vs review (5 min).
+6. **Annotation pipeline** — deployment events + maintenance windows.
+7. **Cost ceiling** — KQL query cost; CloudWatch dashboard / Grafana cost considerations.
 
 ---
 
-## Dashboard Design Best Practices
+## Workflow
 
-### Golden Signals Framework
+1. **Collect inputs** above.
+2. **Load `Network-Dashboard-Build`**.
+3. **Pick the dashboard level** (L1 / L2 / L3) — only design one level per dashboard; link them.
+4. **Apply golden signals** — latency, traffic, errors, saturation. Each panel must map to one.
+5. **Parameterise** — subscription / region / environment / app — single workbook reused per scope.
+6. **Pick the panel set** from the vault — KQL for Azure, widget+math-expression for AWS, MQL/PromQL for GCP.
+7. **For multi-cloud** — apply the row-per-cloud layout; aggregate health on row 1.
+8. **Wire annotations** — deployments + maintenance windows + known incidents.
+9. **Add the time-range selector** + refresh-cadence per audience.
+10. **For denied-flow / flow-log panels** — use VNet flow log schema (Azure); flag any NSG flow log dependency as migration-only.
+11. **Surface anti-patterns** — too many panels, copy-paste-per-scope, "real-time" 30s refresh on review dashboards, no annotations, missing time-range selector, dashboard built on retired data source (NSG flow logs post-2025-06-30).
+12. **Emit** in the output format below.
 
-Structure dashboards around the four golden signals adapted for network monitoring:
+---
 
-1. **Latency**: P50, P95, P99 round-trip times between critical endpoints.
-2. **Traffic**: Throughput in bps, flow counts, packet rates.
-3. **Errors**: Packet loss, denied flows, connection resets, DNS failures.
-4. **Saturation**: Bandwidth utilization %, SNAT port usage, connection table fullness.
+## Output format
 
-### Drill-Down Hierarchy
+Every dashboard-build answer should emit:
 
-Design three dashboard levels:
+1. **Inputs assumed** — cloud(s), tool, audience, scope, refresh cadence.
+2. **Dashboard level** (L1/L2/L3) + 1-line justification.
+3. **Panel inventory** — table of panels mapped to golden signal + data source + KQL/widget stub citing the vault.
+4. **Parameter list** — what to bind (sub / region / env / app).
+5. **Layout sketch** — rows / sections.
+6. **For multi-cloud** — the row-per-cloud layout + aggregate health row 1.
+7. **Annotation wiring** — deploy events + maintenance windows.
+8. **Time-range default + refresh interval** with rationale.
+9. **Cost / query-budget note** — sampling, retention impact.
+10. **Anti-pattern check** — confirm none of the workflow mistakes below apply.
+11. **What this excludes** — alert design (`alert-design`), flow-log analysis (`traffic-analytics`).
+12. **Footer** — `Analysis only — verify against vendor documentation before applying.`
 
-- **L1 — Executive Overview**: Traffic light indicators for each cloud and region. Total throughput, aggregate latency, active incidents.
-- **L2 — Service Detail**: Per-VNet/VPC metrics, per-gateway status, per-firewall throughput. Linked from L1 panels.
-- **L3 — Resource Deep Dive**: Individual VM, ENI, or subnet flow data. Packet captures, connection traces. Linked from L2 panels.
+---
 
-### Time Range Best Practices
+## Common workflow mistakes (do not repeat these)
 
-- Default time range: Last 6 hours for operational dashboards, last 24 hours for review dashboards.
-- Always include a time range selector to let users zoom in/out.
-- Add annotations for deployment events, maintenance windows, and known incidents to correlate metrics with change events.
-- Refresh interval: 30 seconds for real-time operations, 5 minutes for trend monitoring.
+1. **Building dashboards on NSG flow logs in 2025+.** New NSG flow logs blocked after 2025-06-30; full retirement 2027-09-30. Use VNet flow logs.
+2. **Copy-pasting dashboards per env/region/app.** Use parameters. Otherwise 30 dashboards drift independently.
+3. **No annotations.** Metrics spike during a deploy and the SRE thinks it's an attack. Annotate everything.
+4. **Single dashboard for all 3 audiences.** Exec sees too much detail, NOC sees not enough context. Build per audience.
+5. **30-second refresh on a 24-hour review dashboard.** Wastes query budget. Use 5-min for review.
+6. **No time-range selector.** Users can't zoom into incidents.
+7. **Mixed-golden-signal panels in one row.** Latency + traffic + saturation on one row is confusing; group by signal.
+8. **No SNAT / ER / SNAT-port / connection-table-fullness panel.** These are the network exhaustion modes; missing them = blind to capacity events.
+9. **No drill-down links** between L1 / L2 / L3. Users hunt manually instead of clicking through.
+10. **Putting KQL inline 50× rather than a saved query / function.** Editing requires touching 50 panels.
+11. **Cross-cloud dashboards with inconsistent units** — bps on one cloud, Mbps on another. Normalise.
+12. **No dashboard ownership tag.** Orphan dashboards proliferate; tag with owner + last-validated date.
 
 **Analysis only — verify against vendor documentation before applying.**
