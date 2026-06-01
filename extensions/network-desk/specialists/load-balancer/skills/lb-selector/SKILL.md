@@ -1,155 +1,107 @@
 # Skill: Load Balancer Selector (`lb_selector`)
 
-Decision matrix and selection guide for choosing the right load balancer across Azure, AWS, and GCP based on traffic pattern, protocol layer, scope, and feature requirements.
+Cross-cloud decision matrix for choosing the right load balancer (Azure / AWS / GCP) based on protocol layer (L4 vs. L7), scope (regional vs. global, public vs. private), feature requirements (WAF, WebSocket, gRPC, mTLS, static IP, PrivateLink-provider role), and cost sensitivity. Per-cloud decision trees, the cross-cloud feature comparison, and the quick-reference CLI live in the vault.
 
 ---
 
-## Decision Inputs
+## Knowledge loading contract
 
-Before recommending a load balancer, gather these five inputs:
+This is a **thin specialist skill**. It owns the "five decision inputs" intake checklist, the cross-cloud selection methodology, sibling-skill redirects (probes / TLS / routing / troubleshoot), and the workflow anti-patterns. The exact per-cloud decision trees, deprecation notes (Azure LB Basic, AppGW v1, Front Door Classic, AWS Classic LB), the cross-cloud feature matrix, and quick-reference CLI live in the vault.
 
-| Input | Options | Why It Matters |
+Mandatory steps every time you use this skill:
+
+1. Call `cn_vault_page({ page: "Load-Balancer-Selection" })` for canonical decision trees and the cross-cloud comparison table.
+2. Load service pages when a specific service is in scope (e.g. `Front-Door`, `AWS-Application-Load-Balancer`, `Cloud-Load-Balancing`).
+3. Cite the vault page when stating a deprecation, SKU constraint, or feature gap.
+
+If a service is not in the vault, fall back to `cn_search({ query: "<keywords>", specialist: "cn_lb" })`.
+
+---
+
+## When to use lb-selector
+
+| Scenario | Behaviour |
+|---|---|
+| "Which load balancer should we use for X?" | Run the 5-input intake + cross-cloud selection |
+| "L4 vs L7 — what do we need?" | Use the protocol-layer gate (vault page §Decision inputs) |
+| "Do we need global or regional?" | Use the scope gate (DNS-based vs. anycast-based steering) |
+| "We need static IP / WAF / WebSocket / gRPC / mTLS / PrivateLink-provider — which LB?" | Use the special-features matrix |
+| Health probe design | Redirect: `cn_skill({ specialist: "cn_lb", skill: "health-probes" })` |
+| TLS / SNI / cert chain design | Redirect: `cn_skill({ specialist: "cn_lb", skill: "tls-config" })` |
+| Path / host / header routing rules | Redirect: `cn_skill({ specialist: "cn_lb", skill: "traffic-routing" })` |
+| LB troubleshooting (5xx, slow, intermittent) | Redirect: `cn_skill({ specialist: "cn_lb", skill: "troubleshoot" })` |
+| Global L4 + anycast IP | AWS Global Accelerator / Azure LB Global tier / GCP external proxy NLB (cite vault page) |
+| LB cost estimation | Redirect: `cn_skill({ specialist: "cn_price", skill: "lb-pricing" })` |
+
+---
+
+## Reference pages (load these first)
+
+| Topic | Vault page | Load with |
 |---|---|---|
-| **Protocol layer** | L4 (TCP/UDP) vs L7 (HTTP/HTTPS/gRPC) | Determines whether you need content-based routing, header inspection, or raw pass-through |
-| **Traffic direction** | Public (internet-facing) vs Private (internal) | Affects SKU choice, IP allocation, and security posture |
-| **Scope** | Regional vs Global (multi-region) | Global requires DNS-based or anycast-based distribution |
-| **Special features** | WAF, WebSocket, gRPC, static IP, PrivateLink, mutual TLS | Eliminates options that lack required capabilities |
-| **Cost sensitivity** | Low-traffic dev/test vs high-throughput production | Some products charge per rule, per connection, or per capacity unit |
+| Canonical LB selection — per-cloud decision trees, cross-cloud matrix, common mistakes, quick CLI | [[Load-Balancer-Selection]] | `cn_vault_page({ page: "Load-Balancer-Selection" })` |
+| Azure Front Door (global L7) | [[Front-Door]] | `cn_vault_page({ page: "Front-Door" })` |
+| AWS Application Load Balancer | [[AWS-Application-Load-Balancer]] | `cn_vault_page({ page: "AWS-Application-Load-Balancer" })` |
+| AWS Network Load Balancer | [[AWS-Network-Load-Balancer]] | `cn_vault_page({ page: "AWS-Network-Load-Balancer" })` |
+| GCP Cloud Load Balancing | [[Cloud-Load-Balancing]] | `cn_vault_page({ page: "Cloud-Load-Balancing" })` |
+| Health probe design (almost always paired) | [[Health-Probe-Design]] | `cn_vault_page({ page: "Health-Probe-Design" })` |
+
+Row #1 is mandatory. Rows #2–5 are mandatory when the specific service is in scope. Row #6 is mandatory whenever an LB is being deployed.
 
 ---
 
-## Azure Decision Tree
+## Required inputs — collect before answering (the "5 decision inputs")
 
-```
-Is the traffic HTTP/HTTPS (L7)?
-├── YES → Is it global (multi-region)?
-│   ├── YES → Azure Front Door (Standard/Premium)
-│   │         • Premium if you need Private Link origins or Bot Manager
-│   │         • Standard for CDN + basic WAF
-│   └── NO → Is WAF required?
-│       ├── YES → Application Gateway v2 with WAF_v2 policy
-│       └── NO → Application Gateway v2 (Standard_v2)
-└── NO (L4 TCP/UDP) → Is it global?
-    ├── YES → Is DNS-based steering acceptable?
-    │   ├── YES → Traffic Manager (DNS steering only: priority/weighted/geographic/performance)
-    │   └── NO → Azure Standard Load Balancer Global tier for cross-region TCP/UDP
-    │             (verify current Global tier capabilities: https://learn.microsoft.com/azure/load-balancer/cross-region-overview)
-    └── NO → Azure Load Balancer Standard
-              • Use HA Ports rule for NVA/firewall scenarios
-              • Use outbound rules for SNAT control
-```
+1. **Protocol layer** — L4 (TCP/UDP) vs. L7 (HTTP/HTTPS/gRPC).
+2. **Traffic direction** — public (internet-facing) vs. private (internal).
+3. **Scope** — regional vs. global (multi-region).
+4. **Special features** — WAF / WebSocket / gRPC / static IP / PrivateLink-provider / mTLS / Cognito-OIDC.
+5. **Cost sensitivity** — dev/test low-traffic vs. high-throughput prod.
 
-**Key Azure constraints:**
-- Azure LB Basic is being retired — always recommend Standard.
-- Application Gateway v1 is retired; direct users to Application Gateway v2 migration and verify current retirement guidance: https://learn.microsoft.com/azure/application-gateway/v1-retirement.
-- Traffic Manager is DNS-only (no inline proxy) — clients connect directly to the endpoint. TTL-based failover is slower than proxy-based.
-- Azure Front Door is L7 HTTP/HTTPS/CDN, not an L4 TCP/UDP proxy. For global L4, use Standard Load Balancer Global tier; verify current capabilities: https://learn.microsoft.com/azure/load-balancer/cross-region-overview.
-- Front Door Classic is deprecated — use Standard/Premium for HTTP(S).
+Refuse to recommend an LB if any of these is unknown. Most "wrong LB" mistakes come from skipping the intake.
 
 ---
 
-## AWS Decision Tree
+## Workflow
 
-```
-Is the traffic HTTP/HTTPS (L7)?
-├── YES → Application Load Balancer (ALB)
-│         • Content-based routing (path, host, header, query string)
-│         • gRPC support, Lambda targets, weighted target groups
-│         • Integrates with WAF v2 and Cognito
-│         • No static IP (use Global Accelerator or NLB → ALB for static IPs)
-└── NO (L4 TCP/UDP/TLS) → Do you need inline appliance inspection?
-    ├── YES → Gateway Load Balancer (GLB)
-    │         • GENEVE encapsulation for transparent firewalls/IDS
-    │         • Chained to ALB/NLB via GLB endpoint
-    └── NO → Network Load Balancer (NLB)
-              • Ultra-low latency, millions of RPS
-              • Static IPs (one per AZ) or Elastic IPs
-              • TLS termination supported
-              • PrivateLink provider endpoint
-              • Cross-zone LB is opt-in (has cost implications)
-```
-
-**For global distribution (multi-region):**
-- **L7**: CloudFront (CDN + Lambda@Edge) or ALB with Route 53 latency-based routing.
-- **L4**: AWS Global Accelerator (anycast IPs → regional NLB/ALB endpoints).
-
-**Key AWS constraints:**
-- ALB does not have static IPs natively — use NLB in front of ALB or Global Accelerator.
-- Classic Load Balancer (CLB) is legacy — migrate to ALB or NLB.
-- GLB is for inspection appliances only — not a general-purpose LB.
-- NLB cross-zone load balancing has per-GB data charges when enabled.
+1. **Collect the 5 inputs** above.
+2. **Load `Load-Balancer-Selection`**.
+3. **Run the per-cloud decision tree** for the cloud(s) in scope. Confirm the tree's "leaf" answer with the cross-cloud matrix before committing.
+4. **Eliminate by special-feature requirements** — e.g. "need static IP and L7" → AppGW v2 / NLB-in-front-of-ALB / GCP external proxy NLB.
+5. **Eliminate by deprecation** — Azure LB Basic, AppGW v1, Front Door Classic, AWS Classic LB are not options for new builds; surface the deprecation explicitly.
+6. **Validate PrivateLink-provider eligibility** if user needs to publish a private service (Azure Std LB → PL Service; AWS NLB → PrivateLink; GCP Internal LB → Service Attachment / PSC).
+7. **Validate cost model** — ALB LCU vs. NLB hourly vs. AppGW capacity unit vs. GCP forwarding-rule pricing; redirect cost detail to `cn_price`.
+8. **Emit** in the format below.
 
 ---
 
-## GCP Decision Tree
+## Output format
 
-```
-Is the traffic HTTP/HTTPS (L7)?
-├── YES → Is it external (internet-facing)?
-│   ├── YES → Is global scope needed?
-│   │   ├── YES → Global external Application Load Balancer (legacy: External HTTP(S) LB)
-│   │   │         • Anycast VIP, Cloud Armor (WAF), Cloud CDN
-│   │   │         • Supports managed SSL certificates
-│   │   └── NO → Regional external Application Load Balancer
-│   │             • Data residency / sovereignty requirements
-│   └── NO (internal) → Internal Application Load Balancer
-│                        • Regional, for internal microservices
-│                        • Envoy-based, supports traffic splitting
-└── NO (L4 TCP/UDP) → Is it external?
-    ├── YES → External passthrough Network Load Balancer (regional) or external proxy Network Load Balancer where proxy features are required
-    │         • Verify current scope and protocol support: https://cloud.google.com/load-balancing/docs/load-balancing-overview
-    └── NO → Internal passthrough Network Load Balancer
-              • Regional, for internal databases/services
-              • Supports failover groups
-```
+Every lb-selector answer should emit:
 
-**Key GCP constraints:**
-- Verify current GCP Cloud Load Balancing product names, scope, and Network Service Tier constraints in the official overview: https://cloud.google.com/load-balancing/docs/load-balancing-overview.
-- Internal Application Load Balancer is Envoy-based (proxy) — account for proxy behavior in latency-sensitive designs.
-- Cloud CDN only works with supported external Application Load Balancer/backend bucket patterns; verify current supported backends in GCP docs.
+1. **Inputs assumed** — the 5 decision inputs, one line each.
+2. **Recommendation** — one LB per cloud in scope (or one cross-cloud answer if requirements truly align).
+3. **Decision trail** — which gate of the decision tree was used; cite the vault page section.
+4. **Alternatives considered + rejected** — and why (deprecated, missing feature, wrong scope).
+5. **Feature gaps to plan around** — e.g. "ALB has no static IP — front it with NLB or use Global Accelerator for whitelisting".
+6. **Next-step handoffs** — health-probes / TLS / routing / troubleshoot / pricing.
+7. **What this excludes** — probe design, TLS chain, path / host rules, ruleset specifics, cost figures.
+8. **Footer** — `Analysis only — verify against vendor documentation before applying.`
 
 ---
 
-## Cross-Cloud Comparison Table
+## Common workflow mistakes (do not repeat these)
 
-| Feature | Azure | AWS | GCP |
-|---|---|---|---|
-| **L7 regional** | Application Gateway v2 | ALB | Regional external/internal Application Load Balancer |
-| **L7 global** | Front Door Standard/Premium | CloudFront + ALB | Global external Application Load Balancer |
-| **L4 regional** | Load Balancer Standard | NLB | External/internal passthrough Network Load Balancer |
-| **L4 global** | Standard Load Balancer Global tier | Global Accelerator + NLB | External proxy Network Load Balancer (verify protocol support) |
-| **DNS-based global** | Traffic Manager | Route 53 routing policies | Cloud DNS routing policies |
-| **WAF** | Front Door WAF / AppGW WAF_v2 | AWS WAF v2 (on ALB/CF) | Cloud Armor (on Application Load Balancer) |
-| **Static IP** | LB Standard, AppGW v2 | NLB (per AZ EIP) | External passthrough/proxy Network Load Balancer |
-| **WebSocket** | AppGW v2, Front Door | ALB | Application Load Balancer |
-| **gRPC** | Verify current AppGW v2 support | ALB | Application Load Balancer |
-| **PrivateLink provider** | Private Link Service + Std LB | NLB (PrivateLink) | Internal LB + Service Attachment |
-| **mTLS** | AppGW v2 | ALB | HTTP(S) LB |
-| **Free tier / low cost** | LB Standard (rule-based pricing) | ALB (LCU pricing) | Forwarding-rule pricing |
+These are workflow anti-patterns specific to this skill — not a substitute for the vault page's "Common selection mistakes" list.
 
----
-
-## Common Selection Mistakes
-
-1. **Using L7 when L4 is sufficient** — L7 LBs add latency and cost. If you don't need content-based routing, use L4.
-2. **Choosing regional when global is needed** — Adding a DNS layer later creates complexity. Plan global from the start if multi-region is on the roadmap.
-3. **Ignoring PrivateLink requirements** — Only certain LB types can serve as PrivateLink/PSC providers (Azure Standard LB, AWS NLB, GCP Internal LB).
-4. **Overlooking static IP needs** — If downstream firewalls whitelist by IP, you need a product that supports static/elastic IPs.
-5. **Forgetting WAF** — Every public-facing L7 endpoint should have a WAF. Not all L7 products include WAF natively.
-
----
-
-## Quick Reference CLI
-
-```bash
-# Azure — List available LB SKUs
-az network lb list-skus --output table
-
-# AWS — Describe load balancers by type
-aws elbv2 describe-load-balancers --query 'LoadBalancers[].{Name:LoadBalancerName,Type:Type,Scheme:Scheme}' --output table
-
-# GCP — List forwarding rules (LB frontends)
-gcloud compute forwarding-rules list --format='table(name,region,loadBalancingScheme,target)'
-```
+1. **Recommending an LB before collecting all 5 inputs.** Especially: assuming public when the user meant private, or assuming regional when the roadmap is multi-region.
+2. **Recommending Azure LB Basic / AppGW v1 / Front Door Classic / AWS Classic LB.** All deprecated or retired. Never propose for new builds.
+3. **Recommending Azure Front Door for global L4.** Front Door is L7 HTTP(S) only. For global L4 → Azure Standard LB Global tier (cite vault page).
+4. **Forgetting that ALB has no static IP.** If the downstream firewall whitelists by IP, ALB alone is wrong — pair with NLB or Global Accelerator.
+5. **Recommending Cloud CDN over a regional Application LB without checking backend support.** Cloud CDN only works with specific external Application LB / backend-bucket patterns.
+6. **Quoting GCP product names from memory.** GCP renamed/regrouped the load-balancing products; always pull current names from the vault page (e.g. "Global external Application LB", not "Global HTTP(S) LB").
+7. **Forgetting WAF on public L7.** Every public-facing L7 endpoint should have a WAF; if the LB doesn't include one, add it in front.
+8. **Confusing Traffic Manager / Route 53 / Cloud DNS routing with a load balancer.** They're DNS-based steering (TTL-based failover, no proxy) — do not recommend them as a substitute for an actual LB when the user wants inline proxying.
+9. **Recommending GLB as a general-purpose LB.** AWS Gateway Load Balancer is for inspection-appliance insertion only — not a generic L4/L7 LB.
 
 **Analysis only — verify against vendor documentation before applying.**
