@@ -1,202 +1,115 @@
-# Skill: DNS Zone Design (`dns_zone_design`)
+# Skill: DNS Zone Design (`dns_skill_zone_design`)
 
-Design public and private DNS zone architectures across Azure, AWS, and GCP. Covers zone hierarchy, delegation strategy, split-horizon DNS, private zones for PaaS services, and DNSSEC.
-
----
-
-## Zone Types and When to Use Them
-
-| Zone Type | Resolves From | Managed By | Use Case |
-|---|---|---|---|
-| **Public zone** | Anywhere on the internet | Cloud DNS provider or registrar | Public websites, APIs, MX records |
-| **Private zone** | Only from linked VNets/VPCs | Cloud DNS provider | Internal services, databases, PaaS private endpoints |
-| **Split-horizon** | Public AND private (different answers) | Separate public + private zones with same name | Same FQDN resolves to public IP externally, private IP internally |
-| **Delegated sub-zone** | Inherits from parent via NS delegation | Team or environment-specific | `dev.contoso.com` delegated to a dev team's DNS |
+Design public and private DNS zone architectures across Azure DNS / AWS Route 53 / GCP Cloud DNS. Owns the *zone-type decision* (public / private / split-horizon / delegated sub-zone), the *Azure Private DNS `privatelink.*` centralisation pattern* (one shared-services RG, every VNet linked, Azure Policy auto-registration), the *cross-account VPC association protocol* (Route 53 authorise + associate), the *most-specific-zone-wins rule* (AWS overlapping zones), the *delegation strategy* (parent owned by platform; sub-zones delegated to teams; IaC mandatory), the *split-horizon precedence rule* (private zone wins for linked VNets), and the *DNSSEC scope rule* (public-only — private zones aren't part of the public hierarchy). Per-cloud CLI for public + private zones, the PaaS `privatelink.*` zone catalogue, AWS Profiles, GCP response policies, and DNSSEC enablement live in the vault.
 
 ---
 
-## Azure DNS Zone Architecture
+## Knowledge loading contract
 
-### Public Zones
+This is a **thin specialist skill**. It owns the *zone-type decision*, the *centralise-privatelink-zones* pattern, the *cross-account-VPC-association* protocol, the *most-specific-zone-wins* rule, the *delegate-don't-share-edit-rights* model, the *IaC-mandatory* discipline, the *split-horizon-precedence* rule, and the *DNSSEC-public-only* awareness. Per-cloud CLI, the PaaS `privatelink.*` zone catalogue, Profiles, response policies, peering, and DNSSEC CLI live in the vault.
 
-```bash
-# Create public zone and verify delegation
-az network dns zone create --resource-group myRG --name contoso.com
+Mandatory steps every time you use this skill:
 
-# Get NS records to configure at registrar
-az network dns zone show --resource-group myRG --name contoso.com \
-  --query 'nameServers' --output tsv
+1. Call `cn_vault_page({ page: "DNS-Zone-Design" })` for canonical zone-type table, Azure Public + Private zone CLI + PaaS `privatelink.*` zone catalogue + split-horizon example, AWS Route 53 public + private hosted zone CLI + cross-account association, GCP Cloud DNS public + private + peering zones + response policies, zone delegation strategy, and DNSSEC considerations per cloud.
+2. For resolver topology (forwarding + endpoints), redirect to `resolver-design`.
+3. For DNSSEC operational depth, also `cn_vault_page({ page: "DNSSEC" })`.
 
-# Add a delegated sub-zone
-az network dns record-set ns add-record --resource-group myRG \
-  --zone-name contoso.com --record-set-name dev \
-  --nsdname ns1-09.azure-dns.com
-```
+If a vendor / pattern isn't covered, fall back to `cn_search({ query: "<keywords>", specialist: "cn_dns" })`.
 
-### Private Zones
+---
 
-```bash
-# Create private zone and link to VNet
-az network private-dns zone create --resource-group myRG --name internal.contoso.com
+## When to use zone-design
 
-# Link to VNet with auto-registration (VMs auto-register A records)
-az network private-dns link vnet create \
-  --resource-group myRG \
-  --zone-name internal.contoso.com \
-  --name hubLink \
-  --virtual-network /subscriptions/.../virtualNetworks/hubVNet \
-  --registration-enabled true
-
-# Link to spoke VNet without auto-registration (resolution only)
-az network private-dns link vnet create \
-  --resource-group myRG \
-  --zone-name internal.contoso.com \
-  --name spokeLink \
-  --virtual-network /subscriptions/.../virtualNetworks/spokeVNet \
-  --registration-enabled false
-```
-
-**Azure Private DNS rules:**
-- A VNet can link to up to **1000 private zones**.
-- Only **one VNet link with auto-registration** per zone (but the zone can be linked to multiple VNets for resolution).
-- Auto-registration creates A records for VMs only — not for PaaS services or private endpoints.
-
-### Private DNS Zones for PaaS Services (Private Endpoints)
-
-Each Azure PaaS service with Private Endpoint support requires a specific private DNS zone. Common zones:
-
-| Service | Private DNS Zone |
+| Scenario | Behaviour |
 |---|---|
-| Blob Storage | `privatelink.blob.core.windows.net` |
-| Table Storage | `privatelink.table.core.windows.net` |
-| Queue Storage | `privatelink.queue.core.windows.net` |
-| File Storage | `privatelink.file.core.windows.net` |
-| Azure SQL | `privatelink.database.windows.net` |
-| Cosmos DB (SQL) | `privatelink.documents.azure.com` |
-| Key Vault | `privatelink.vaultcore.azure.net` |
-| ACR | `privatelink.azurecr.io` |
-| Event Hubs | `privatelink.servicebus.windows.net` |
-| AKS API Server | `privatelink.<region>.azmk8s.io` |
-
-**Enterprise pattern**: Centralize all `privatelink.*` zones in a shared-services resource group. Link every VNet to these zones. Use Azure Policy (`Deploy-DNSPE-*`) to auto-create DNS records when private endpoints are provisioned.
-
-### Split-Horizon DNS (Azure)
-
-Create both a public zone (`contoso.com`) and a private zone (`contoso.com`). The private zone takes precedence for linked VNets. External clients resolve via the public zone.
-
-```bash
-# Public zone — resolves for internet clients
-az network dns zone create --resource-group myRG --name contoso.com
-az network dns record-set a add-record --zone-name contoso.com \
-  --resource-group myRG --record-set-name app --ipv4-address 52.1.2.3
-
-# Private zone — resolves for VNet clients
-az network private-dns zone create --resource-group myRG --name contoso.com
-az network private-dns record-set a add-record --zone-name contoso.com \
-  --resource-group myRG --record-set-name app --ipv4-address 10.0.1.4
-az network private-dns link vnet create --zone-name contoso.com \
-  --resource-group myRG --name myLink --virtual-network myVNet --registration-enabled false
-```
+| "Design DNS zones for our enterprise across Azure + AWS + GCP" | Apply zone-type table; centralise per cloud; delegate sub-zones to teams |
+| "How do we expose the same FQDN internally and externally with different IPs?" | Split-horizon — separate public + private zones with same name |
+| "How do we make Azure PaaS resolvable via private endpoint enterprise-wide?" | Centralise `privatelink.*` zones in shared-services RG; link every VNet; Azure Policy `Deploy-DNSPE-*` |
+| "We have many AWS accounts and want one private zone everywhere" | Cross-account VPC association (authorise + associate) OR Route 53 Profiles |
+| "DNS overlap between `api.internal.contoso.com` and `internal.contoso.com`" | Most-specific-zone wins rule (Route 53) |
+| "Should we enable DNSSEC?" | Yes for public zones; not applicable for private zones; plan KSK rotation |
+| "How do we delegate dev.contoso.com to the dev team?" | NS delegation pattern + IaC-mandatory rule |
+| Resolver topology (forwarding endpoints, inbound/outbound) | Redirect: `cn_skill({ specialist: "cn_dns", skill: "resolver-design" })` |
+| DNS troubleshooting | Redirect: `cn_skill({ specialist: "cn_ntsh", skill: "dns-troubleshoot" })` |
+| DNS migration between clouds / providers | Redirect: `cn_skill({ specialist: "cn_dns", skill: "migration" })` |
+| DNS records audit / hygiene | Redirect: `cn_skill({ specialist: "cn_dns", skill: "record-audit" })` |
 
 ---
 
-## AWS Route 53 Zone Design
+## Reference pages (load these first)
 
-### Public Hosted Zones
+| Topic | Vault page | Load with |
+|---|---|---|
+| Canonical zone-design reference — zone-type table, Azure DNS public + private + PaaS `privatelink.*` catalogue + split-horizon CLI, AWS Route 53 public + private hosted zone CLI + cross-account association, GCP Cloud DNS public + private + peering + response policies, zone delegation strategy, DNSSEC per cloud | [[DNS-Zone-Design]] | `cn_vault_page({ page: "DNS-Zone-Design" })` |
+| DNSSEC operational depth (KSK / ZSK / rotation / DS record submission) | [[DNSSEC]] | `cn_vault_page({ page: "DNSSEC" })` |
 
-```bash
-# Create public hosted zone
-aws route53 create-hosted-zone --name contoso.com --caller-reference $(date +%s)
-
-# Delegate sub-zone
-aws route53 create-hosted-zone --name dev.contoso.com --caller-reference $(date +%s)
-# Then add NS records in parent zone pointing to child zone's NS servers
-```
-
-### Private Hosted Zones
-
-```bash
-# Create private zone associated with VPC
-aws route53 create-hosted-zone \
-  --name internal.contoso.com \
-  --caller-reference $(date +%s) \
-  --vpc VPCRegion=us-east-1,VPCId=vpc-0123456789abcdef0 \
-  --hosted-zone-config PrivateZone=true
-
-# Associate additional VPCs (cross-account requires authorization)
-aws route53 associate-vpc-with-hosted-zone \
-  --hosted-zone-id Z0123456789 \
-  --vpc VPCRegion=us-west-2,VPCId=vpc-abcdef0123456789
-```
-
-**AWS Private Hosted Zone rules:**
-- Must associate with at least one VPC at creation.
-- Cross-account VPC association requires `create-vpc-association-authorization` in the zone account and `associate-vpc-with-hosted-zone` in the VPC account.
-- **Overlapping zones**: Route 53 uses the most specific zone. `api.internal.contoso.com` prefers a zone for `api.internal.contoso.com` over `internal.contoso.com`.
+The first is mandatory; the second when DNSSEC is in scope.
 
 ---
 
-## GCP Cloud DNS Zone Design
+## Required inputs — collect before answering
 
-```bash
-# Public zone
-gcloud dns managed-zones create my-public-zone \
-  --dns-name="contoso.com." --description="Public zone" --visibility=public
-
-# Private zone scoped to specific VPC networks
-gcloud dns managed-zones create my-private-zone \
-  --dns-name="internal.contoso.com." \
-  --description="Private zone" \
-  --visibility=private \
-  --networks=projects/myproject/global/networks/my-vpc
-
-# Response policy (override specific names)
-gcloud dns response-policies create my-policy \
-  --networks=my-vpc --description="Block malicious domains"
-gcloud dns response-policies rules create block-evil \
-  --response-policy=my-policy \
-  --dns-name="evil.example.com." \
-  --local-data='name=evil.example.com.,type=A,ttl=300,rrdatas=0.0.0.0'
-```
-
-**GCP DNS peering zones**: Delegate resolution to another VPC's DNS without full network peering:
-```bash
-gcloud dns managed-zones create peering-zone \
-  --dns-name="shared.contoso.com." \
-  --visibility=private \
-  --networks=my-vpc \
-  --target-network=shared-services-vpc
-```
+1. **Cloud(s) + provider mix** — single cloud / multi-cloud / hybrid with on-prem authoritative.
+2. **Public vs private scope** — public for internet-resolvable, private for internal.
+3. **Split-horizon need** — same FQDN external + internal?
+4. **PaaS services** in scope (Azure private endpoints → `privatelink.*` catalogue).
+5. **Multi-account / multi-VPC reach** — cross-account associations needed?
+6. **Team / environment delegation** — who owns which sub-zone?
+7. **DNSSEC requirement** — compliance / public-facing?
+8. **IaC stack** — Bicep / Terraform / CloudFormation.
 
 ---
 
-## Zone Delegation Strategy
+## Workflow
 
-For multi-team or multi-environment setups:
-
-```
-contoso.com (parent — platform team)
-├── NS delegation → dev.contoso.com (dev team manages)
-├── NS delegation → staging.contoso.com (platform team, restricted)
-├── NS delegation → prod.contoso.com (platform team, strict change control)
-└── NS delegation → internal.contoso.com (private zone — central team)
-    ├── NS delegation → team-a.internal.contoso.com
-    └── NS delegation → team-b.internal.contoso.com
-```
-
-**Best practices:**
-1. Keep parent zone ownership with the platform/infra team.
-2. Delegate sub-zones to teams that own the workloads.
-3. Use Infrastructure as Code (Bicep, Terraform, CloudFormation) for zone and record management — no manual portal changes.
-4. Enforce naming conventions: `<service>.<environment>.<team>.contoso.com`.
+1. **Collect inputs** above.
+2. **Load `DNS-Zone-Design`** (+ `DNSSEC` if DNSSEC in scope).
+3. **Decide zone type per name** — public / private / split-horizon / delegated.
+4. **For each cloud apply its CLI/IaC pattern** from vault.
+5. **Centralise PaaS `privatelink.*` zones** — single shared-services RG, link every VNet, enforce via Azure Policy `Deploy-DNSPE-*`.
+6. **For multi-VPC AWS** — choose between cross-account VPC association (small) and Route 53 Profiles (many accounts).
+7. **For split-horizon** — separate public + private zones with same name; private wins inside linked VNets.
+8. **Plan delegation** — parent owned by platform, sub-zones delegated to teams; IaC-mandatory; no portal edits.
+9. **Apply naming convention** — `<service>.<environment>.<team>.contoso.com`.
+10. **For DNSSEC** — enable on public zones, add DS at registrar, plan KSK rotation; explicitly note private zones are out of scope.
+11. **Wire change control** — every record change via PR; CI plan/apply with diff in PR.
+12. **Surface anti-patterns** — manual portal changes, missing `privatelink.*` zones, expecting DNSSEC on private zones, no most-specific-zone awareness for overlapping AWS zones, single-team owning every sub-zone.
+13. **Emit** in the output format below.
 
 ---
 
-## DNSSEC Considerations
+## Output format
 
-- **Azure Public DNS**: DNSSEC signing is supported. Enable via `az network dns dnssec-config create`, add the DS record at the registrar, and verify current guidance: https://learn.microsoft.com/azure/dns/dnssec.
-- **Route 53**: Full DNSSEC signing support. Enable via `enable-hosted-zone-dnssec`. Manage KSK rotation.
-- **GCP Cloud DNS**: DNSSEC signing supported. Enable via `gcloud dns managed-zones update --dnssec-state on`.
-- **Private zones**: DNSSEC is not applicable — private zones are not exposed to the public DNS hierarchy.
+Every zone-design answer should emit:
+
+1. **Inputs assumed** — clouds, public/private scope, delegation model, PaaS scope, DNSSEC scope.
+2. **Zone inventory table** — name, type (public/private/split-horizon/delegated), cloud, owner, IaC location.
+3. **CLI/IaC plan** citing vault — public + private zone create, vnet/vpc links, cross-account association if needed.
+4. **PaaS `privatelink.*` centralisation plan** — RG, link list, Azure Policy.
+5. **Split-horizon plan** (if applicable) — separate public + private zones with same name; private wins inside VNets.
+6. **Delegation plan** — parent + sub-zone owners + NS records.
+7. **Naming convention** — explicit pattern.
+8. **DNSSEC plan** (public zones only) — enablement + DS submission + KSK rotation cadence.
+9. **Change-control workflow** — PR-driven, no portal edits.
+10. **Anti-pattern check** — confirm none of the workflow mistakes below apply.
+11. **What this excludes** — resolver design (`resolver-design`), troubleshooting (`ntsh/dns-troubleshoot`), migration (`dns/migration`), record audit (`dns/record-audit`).
+12. **Footer** — `Analysis only — verify against vendor documentation before applying.`
+
+---
+
+## Common workflow mistakes (do not repeat these)
+
+1. **Manual portal changes to zones.** Loss of audit + drift from IaC. Always PR-driven.
+2. **Missing centralised `privatelink.*` zones in Azure.** Each VNet creates its own; private endpoints resolve incorrectly; clients bypass private path.
+3. **Expecting DNSSEC to apply to private zones.** Private zones aren't in the public DNS hierarchy; DNSSEC scope is public zones only.
+4. **Ignoring the most-specific-zone rule in AWS.** Creating `internal.contoso.com` zone after `api.internal.contoso.com` exists doesn't shadow it — the more specific one still wins.
+5. **Cross-account VPC association without authorisation step.** Operation fails; must `create-vpc-association-authorization` in the zone account first.
+6. **Auto-registration enabled on multiple VNets for the same Azure Private DNS zone.** Only one VNet per zone can auto-register; others link for resolution only.
+7. **Split-horizon without keeping public + private records in sync.** Internal and external answers drift; troubleshooting becomes guesswork.
+8. **Delegating a sub-zone but leaving records in the parent.** Stale records in parent shadow the delegated child's authoritative answer.
+9. **No naming convention.** Teams pick conflicting names; collisions everywhere.
+10. **DNSSEC enabled without DS submission at registrar.** Resolvers return SERVFAIL; entire zone goes dark for validating resolvers.
+11. **KSK never rotated.** Long-lived KSKs are a compliance and security finding; document rotation cadence.
+12. **No CNAME-at-apex check.** Some providers disallow CNAME at the zone apex; use ALIAS / ANAME / A+AAAA equivalents.
 
 **Analysis only — verify against vendor documentation before applying.**

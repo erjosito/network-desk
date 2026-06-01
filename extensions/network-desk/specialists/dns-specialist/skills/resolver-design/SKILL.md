@@ -1,243 +1,113 @@
-# Skill: DNS Resolver Design (`dns_resolver_design`)
+# Skill: DNS Resolver Design (`dns_skill_resolver_design`)
 
-Design DNS resolver topologies for hybrid and multi-cloud environments. Covers Azure DNS Private Resolver, AWS Route 53 Resolver, GCP Cloud DNS forwarding, conditional forwarding rules, and on-premises DNS integration.
+Design DNS resolver topologies for hybrid and multi-cloud environments. Covers Azure DNS Private Resolver, AWS Route 53 Resolver (inbound / outbound + Profiles), GCP Cloud DNS forwarding zones + inbound policy + DNS peering, and on-premises integration. Owns the *resolver-is-the-bridge* model (cloud-default DNS can't resolve on-prem or cross-cloud names without explicit forwarding), the *direction-first decision* (inbound vs outbound endpoint per traffic direction), the *HA-across-zones* rule (single-AZ endpoint = SPOF), the *every-spoke-linked-to-the-ruleset* mandate (otherwise spokes get NXDOMAIN), the *privatelink.* forwarding for on-prem clients* mandate (otherwise on-prem clients resolve PaaS to public IPs), and the *circular-forwarding-trap* awareness. Per-cloud CLI for endpoints, rulesets, vnet-links, subnet sizing (Azure /28 delegated), Route 53 Profiles vs RAM-shared rules, GCP DNS peering, and the multi-cloud resolver design diagram live in the vault.
 
 ---
 
-## Why Resolvers Matter
+## Knowledge loading contract
 
-Cloud-provided recursive DNS (Azure 168.63.129.16, AWS 169.254.169.253, GCP metadata server) resolves public names and cloud-native private zones. But it **cannot resolve** names hosted on-premises or in other clouds without explicit forwarding configuration. Resolvers bridge this gap.
+This is a **thin specialist skill**. It owns the *resolver-bridges-the-gap* model, the *inbound-for-on-prem-to-cloud / outbound-for-cloud-to-on-prem* direction rule, the *HA-across-AZs* mandate, the *link-rulesets-to-every-spoke* mandate, the *privatelink-forwarding-for-on-prem* mandate, and the *trace-the-chain-end-to-end* circular-forwarding check. Per-cloud CLI, subnet sizing, Route 53 Profiles guidance, GCP DNS peering CLI, and the multi-cloud topology diagram live in the vault.
 
-| Direction | Problem | Solution |
+Mandatory steps every time you use this skill:
+
+1. Call `cn_vault_page({ page: "DNS-Resolver-Design" })` for canonical Azure DNS Private Resolver CLI + subnet rules, AWS Route 53 Resolver inbound/outbound CLI + Profiles guidance, GCP Cloud DNS forwarding + inbound policy + DNS peering CLI, and the multi-cloud resolver design diagram + common mistakes.
+2. For zone design (public/private/split-horizon/delegation), redirect to `zone-design`.
+3. For DNS as a security control (firewall, sinkhole, logging) within a zero-trust posture, redirect to `cn_skill({ specialist: "cn_nsec", skill: "zero-trust-architecture" })`.
+
+If a vendor / pattern isn't covered, fall back to `cn_search({ query: "<keywords>", specialist: "cn_dns" })`.
+
+---
+
+## When to use resolver-design
+
+| Scenario | Behaviour |
+|---|---|
+| "On-prem clients can't resolve our Azure private endpoint names" | Outbound from on-prem → Azure inbound resolver + forwarders for `privatelink.*` |
+| "Azure VMs can't resolve corp.contoso.com" | Outbound endpoint + forwarding ruleset + link to ALL spoke VNets |
+| "AWS workload needs to resolve Azure private name" | Cross-cloud forwarding via VPN/ER + resolver endpoints both sides |
+| "Centralise DNS for many AWS accounts/VPCs" | Route 53 Profiles (preferred over per-rule RAM share) |
+| "GCP VPC → on-prem DNS" | Cloud DNS forwarding zone with `--forwarding-targets` |
+| "On-prem → GCP DNS" | DNS inbound policy + on-prem forwarder pointing at inbound IPs |
+| "Cross-VPC DNS without VPC peering" | GCP DNS peering zone |
+| Designing the zone itself (public vs private, split-horizon, delegation) | Redirect: `cn_skill({ specialist: "cn_dns", skill: "zone-design" })` |
+| DNS as security (firewall / sinkhole / NXDOMAIN logging) | Cite resolver-firewall capabilities; redirect zero-trust framing to `cn_skill({ specialist: "cn_nsec", skill: "zero-trust-architecture" })` |
+| Troubleshooting NXDOMAIN / SERVFAIL | Apply this skill + `cn_skill({ specialist: "cn_ntsh", skill: "dns-troubleshoot" })` |
+
+---
+
+## Reference pages (load these first)
+
+| Topic | Vault page | Load with |
 |---|---|---|
-| Cloud → On-prem | Azure VM needs to resolve `dc01.corp.contoso.com` hosted on AD DNS | Outbound resolver endpoint + forwarding rule |
-| On-prem → Cloud | On-prem server needs to resolve `myvm.internal.contoso.com` in Azure private zone | Inbound resolver endpoint + on-prem conditional forwarder |
-| Cloud → Cloud | AWS workload needs to resolve Azure private DNS zone | Cross-cloud forwarding via VPN/Interconnect + resolver endpoints |
+| Canonical resolver reference — Why resolvers matter, Azure DNS Private Resolver (architecture, deployment CLI, subnet rules, on-prem forwarder PowerShell), AWS Route 53 Resolver (inbound + outbound CLI, security groups, Profiles), GCP Cloud DNS forwarding + inbound policy + DNS peering CLI, multi-cloud resolver topology diagram, common mistakes | [[DNS-Resolver-Design]] | `cn_vault_page({ page: "DNS-Resolver-Design" })` |
+
+Mandatory.
 
 ---
 
-## Azure DNS Private Resolver
+## Required inputs — collect before answering
 
-The DNS Private Resolver is a managed service deployed into a VNet that provides inbound and outbound DNS endpoints.
-
-### Architecture
-
-```
-On-premises DNS                    Azure VNet
-┌──────────────┐    VPN/ER    ┌─────────────────────────────┐
-│ AD DNS       │◄────────────►│ DNS Private Resolver         │
-│ corp.contoso │              │ ┌─────────┐ ┌──────────────┐│
-│   .com       │              │ │Inbound  │ │Outbound      ││
-│              │──────────────►│ │Endpoint │ │Endpoint      ││
-│              │  conditional │ │10.0.0.4 │ │10.0.1.4      ││
-│              │  forwarder   │ └─────────┘ └──────────────┘│
-└──────────────┘              │       │           │          │
-                              │       ▼           ▼          │
-                              │  Azure DNS    Forwarding     │
-                              │  (168.63.     Ruleset        │
-                              │   129.16)     corp.contoso   │
-                              │               .com → on-prem │
-                              └─────────────────────────────┘
-```
-
-### Deployment
-
-```bash
-# Create DNS Private Resolver
-az dns-resolver create \
-  --resource-group myRG \
-  --name myResolver \
-  --location eastus \
-  --id /subscriptions/.../virtualNetworks/hubVNet
-
-# Create inbound endpoint (on-prem → Azure resolution)
-az dns-resolver inbound-endpoint create \
-  --resource-group myRG \
-  --dns-resolver-name myResolver \
-  --name inbound-ep \
-  --location eastus \
-  --ip-configurations '[{"id":"/subscriptions/.../subnets/inbound-subnet","private-ip-allocation-method":"Dynamic"}]'
-
-# Create outbound endpoint (Azure → on-prem forwarding)
-az dns-resolver outbound-endpoint create \
-  --resource-group myRG \
-  --dns-resolver-name myResolver \
-  --name outbound-ep \
-  --location eastus \
-  --id /subscriptions/.../subnets/outbound-subnet
-
-# Create forwarding ruleset
-az dns-resolver forwarding-ruleset create \
-  --resource-group myRG \
-  --name myRuleset \
-  --location eastus \
-  --outbound-endpoints '[{"id":"/subscriptions/.../outboundEndpoints/outbound-ep"}]'
-
-# Add forwarding rule (Azure → on-prem for corp.contoso.com)
-az dns-resolver forwarding-rule create \
-  --resource-group myRG \
-  --ruleset-name myRuleset \
-  --name corpForward \
-  --domain-name "corp.contoso.com." \
-  --forwarding-rule-state Enabled \
-  --target-dns-servers '[{"ip-address":"10.100.0.10","port":53},{"ip-address":"10.100.0.11","port":53}]'
-
-# Link forwarding ruleset to VNets
-az dns-resolver vnet-link create \
-  --resource-group myRG \
-  --ruleset-name myRuleset \
-  --name hubLink \
-  --id /subscriptions/.../virtualNetworks/hubVNet
-```
-
-**Azure Resolver subnet requirements:**
-- Inbound and outbound endpoints require **dedicated subnets** (no other resources).
-- Minimum subnet size: `/28` (16 IPs).
-- Subnets must be delegated to `Microsoft.Network/dnsResolvers`.
-
-### On-Prem Configuration
-
-On your Active Directory DNS servers, add conditional forwarders pointing to the **inbound endpoint IP**:
-
-```powershell
-# PowerShell on AD DNS server
-Add-DnsServerConditionalForwarderZone -Name "internal.contoso.com" -MasterServers 10.0.0.4
-Add-DnsServerConditionalForwarderZone -Name "privatelink.blob.core.windows.net" -MasterServers 10.0.0.4
-```
+1. **Cloud(s)** in scope + connectivity (VPN / ER / Interconnect / multi-cloud transit).
+2. **Direction(s) of resolution** — on-prem → cloud, cloud → on-prem, cloud → cloud.
+3. **Zones in scope** — `corp.contoso.com` (AD), `privatelink.*` (Azure PaaS), `internal.contoso.com`, app-specific.
+4. **Existing on-prem DNS** — AD-integrated DNS, BIND, Infoblox.
+5. **Hub-and-spoke topology** — number of spokes; centralised vs decentralised DNS.
+6. **HA requirement** — at least 2 AZs per resolver endpoint.
+7. **Compliance** — DNS query logging requirement (SIEM ingestion).
+8. **Subnet capacity** — Azure needs /28 dedicated + delegated for inbound + outbound.
 
 ---
 
-## AWS Route 53 Resolver
+## Workflow
 
-### Inbound Endpoints (On-Prem → VPC)
-
-```bash
-# Create inbound resolver endpoint
-aws route53resolver create-resolver-endpoint \
-  --creator-request-id inbound-$(date +%s) \
-  --name on-prem-to-vpc \
-  --security-group-ids sg-0123456789abcdef0 \
-  --direction INBOUND \
-  --ip-addresses SubnetId=subnet-aaa,Ip=10.0.1.10 SubnetId=subnet-bbb,Ip=10.0.2.10
-
-# On-prem DNS: add conditional forwarder for internal.example.com → 10.0.1.10, 10.0.2.10
-```
-
-### Outbound Endpoints (VPC → On-Prem)
-
-```bash
-# Create outbound resolver endpoint
-aws route53resolver create-resolver-endpoint \
-  --creator-request-id outbound-$(date +%s) \
-  --name vpc-to-onprem \
-  --security-group-ids sg-0123456789abcdef0 \
-  --direction OUTBOUND \
-  --ip-addresses SubnetId=subnet-aaa SubnetId=subnet-bbb
-
-# Create forwarding rule
-aws route53resolver create-resolver-rule \
-  --creator-request-id rule-$(date +%s) \
-  --name corp-forwarding \
-  --rule-type FORWARD \
-  --domain-name corp.contoso.com \
-  --resolver-endpoint-id rslvr-out-abcdef0123456789 \
-  --target-ips Ip=10.100.0.10,Port=53 Ip=10.100.0.11,Port=53
-
-# Associate rule with VPCs
-aws route53resolver associate-resolver-rule \
-  --resolver-rule-id rslvr-rr-abcdef0123456789 \
-  --vpc-id vpc-0123456789abcdef0
-```
-
-**AWS Resolver key points:**
-- Deploy endpoints across multiple AZs for high availability; verify current endpoint limits and HA guidance in AWS docs.
-- Security groups on resolver endpoints must allow **TCP and UDP port 53** inbound/outbound.
-- Use **Route 53 Resolver DNS Firewall** to filter/block queries to malicious domains.
-- **RAM (Resource Access Manager)** can share resolver rules across accounts, but Route 53 Profiles may be a better fit for standardized multi-account DNS controls.
-
-### Route 53 Profiles
-
-Route 53 Profiles bundle DNS settings such as private hosted zone associations, Resolver rules, and DNS Firewall rule groups for VPCs in a Region. Use Profiles when many accounts/VPCs need the same DNS baseline; use one-off RAM-shared Resolver rules only for narrow exceptions or when Profiles are not available for the required resource type.
-
-Operational points:
-- Profiles are regional; plan one profile per Region or environment boundary.
-- Share profiles across accounts with AWS RAM, then associate target VPCs.
-- Establish precedence rules for local VPC associations versus profile-provided rules to avoid conflicting or shadowed DNS behavior.
-- Verify current supported resources, conflict behavior, and quotas: https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/profiles.html.
+1. **Collect inputs** above.
+2. **Load `DNS-Resolver-Design`**.
+3. **Pick directions** — design inbound and/or outbound per cloud per the table.
+4. **Apply HA rule** — endpoints in ≥2 AZs / zones; on-prem forwarder pointed at ALL inbound IPs.
+5. **Apply ruleset-link rule** — Azure: link the forwarding ruleset to every spoke VNet, not just hub. AWS: associate rules with each VPC or use Profiles. GCP: forwarding zone visibility scoped to each VPC needing it.
+6. **Apply privatelink-forwarding rule** — on-prem DNS must conditionally forward `privatelink.<service>.core.windows.net` (and equivalents) to the Azure inbound endpoint, or on-prem clients resolve to public IPs and bypass the private endpoint.
+7. **Apply firewall-rule check** — UDP+TCP 53 must be allowed on NSGs / SGs / firewall ACLs + on-prem firewalls in both directions.
+8. **Trace the chain end-to-end** — confirm no circular forwarding (cloud→on-prem→cloud for same zone).
+9. **For multi-cloud** — outbound on cloud A → inbound on cloud B over VPN/ER + matching forwarder on cloud A's resolver.
+10. **For AWS centralisation** — prefer Route 53 Profiles over per-rule RAM share; document precedence between local VPC rules and Profile-provided rules.
+11. **Wire query logging** — Azure resolver query logs / Route 53 Resolver Query Logging / Cloud DNS logging — destination SIEM.
+12. **Surface anti-patterns** — single-AZ endpoints, on-prem forwarder pointing at 168.63.129.16, missing spoke-VNet ruleset link, missing privatelink forwarding, circular forwarding, missing UDP/TCP 53 rule, subnet not /28 delegated.
+13. **Emit** in the output format below.
 
 ---
 
-## GCP Cloud DNS Forwarding
+## Output format
 
-### Forwarding Zones (VPC → On-Prem)
+Every resolver-design answer should emit:
 
-```bash
-# Create forwarding zone to reach on-prem DNS
-gcloud dns managed-zones create onprem-forward \
-  --dns-name="corp.contoso.com." \
-  --description="Forward to on-prem DNS" \
-  --visibility=private \
-  --networks=my-vpc \
-  --forwarding-targets="10.100.0.10,10.100.0.11"
-```
-
-### DNS Inbound Policy (On-Prem → VPC)
-
-```bash
-# Enable inbound DNS forwarding on VPC
-gcloud dns policies create allow-inbound \
-  --networks=my-vpc \
-  --enable-inbound-forwarding \
-  --description="Allow on-prem to query GCP DNS"
-
-# Get the inbound forwarder IPs (dynamically assigned from VPC subnets)
-gcloud compute addresses list --filter="purpose=DNS_RESOLVER"
-```
-
-On-prem DNS servers then forward queries for GCP-hosted zones to these IPs.
-
-### DNS Peering (Cross-VPC without Forwarding)
-
-```bash
-# Delegate resolution of shared.contoso.com to shared-services VPC
-gcloud dns managed-zones create peer-to-shared \
-  --dns-name="shared.contoso.com." \
-  --visibility=private \
-  --networks=my-vpc \
-  --target-network=projects/shared-project/global/networks/shared-vpc
-```
+1. **Inputs assumed** — cloud(s), directions, zones, hub-spoke, HA target.
+2. **Resolver topology** — per cloud, inbound + outbound + ruleset + vnet-links.
+3. **CLI plan** citing vault — endpoint create, ruleset create, rule create, vnet-link create.
+4. **On-prem configuration** — conditional forwarders + zones list (must include `privatelink.*` for Azure PaaS).
+5. **HA placement** — AZs / zones for each endpoint.
+6. **Spoke linking** — explicit list of VNets/VPCs to link.
+7. **Firewall-rule check** — UDP+TCP 53 on NSGs/SGs/on-prem.
+8. **Forwarding-chain diagram** — trace end-to-end with no loops.
+9. **Query-logging plan** — destination, retention.
+10. **Anti-pattern check** — confirm none of the workflow mistakes below apply.
+11. **What this excludes** — zone design (`zone-design`), DNS troubleshooting (`ntsh/dns-troubleshoot`), DNS as security (zero-trust).
+12. **Footer** — `Analysis only — verify against vendor documentation before applying.`
 
 ---
 
-## Multi-Cloud Resolver Design
+## Common workflow mistakes (do not repeat these)
 
-For environments spanning Azure + AWS (or Azure + GCP):
-
-```
-                    VPN / ExpressRoute / Interconnect
-Azure Hub VNet ◄──────────────────────────────────► AWS VPC
-┌──────────────┐                                    ┌──────────────┐
-│DNS Private   │                                    │Route 53      │
-│Resolver      │                                    │Resolver      │
-│Outbound ─────┼──── forward aws.internal ──────────►Inbound      │
-│              │                                    │              │
-│Inbound ◄─────┼──── forward azure.internal ────────┤Outbound     │
-└──────────────┘                                    └──────────────┘
-```
-
-1. Azure outbound forwarding rule: `aws.internal.com` → Route 53 Resolver inbound endpoint IPs (via VPN).
-2. AWS Resolver forwarding rule: `azure.internal.com` → Azure DNS Private Resolver inbound endpoint IP (via VPN).
-3. **Critical**: Ensure VPN/ER route tables allow DNS traffic (UDP/TCP 53) between resolver endpoints.
-
----
-
-## Common Resolver Design Mistakes
-
-1. **Forgetting to link forwarding rulesets to spoke VNets** — only the hub resolves on-prem names; spokes get NXDOMAIN.
-2. **Single-AZ resolver endpoints** — no HA; DNS fails if that AZ goes down.
-3. **On-prem conditional forwarders pointing at VNet default DNS (168.63.129.16)** — this IP is only reachable from within Azure VNets. Point at the inbound endpoint IP.
-4. **Missing firewall rules for DNS** — allow UDP and TCP port 53 on NSGs, security groups, and on-prem firewalls.
-5. **Circular forwarding** — Azure forwards to on-prem, on-prem forwards back to Azure for the same zone. Trace the chain end-to-end.
-6. **Forgetting `privatelink.*` zone forwarding for on-prem** — on-prem clients resolving storage.blob.core.windows.net get the public IP unless you forward `privatelink.blob.core.windows.net` queries to Azure.
+1. **Linking forwarding ruleset only to hub VNet.** Spokes get NXDOMAIN for on-prem names. Link to every VNet that needs resolution.
+2. **Single-AZ resolver endpoints.** DNS fails when that AZ goes down. Always deploy ≥2 AZs.
+3. **On-prem forwarders pointing at 168.63.129.16.** That IP is only reachable from within Azure VNets. Point at the **inbound endpoint IP**.
+4. **Missing UDP and TCP 53 firewall rules.** Large responses fall back to TCP; UDP-only allow breaks resolution.
+5. **Circular forwarding.** Cloud → on-prem → cloud → on-prem for same zone. Trace end-to-end before deploying.
+6. **Missing `privatelink.*` forwarding for on-prem clients.** On-prem resolves storage.blob.core.windows.net to public IP and bypasses private endpoint.
+7. **Resolver subnets shared with other resources** (Azure) or not /28+ delegated. Deployment fails or constrains capacity.
+8. **Per-rule RAM sharing across many AWS accounts.** Use Profiles instead; RAM-shared rules don't scale operationally.
+9. **No DNS query logging.** Loses early-warning signal for C2 / exfil / lateral movement; loses audit trail.
+10. **Forgetting that auto-registration in Azure Private DNS is per-zone single-VNet.** Only one VNet can auto-register; others link for resolution only.
+11. **Mixing forwarding zone visibility in GCP.** Public + private zones with the same name without explicit precedence design = unpredictable resolution.
+12. **No conditional forwarder cleanup after migration.** Old forwarders for retired zones return STALE answers and cause silent failures.
 
 **Analysis only — verify against vendor documentation before applying.**
