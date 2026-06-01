@@ -1,0 +1,345 @@
+[
+  {
+    "id": "vnet-hub-spoke",
+    "query": "design a hub-spoke VNet topology across 3 Azure regions",
+    "expected_specialists": ["cn_vnet"],
+    "expected_pages": ["Hub-and-Spoke"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "vnet-ip-planning",
+    "query": "plan a non-overlapping CIDR address scheme for prod, dev, and test environments",
+    "expected_specialists": ["cn_vnet"],
+    "expected_pages": ["IP-Address-Space-Planning", "Multi-Cloud-Addressing-Plan"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "vnet-subnet-math",
+    "query": "how many usable IPs are in a /27 subnet on Azure vs AWS",
+    "expected_specialists": ["cn_vnet"],
+    "expected_pages": ["Subnet-Calculator"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "vnet-peering-transitivity",
+    "query": "is VNet peering transitive and how do I work around it",
+    "expected_specialists": ["cn_vnet"],
+    "expected_pages": ["VNet-VPC-Peering"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "fw-rule-audit",
+    "query": "audit my Azure Firewall rules for shadowed or overly-broad entries",
+    "expected_specialists": ["cn_fw"],
+    "expected_pages": ["Firewall-Rule-Audit", "Azure-Firewall"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "fw-ha",
+    "query": "active-passive firewall HA configuration patterns",
+    "expected_specialists": ["cn_fw"],
+    "expected_pages": ["Firewall-HA-Design"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "fw-vendor-palo",
+    "query": "design Palo Alto NGFW high-availability cluster on Azure",
+    "expected_specialists": ["cn_fw"],
+    "expected_pages": ["PAN-OS", "Firewall-HA-Design", "Azure-Firewall"],
+    "category": "vendor-specific"
+  },
+  {
+    "id": "fw-vendor-fortigate",
+    "query": "FortiGate active-active cluster sync best practices",
+    "expected_specialists": ["cn_fw"],
+    "expected_pages": ["FortiGate", "Firewall-HA-Design"],
+    "category": "vendor-specific"
+  },
+  {
+    "id": "fw-vendor-zscaler",
+    "query": "Zscaler ZIA architecture for branch egress",
+    "expected_specialists": ["cn_fw", "cn_sase"],
+    "expected_pages": ["Zscaler", "SASE-SSE-Architecture", "SWG-and-CASB"],
+    "category": "vendor-specific"
+  },
+  {
+    "id": "fw-vendor-opnsense",
+    "query": "OPNsense vs pfSense for a small branch site firewall",
+    "expected_specialists": ["cn_fw"],
+    "expected_pages": ["OPNsense", "pfSense"],
+    "category": "vendor-specific"
+  },
+  {
+    "id": "fw-vendor-cisco",
+    "query": "migrate Cisco ASA rule base to Azure Firewall policy",
+    "expected_specialists": ["cn_fw"],
+    "expected_pages": ["Cisco-ASA-FTD", "Firewall-Vendor-Migration", "Azure-Firewall"],
+    "category": "vendor-specific"
+  },
+  {
+    "id": "fw-vendor-vyos",
+    "query": "VyOS as a virtual router on Azure for BGP",
+    "expected_specialists": ["cn_fw", "cn_hyb"],
+    "expected_pages": ["VyOS", "BGP-Design"],
+    "category": "vendor-specific"
+  },
+  {
+    "id": "lb-l4-vs-l7",
+    "query": "when should I use AWS NLB vs ALB",
+    "expected_specialists": ["cn_lb"],
+    "expected_pages": ["AWS-Network-Load-Balancer", "AWS-Application-Load-Balancer", "Load-Balancer-Selection"],
+    "category": "cloud-service"
+  },
+  {
+    "id": "lb-snat-exhaustion",
+    "query": "diagnose SNAT exhaustion behind an Azure load balancer",
+    "expected_specialists": ["cn_lb", "cn_ntsh"],
+    "expected_pages": ["Load-Balancer-Troubleshooting", "NAT-Debugging"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "lb-tls-cert",
+    "query": "manage TLS certificate rotation across many load balancers",
+    "expected_specialists": ["cn_lb"],
+    "expected_pages": ["TLS-Certificate-Management", "SSL-TLS-Offload"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "dns-private-resolver",
+    "query": "design Azure Private DNS Resolver for on-prem to cloud lookups",
+    "expected_specialists": ["cn_dns"],
+    "expected_pages": ["DNS-Resolver-Design", "DNS-Zone-Design"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "dns-dnssec",
+    "query": "do I need DNSSEC for an Azure-hosted public zone",
+    "expected_specialists": ["cn_dns"],
+    "expected_pages": ["DNSSEC"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "dns-cloud-svc-r53",
+    "query": "AWS Route 53 health-checked failover routing",
+    "expected_specialists": ["cn_dns"],
+    "expected_pages": ["Route-53"],
+    "category": "cloud-service"
+  },
+  {
+    "id": "pl-endpoint-dns",
+    "query": "Private Endpoint DNS integration with hub-and-spoke",
+    "expected_specialists": ["cn_pl", "cn_dns"],
+    "expected_pages": ["Private-Endpoint-DNS-Integration", "Private-Endpoint"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "pl-aws-equiv",
+    "query": "AWS PrivateLink VPC endpoint to a partner SaaS",
+    "expected_specialists": ["cn_pl"],
+    "expected_pages": ["PrivateLink", "VPC-Endpoint"],
+    "category": "cloud-service"
+  },
+  {
+    "id": "pl-gcp-equiv",
+    "query": "GCP Private Service Connect for cross-project consumption",
+    "expected_specialists": ["cn_pl"],
+    "expected_pages": ["Private-Service-Connect", "Service-Attachment"],
+    "category": "cloud-service"
+  },
+  {
+    "id": "hyb-er-fastpath",
+    "query": "ExpressRoute FastPath limits and when it bypasses the gateway",
+    "expected_specialists": ["cn_hyb"],
+    "expected_pages": ["ExpressRoute"],
+    "category": "cloud-service"
+  },
+  {
+    "id": "hyb-bgp-design",
+    "query": "BGP route preferences across dual ExpressRoute and VPN",
+    "expected_specialists": ["cn_hyb"],
+    "expected_pages": ["BGP-Design", "BGP-Routing-Policies", "Hybrid-Failover-Design"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "hyb-dx-macsec",
+    "query": "AWS Direct Connect MACsec encryption support",
+    "expected_specialists": ["cn_hyb"],
+    "expected_pages": ["Direct-Connect"],
+    "category": "cloud-service"
+  },
+  {
+    "id": "hyb-gcp-interconnect",
+    "query": "GCP Dedicated Interconnect with HA VPN failover",
+    "expected_specialists": ["cn_hyb"],
+    "expected_pages": ["Cloud-Interconnect", "HA-VPN", "Hybrid-Failover-Design"],
+    "category": "cloud-service"
+  },
+  {
+    "id": "nsec-ddos",
+    "query": "DDoS protection design for a public-facing API",
+    "expected_specialists": ["cn_nsec"],
+    "expected_pages": ["DDoS-Protection-Design"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "nsec-nsg-audit",
+    "query": "audit NSG rules and AWS security groups for least privilege",
+    "expected_specialists": ["cn_nsec"],
+    "expected_pages": ["NSG-and-Security-Group-Audit"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "nsec-waf",
+    "query": "WAF policy design for OWASP top 10 with custom exclusions",
+    "expected_specialists": ["cn_nsec", "cn_lb"],
+    "expected_pages": ["WAF-Policy-Design", "WAF-Rules-Configuration"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "ntsh-asymmetric",
+    "query": "how to avoid asymmetric routing through an NVA in hub-spoke",
+    "expected_specialists": ["cn_ntsh", "cn_fw"],
+    "expected_pages": ["Routing-Debug", "Firewall-Troubleshooting"],
+    "category": "vague"
+  },
+  {
+    "id": "ntsh-mtu",
+    "query": "intermittent TCP resets — could it be MTU and PMTUD black holes",
+    "expected_specialists": ["cn_ntsh"],
+    "expected_pages": ["MTU-and-PMTUD"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "ntsh-pcap",
+    "query": "capture packets on an Azure VM and analyze with Wireshark",
+    "expected_specialists": ["cn_ntsh"],
+    "expected_pages": ["Packet-Capture", "PCAP-Analysis"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "vwan-routing-intent",
+    "query": "configure Virtual WAN routing intent for internet and private traffic inspection",
+    "expected_specialists": ["cn_vwan"],
+    "expected_pages": ["VWAN-Routing-Intent", "Secured-Virtual-Hub"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "vwan-branch",
+    "query": "connect 50 SD-WAN branches to Virtual WAN",
+    "expected_specialists": ["cn_vwan", "cn_sase"],
+    "expected_pages": ["VWAN-Branch-Connectivity", "SD-WAN-SASE-Integration"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "vwan-aws-equiv",
+    "query": "AWS Cloud WAN segments and policy versus AWS Transit Gateway",
+    "expected_specialists": ["cn_vwan"],
+    "expected_pages": ["Cloud-WAN", "Transit-Gateway"],
+    "category": "cloud-service"
+  },
+  {
+    "id": "price-egress",
+    "query": "minimize cross-region egress costs in a multi-region deployment",
+    "expected_specialists": ["cn_price"],
+    "expected_pages": ["Egress-Cost-Architecture", "Egress-Cost-Calculation", "Network-Cost-Optimization"],
+    "category": "vague"
+  },
+  {
+    "id": "price-nat-egress",
+    "query": "compare NAT Gateway egress pricing across Azure, AWS, and GCP",
+    "expected_specialists": ["cn_price"],
+    "expected_pages": ["AWS-NAT-Gateway", "Cloud-NAT", "Egress-Cost-Architecture", "Cross-Cloud-Price-Comparison"],
+    "category": "cross-specialist"
+  },
+  {
+    "id": "price-er-vs-vpn",
+    "query": "break-even for ExpressRoute vs site-to-site VPN at 500 Mbps sustained",
+    "expected_specialists": ["cn_price", "cn_hyb"],
+    "expected_pages": ["Dedicated-Circuit-Pricing", "VPN-Gateway-Pricing"],
+    "category": "cross-specialist"
+  },
+  {
+    "id": "iac-terraform-hub",
+    "query": "generate Terraform for an Azure hub VNet with Azure Firewall",
+    "expected_specialists": ["cn_iac"],
+    "expected_pages": ["Terraform-Generation"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "iac-bicep",
+    "query": "Bicep module for a dual-stack VNet",
+    "expected_specialists": ["cn_iac", "cn_ipv6"],
+    "expected_pages": ["Bicep-Generation", "Dual-Stack-Networking"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "cnet-cni",
+    "query": "pick a CNI for an Azure Kubernetes cluster with strict pod IP planning",
+    "expected_specialists": ["cn_cnet"],
+    "expected_pages": ["CNI-Plugin-Selection"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "cnet-mesh",
+    "query": "service mesh selection for mutual TLS across multi-cluster",
+    "expected_specialists": ["cn_cnet"],
+    "expected_pages": ["Service-Mesh-Design", "Multi-Cluster-Networking"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "cdn-cloudfront",
+    "query": "tune CloudFront cache for a single-page app with dynamic origin",
+    "expected_specialists": ["cn_cdn"],
+    "expected_pages": ["CloudFront", "CDN-Cache-Optimization"],
+    "category": "cloud-service"
+  },
+  {
+    "id": "sase-ztna",
+    "query": "ZTNA design for replacing a legacy VPN concentrator",
+    "expected_specialists": ["cn_sase"],
+    "expected_pages": ["ZTNA-Design", "SASE-SSE-Architecture"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "mon-flow-logs",
+    "query": "enable VNet flow logs and Traffic Analytics for east-west visibility",
+    "expected_specialists": ["cn_nmon"],
+    "expected_pages": ["Flow-Log-Setup", "Flow-Log-Analysis", "Traffic-Analytics"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "ipv6-migration",
+    "query": "phased dual-stack rollout plan for a brownfield Azure environment",
+    "expected_specialists": ["cn_ipv6"],
+    "expected_pages": ["Dual-Stack-Networking", "IPv6-Transition-Planning"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "mcn-service-mapping",
+    "query": "what's the GCP equivalent of Azure Private Endpoint and AWS PrivateLink",
+    "expected_specialists": ["cn_mcn", "cn_pl"],
+    "expected_pages": ["Cloud-Network-Service-Mapping", "Private-Service-Connect", "PrivateLink", "Private-Endpoint"],
+    "category": "vague"
+  },
+  {
+    "id": "cap-throughput",
+    "query": "size an Azure VPN gateway for 300 Mbps sustained throughput",
+    "expected_specialists": ["cn_ncap"],
+    "expected_pages": ["Gateway-Sizing", "Throughput-Calculations"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "nauto-drift",
+    "query": "detect and remediate configuration drift across firewall rule sets",
+    "expected_specialists": ["cn_nauto"],
+    "expected_pages": ["Configuration-Drift-Detection"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "doc-xlsx-report",
+    "query": "build an Excel workbook summarizing per-resource networking costs",
+    "expected_specialists": ["cn_doc", "cn_price"],
+    "expected_pages": ["XLSX-Workbook-Generation"],
+    "category": "regex-easy"
+  }
+]
