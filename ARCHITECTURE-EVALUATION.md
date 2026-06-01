@@ -553,7 +553,7 @@ The vault layer is **not free**:
 | **+50 LOC** in `extension.mjs` (852 → 902) and +16 KB `vault-search.mjs` | Both fully tested. |
 | **+17 % wall-clock latency per prompt** (Tier 3: 104.6 s vs 89.2 s mean) | Pays for itself in recall (+14 pp answerable, +14 pp on regex-easy category). Avoidable for sessions that don't need cross-specialist search by simply not calling `cn_search`. |
 | **+169 % tool-call count per prompt** (mean 58 vs 21.6) | Driven by smaller vault pages — each call is smaller but more frequent. The model trades few big reads for many small focused reads. |
-| **Content duplication between `specialists/**/SKILL.md` and `vault/**/*.md`** (the big one — see below) | Today: 124 SKILL.md files contain only 3 `[[wikilinks]]` to the vault → most topics are documented in two places. Edits have to be made in both layers, or one drifts. **Mitigation today:** the `tools/suggest-wikilinks.mjs` lint flags places where SKILL.md content has a canonical vault page so they can be linked rather than restated. **Resolution (planned, not done):** a Phase 4 pass to thin `SKILL.md` files to workflow + pointers, leaving the vault as the single source of truth for reference content. The two layers would then have non-overlapping roles (workflow vs reference), each with one owner. |
+| **Content duplication between `specialists/**/SKILL.md` and `vault/**/*.md`** (the big one — see below) | Today: 124 SKILL.md files contain only 3 `[[wikilinks]]` to the vault → most topics are documented in two places. Edits have to be made in both layers, or one drifts. **Mitigation today:** the `tools/suggest-wikilinks.mjs` lint flags places where SKILL.md content has a canonical vault page so they can be linked rather than restated. **Resolution (planned, not done):** a *specialist-thinning* pass that reduces every `SKILL.md` from its current ~10 KB monolithic shape (persona + workflow + output spec + deep reference content) down to ~1 KB (persona + workflow + output spec + pointers to vault pages), leaving the vault as the single source of truth for reference content. The two layers would then have non-overlapping roles (workflow vs reference), each with one owner. |
 
 #### Honest assessment of the duplication today
 
@@ -569,10 +569,11 @@ should be added to **two** files: `Vendors/PAN-OS.md` (the vault page)
 model inconsistent answers depending on which entry point the LLM picks.
 
 This is a real maintenance tax and the largest open problem with the
-current CKB design. The Phase 4 cleanup (thin specialists, leave the
-vault as canonical) is the natural next step; until then, the duplication
-should be considered a documented limitation rather than an architectural
-feature.
+current CKB design. The specialist-thinning cleanup (described above —
+reduce SKILL.md files to persona + workflow + output-format spec +
+pointers, with the vault as canonical reference) is the natural next
+step; until then, the duplication should be considered a documented
+limitation rather than an architectural feature.
 
 ### 3.6 Measured comparison (the three-tier benchmark)
 
@@ -705,6 +706,138 @@ These are the kind of long-tail gaps a retrieval benchmark cannot catch
 (both fail symmetrically) but a live LLM-judge benchmark can — which is part
 of the case for keeping all three tiers in the harness.
 
+### 3.8 Do we need specialists at all? CKB (F') vs a vault-only single agent (C)
+
+A natural follow-up to [section 3.5](#35-the-trade-offs-accepted) is:
+*if the deep content is now in the vault, why keep specialists, `cn_route`,
+and the whole skill catalog?* Could a single agent searching the vault
+deliver the same quality with a smaller surface area? This is Pattern **C**
+from the [design space](#21-the-five-canonical-patterns).
+
+Three candidate architectures bracket the answer:
+
+```mermaid
+flowchart TB
+    subgraph Now["Today — CKB as it ships (Pattern F', with duplication)"]
+      N1["LLM"]
+      N1 -->|cn_route| N2["specialist regex match"]
+      N1 -->|cn_role / cn_skill| N3["specialists/**/*.md<br/>(workflow + persona<br/>+ deep content, duplicated)"]
+      N1 -->|cn_search| N4["vault/**/*.md<br/>(canonical reference)"]
+    end
+    subgraph Vonly["Vault-only single agent (Pattern C from §2)"]
+      V1["LLM"]
+      V1 -->|cn_search| V2["vault/**/*.md<br/>(only knowledge source)"]
+      V3["System prompt<br/>(persona + global guardrails)"] -.-> V1
+    end
+    subgraph Thin["Thin-specialists CKB (Pattern F' fully realised)"]
+      T1["LLM"]
+      T1 -->|cn_route| T2["specialist regex match"]
+      T1 -->|cn_role / cn_skill| T3["specialists/**/*.md<br/>(workflow + persona + pointers,<br/>~1 KB each)"]
+      T1 -->|cn_search| T4["vault/**/*.md<br/>(single source of truth<br/>for reference content)"]
+    end
+```
+
+#### What specialists actually contain (today)
+
+Reading any role file or `SKILL.md` shows four distinct kinds of content
+braided together. Using `firewall-engineer` as the worked example:
+
+| Layer | Example | Vault-replaceable? |
+|---|---|---|
+| **Persona / identity** | *"You are the Firewall Engineer, a senior network security engineer with deep expertise across 14 firewall platforms..."* | ❌ Belongs in a system prompt or role file, not in reference pages |
+| **Workflow recipe** | *"Step 1: identify vendor + platform context. Step 2: gather requirements (zones, NAT, logging). Step 3: design or audit. Step 4: generate config. Step 5: verify with packet-tracer."* | ❌ Procedural — the LLM follows the sequence. Reference pages are non-sequential. |
+| **Output-format spec** | *"Output a risk-rated findings table with columns: rule ID, severity, recommendation, evidence."* | ❌ Tells the LLM how to shape the answer, not what to know |
+| **Reference content** | *"Zone taxonomy: trust / untrust / DMZ / management / guest / database / application…"* and per-vendor mapping tables | ✅ This IS what the vault is for |
+
+The duplication problem from [3.5](#35-the-trade-offs-accepted) is
+specifically about the *fourth* row — reference content currently lives
+in both SKILL.md and vault. The first three rows are real value that the
+vault deliberately does not carry.
+
+#### What a vault-only design (Pattern C) gives up
+
+A pure single-agent-over-vault design is appealingly simple — one or two
+tools, no REGISTRY, no specialists folder — but it loses four things that
+specialists provide:
+
+1. **Workflow recipes.** A firewall audit follows a tested 5-step procedure
+   (vendor → requirements → design → config → verify). A LB design follows
+   a different one (traffic profile → algorithm → health-check → session
+   affinity → failure mode). Without specialists the LLM invents a
+   workflow on the fly per question, and the quality is noisier — long
+   multi-step questions are where this hurts most.
+2. **Per-domain output formats and guardrails.** *"Always produce a risk-rated
+   table"* (firewall audit) vs *"Always note the BGP MED non-transitivity
+   across confederations"* (BGP) vs *"Analysis only — verify against vendor
+   docs"* (all). Folding these into one giant system prompt works for 5
+   domains; for 20 it bloats every call.
+3. **Capability discovery.** `cn_orchestrate({ specialist: "cn_fw" })` lets
+   the model (and user) enumerate *"firewall-engineer can do rule audits,
+   policy design, migrations, hardening, HA design, log analysis, vendor
+   config"*. A vault index gives a flat list of pages, not a taxonomy of
+   tasks.
+4. **Deterministic, free regex routing.** `cn_route` matches on keywords in
+   microseconds with zero LLM cost. Tier 2 measured it at 83.7 % accuracy.
+   The other 16.3 % is where `cn_search` adds value — but routing the easy
+   83.7 % through BM25 instead would waste tokens and add latency. The
+   two layers complement each other.
+
+What you'd gain by going vault-only:
+
+* **Zero duplication** by construction (only one place writes each fact)
+* **Smaller architecture** — 1-2 tools vs 6
+* **Lower per-prompt token cost** (no role + skill loads on top of the
+  vault page) — Tier 3 measured 168 % more tool calls in CKB than PSKB;
+  vault-only would compress that further
+* **Cross-cutting questions work natively** — questions that span specialists
+  (firewall + DNS + load balancer for a multi-region failover) don't need
+  to pick one persona
+
+Pattern C is the right design when those properties dominate — typically
+when the domain is uniform (no specialty subworkflows), when answer
+formats can be one-size-fits-all, and when the LLM is strong enough that
+invented-on-the-fly workflows are good enough.
+
+#### Why CKB picks F' over C for cloud networking
+
+Cloud networking has the opposite shape: **strong per-specialty workflow
+asymmetry** (a firewall audit looks nothing like a BGP debug looks
+nothing like a CDN price comparison), **vendor-heavy reference content**
+that benefits from a dedicated reference layer (the vault), and a user
+mental model that maps cleanly onto specialists (`@firewall-engineer` is
+a clearer ask than `@network-desk help me with firewall stuff`).
+
+Concretely, the empirical signal from Tier 2 + Tier 3 supports F':
+
+* `cn_route` alone covers 83.7 % of queries by regex — that's a lot of
+  zero-cost routing the vault would otherwise have to absorb at BM25
+  query cost.
+* When CKB *wins* Tier 3 it's typically because the vault page surfaced a
+  concrete mechanism the regex-routed specialist could then frame
+  (`fw-ha`, `ntsh-asymmetric`, `price-egress`). The workflow framing
+  *and* the vault content together produced the better answer.
+* When CKB *loses* Tier 3 it's a content gap in the vault, not a
+  framing failure. The specialist layer pulled its weight; the vault
+  was incomplete.
+
+#### The thin-specialists design (rightmost subgraph above) is what we should ship next
+
+The right end-state is **F' fully realised**: specialists become thin
+(persona + workflow + output format + guardrails + a skill catalog
+whose entries are pointers to vault pages, ~1 KB each), the vault is
+the single source of truth for reference content, `cn_route` and
+`cn_orchestrate` retain their UX/framing/discovery value at near-zero
+cost, and `cn_skill` loads small workflow files instead of monolithic
+reference dumps. This eliminates the duplication from [3.5](#35-the-trade-offs-accepted)
+without giving up the per-specialty workflow value that distinguishes
+F' from C.
+
+A side benefit: once `cn_skill` returns ~1 KB workflow files instead of
+~10 KB reference dumps, the Tier 3 token cost gap (CKB +17 % latency,
++168 % tool calls) should narrow substantially — most of CKB's extra
+tool calls today are the model re-reading reference content that's
+already in the vault page it just searched.
+
 ---
 
 ## 4. Conclusion
@@ -729,11 +862,13 @@ the same three-tier comparison runs.
 
 The CKB implementation as it ships today is not the fully realised form of
 Pattern F'. The most important remaining piece is the **specialist
-thinning** described in [3.5](#35-the-trade-offs-accepted): until each
-`SKILL.md` is reduced to workflow + pointers and the vault becomes the
-single source of truth for reference content, edits have to be made in
-two places. The architecture is sound and the benchmarks show the
-recall win; the maintenance ergonomics still need the Phase 4 pass.
+thinning** described in [3.5](#35-the-trade-offs-accepted) and
+[3.8](#38-do-we-need-specialists-at-all-ckb-f-vs-a-vault-only-single-agent-c):
+until each `SKILL.md` is reduced to persona + workflow + output-format
+spec + pointers (and the vault becomes the single source of truth for
+reference content), edits have to be made in two places. The
+architecture is sound and the benchmarks show the recall win; the
+maintenance ergonomics still need the cleanup pass.
 
 ---
 
