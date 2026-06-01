@@ -13,6 +13,7 @@ import { joinSession } from "@github/copilot-sdk/extension";
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { search as vaultSearch, formatResults as formatSearch } from "./lib/vault-search.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SPECIALISTS = join(HERE, "specialists");
@@ -669,6 +670,55 @@ const tools = [
             return loadFile(join(SPECIALISTS, def.dir, "skills", skill, "SKILL.md"));
         },
     },
+    {
+        name: "cn_search",
+        description:
+            "BM25-style search over the cloud networking knowledge vault (~170 pages: Services × Topics × Patterns × Vendors). " +
+            "Returns ranked page summaries with snippets and optional 1-hop wikilink expansion. " +
+            "Use when you don't yet know which specialist's skill covers a topic, when you want broad context across specialists, " +
+            "or to look up vendor-specific guidance. Complements `cn_skill` (which loads one specific page).",
+        parameters: {
+            type: "object",
+            properties: {
+                query: {
+                    type: "string",
+                    description: "Free-form query — keywords, phrase, or question. Field weights: name 3×, aliases 2.5×, tags 2×, body 1×. Fuzzy + prefix matching enabled.",
+                },
+                specialist: {
+                    type: "string",
+                    description: "Optional. Filter to pages owned by this specialist (e.g. \"cn_vnet\"). Bare aliases (\"vnet\") also accepted. Omit to search all specialists.",
+                },
+                cloud: {
+                    type: "string",
+                    enum: ["azure", "aws", "gcp"],
+                    description: "Optional. Filter to a specific cloud. Cloud-agnostic Topics are also included.",
+                },
+                limit: {
+                    type: "integer",
+                    minimum: 1,
+                    maximum: 20,
+                    description: "Max results to return. Default 8.",
+                },
+                expand_links: {
+                    type: "boolean",
+                    description: "If true, also returns 1-hop wikilink expansion: summaries of up to 5 pages [[wikilinked]] from the top results.",
+                },
+            },
+            required: ["query"],
+        },
+        skipPermission: true,
+        handler: async (args) => {
+            const spec = args?.specialist ? resolveSpecialist(args.specialist) : null;
+            const result = await vaultSearch({
+                query: args?.query,
+                specialist: spec ? pub(spec) : null,
+                cloud: args?.cloud || null,
+                limit: args?.limit,
+                expandLinks: args?.expand_links === true,
+            });
+            return formatSearch(result);
+        },
+    },
 ];
 
 // ── Startup registry validation (logs issues, never crashes) ───────────
@@ -713,9 +763,9 @@ async function validateRegistry(session) {
 const MENTION_RE = /(^|[^\w])@?network[\s_-]?desk\b/i;
 
 const TOOL_USAGE_NOTE =
-    "You MUST use ONLY these network-desk tools: `cn_route`, `cn_role`, `cn_orchestrate`, `cn_skill`, `cn_capabilities`. " +
-    "You MUST NOT read, open, list, or search the specialist files under `specialists/**` directly with any file/view/glob/grep/shell tool. " +
-    "Always load specialist content via the registered `cn_role`, `cn_orchestrate`, and `cn_skill` tools — never by reading the `.md` files yourself. " +
+    "You MUST use ONLY these network-desk tools: `cn_route`, `cn_role`, `cn_orchestrate`, `cn_skill`, `cn_search`, `cn_capabilities`. " +
+    "You MUST NOT read, open, list, or search the specialist files under `specialists/**` or the vault under `vault/**` directly with any file/view/glob/grep/shell tool. " +
+    "Always load specialist content via the registered `cn_role`, `cn_orchestrate`, `cn_skill`, and `cn_search` tools — never by reading the `.md` files yourself. " +
     "Names like `cn_vnet_role` or `vnet_skill_address_planner` are NOT registered tools; select the specialist and skill via arguments, e.g. `cn_skill({ specialist: \"cn_vnet\", skill: \"address-planner\" })`. " +
     "Respond to the user in natural language — do not list or expose internal tool names.";
 
@@ -751,15 +801,15 @@ const PRESENCE_NOTE =
     `It bundles ${PREFIXES.length} network-desk specialists: ${SPECIALIST_INLINE}. ` +
     "Discovery tools available right now: `cn_capabilities` (full specialist + skill map), `cn_route` (pick the right specialist for a query), " +
     "`cn_role` (load a specialist's role definition — call this FIRST before answering), `cn_orchestrate` (step-by-step workflow + skill catalog), " +
-    "`cn_skill` (deep guidance for a specific skill). " +
+    "`cn_skill` (deep guidance for a specific skill), `cn_search` (BM25 search across the knowledge vault — use when you don't know which specialist owns a topic, or to look up vendor-specific guidance). " +
     "When the user mentions VNets/VPCs, subnets/CIDR/IP planning, firewalls/NSGs/rule audits, load balancers, DNS, Private Link/private endpoints, " +
     "hybrid connectivity (VPN/ExpressRoute/Direct Connect/Interconnect), network security, connectivity troubleshooting/packet capture, " +
     "Virtual WAN/SD-WAN, network monitoring, multi-cloud networking, networking pricing/cost, IaC (Bicep/Terraform/Ansible) for networking, " +
     "container/Kubernetes networking, CDN/edge, network automation, SASE/SSE, capacity planning, or IPv6 migration — or says 'network-desk' / " +
     "'@network-desk' / 'this extension' / 'what can you do' in a networking context — you MUST call `cn_route` (or `cn_capabilities`) FIRST, " +
     "then the matched specialist's `cn_role`, before answering. " +
-    "Do NOT answer networking questions from prior/general knowledge, and do NOT read the specialist files under `specialists/**` directly — " +
-    "load ALL specialist content via `cn_role` / `cn_orchestrate` / `cn_skill`. " +
+    "Do NOT answer networking questions from prior/general knowledge, and do NOT read the specialist files under `specialists/**` or the vault under `vault/**` directly — " +
+    "load ALL specialist content via `cn_role` / `cn_orchestrate` / `cn_skill` / `cn_search`. " +
     "Never claim network-desk is unavailable: it is loaded. " +
     "Network Desk is analysis-only: it never applies changes, modifies infrastructure, or runs commands against live environments. " +
     "RESPONSE FOOTER (REQUIRED): at the end of EVERY assistant response that touches cloud networking — any turn where you called a `cn_*` tool, " +
