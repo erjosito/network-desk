@@ -1,217 +1,97 @@
 # Skill: Private Endpoint Design (`pl_endpoint_design`)
 
-Design private endpoint architecture including subnet placement, IP planning, groupId/subresource selection, approval workflows, and multi-region strategies across Azure, AWS, and GCP.
+Design the **consumer side** of private connectivity: private endpoint subnet placement, IP planning, sub-resource / groupId selection, gateway-vs-interface endpoint decisions, approval workflow handling, and multi-region strategy across Azure Private Endpoints, AWS VPC endpoints, and GCP Private Service Connect endpoints.
 
 ---
 
-## Subnet Strategy
+## Knowledge loading contract
 
-### Dedicated vs Shared Subnet
+This is a **thin specialist skill**. It owns the workflow, output shape, and consumer-side guardrails. The per-service requirements, sub-resource / groupId tables, deployment commands, and pitfalls live in the vault and **must be loaded with `cn_vault_page` before answering** — do not paraphrase or recall them from memory.
 
-| Approach | Pros | Cons | Recommendation |
-|---|---|---|---|
-| **Dedicated PE subnet** | Clean NSG rules, easy auditing, clear IP accounting | Consumes address space, more subnets to manage | **Recommended for production** |
-| **Shared with workload** | Fewer subnets, simpler topology | Mixed NSG rules, harder to track PE IPs | Acceptable for dev/test |
+Mandatory steps every time you use this skill:
 
-### Subnet Sizing
+1. Identify the consumer cloud(s) and the target service(s).
+2. Call `cn_vault_page` for each consumer-side page in the **Reference pages** table below.
+3. Build the answer around the loaded page(s); cite the page name when you state a requirement (subnet sizing, groupId, approval mode, etc.).
 
-**Azure Private Endpoints:**
-- Each PE consumes **one private IP** from the subnet.
-- A single resource can have multiple PEs (e.g., one for blob, one for table on the same storage account) — each consumes a separate IP.
-- Plan for growth: if you expect 50 PEs today, size for 100+.
+If the user asks about a service or pattern not in the table, fall back to `cn_search({ query: "<keywords>", specialist: "cn_pl", cloud: "<azure|aws|gcp>" })`, identify the right page, then load it.
 
-| Subnet Size | Usable IPs (Azure reserves 5) | PEs Supported |
+---
+
+## When to use endpoint design
+
+| Scenario | Consumer pattern |
+|---|---|
+| Consume an Azure PaaS service privately (storage, SQL, Key Vault, …) | Azure Private Endpoint with the right groupId |
+| Consume an AWS service privately (S3, SQS, KMS, …) or a partner PrivateLink service | AWS interface endpoint (or gateway endpoint for S3 / DynamoDB) |
+| Consume a published GCP service or Google APIs privately | GCP PSC endpoint (service attachment or `all-apis` bundle) |
+| Centralised PE pattern (hub) vs distributed PE per spoke | Topology decision — covered in the workflow below |
+
+**Not this skill — use the sibling skill instead:**
+
+- Producer side (exposing your service via PLS / endpoint service / service attachment) → `cn_skill({ specialist: "cn_pl", skill: "service-exposure" })`
+- Private DNS zones, conditional forwarders, cross-VNet DNS → `cn_skill({ specialist: "cn_pl", skill: "dns-integration" })`
+- Reviewing an existing endpoint setup for hardening → `cn_skill({ specialist: "cn_pl", skill: "security-review" })`
+- "It's broken" on an existing endpoint → `cn_skill({ specialist: "cn_pl", skill: "troubleshoot" })`
+
+---
+
+## Reference pages (load these first)
+
+| Topic | Vault page | Load with |
 |---|---|---|
-| /28 | 11 | Small workload, <10 PEs |
-| /26 | 59 | Medium workload, 20-50 PEs |
-| /24 | 251 | Large workload, 100+ PEs |
-| /22 | 1019 | Enterprise, centralized PE hub |
+| Azure consumer — Private Endpoint (groupIds, subnet sizing, approval, mistakes) | [[Private-Endpoint]] | `cn_vault_page({ page: "Private-Endpoint" })` |
+| AWS consumer — Interface endpoint, Gateway endpoint, S3 trade-off | [[VPC-Endpoint]] | `cn_vault_page({ page: "VPC-Endpoint" })` |
+| GCP consumer — PSC endpoint (Google APIs bundle vs published service) | [[Private-Service-Connect]] | `cn_vault_page({ page: "Private-Service-Connect" })` |
+| Producer-side context (when consumer asks "what's on the other side?") | [[Private-Link-Service]] · [[PrivateLink]] · [[Service-Attachment]] | `cn_vault_page({ page: "<slug>" })` |
 
-**AWS Interface Endpoints:**
-- Each interface endpoint creates **one ENI per AZ** where it's deployed.
-- If your endpoint spans 3 AZs, it consumes 3 IPs.
-- Security groups are applied per-endpoint — use a dedicated subnet or carefully manage SGs.
-
-**GCP Private Service Connect:**
-- Each PSC endpoint consumes **one forwarding rule IP** from the subnet.
-- Use a dedicated subnet for PSC endpoints for clean firewall rules.
-
-### Placement Strategy
-
-**Hub-spoke topology (Azure):**
-
-```
-Hub VNet (10.0.0.0/16)
-├── GatewaySubnet (10.0.0.0/27)
-├── AzureFirewallSubnet (10.0.1.0/26)
-├── InboundDnsSubnet (10.0.2.0/28)
-├── OutboundDnsSubnet (10.0.3.0/28)
-└── PrivateEndpointSubnet (10.0.4.0/24) ← Centralized PEs
-
-Spoke VNet 1 (10.1.0.0/16)
-├── WorkloadSubnet (10.1.0.0/24)
-└── (No PEs — uses hub PEs via peering + private DNS)
-
-Spoke VNet 2 (10.2.0.0/16)
-├── WorkloadSubnet (10.2.0.0/24)
-└── LocalPESubnet (10.2.1.0/26) ← PEs for latency-sensitive workloads
-```
-
-**Centralized PEs (hub):**
-- Single private DNS zone management.
-- All traffic goes through hub (can inspect via firewall).
-- Higher latency for spoke workloads (extra peering hop).
-
-**Distributed PEs (spokes):**
-- Lower latency — PE is in the same VNet as the workload.
-- Requires private DNS zone links to every spoke VNet.
-- More complex DNS management.
+Load **only the row(s) for the consumer cloud(s) the user asked about**. The producer-side rows are only needed when the user is bridging a producer/consumer conversation.
 
 ---
 
-## GroupId / Subresource Selection (Azure)
+## Workflow
 
-When creating an Azure Private Endpoint, you specify a `groupId` (also called `subresource`) that determines which part of the PaaS service gets a private endpoint.
-
-| Service | groupId | Private DNS Zone |
-|---|---|---|
-| Storage — Blob | `blob` | `privatelink.blob.core.windows.net` |
-| Storage — File | `file` | `privatelink.file.core.windows.net` |
-| Storage — Table | `table` | `privatelink.table.core.windows.net` |
-| Storage — Queue | `queue` | `privatelink.queue.core.windows.net` |
-| Storage — DFS (Data Lake) | `dfs` | `privatelink.dfs.core.windows.net` |
-| Azure SQL | `sqlServer` | `privatelink.database.windows.net` |
-| Cosmos DB — SQL | `Sql` | `privatelink.documents.azure.com` |
-| Key Vault | `vault` | `privatelink.vaultcore.azure.net` |
-| ACR | `registry` | `privatelink.azurecr.io` |
-| Event Hubs | `namespace` | `privatelink.servicebus.windows.net` |
-| App Configuration | `configurationStores` | `privatelink.azconfig.io` |
-| Cognitive Services | `account` | `privatelink.cognitiveservices.azure.com` |
-
-```bash
-# Create PE for blob storage
-az network private-endpoint create \
-  --resource-group myRG \
-  --name myBlobPE \
-  --vnet-name myVNet \
-  --subnet PrivateEndpointSubnet \
-  --private-connection-resource-id /subscriptions/.../storageAccounts/myStorage \
-  --group-id blob \
-  --connection-name myBlobConnection
-
-# Create PE for table storage (same storage account, different PE)
-az network private-endpoint create \
-  --resource-group myRG \
-  --name myTablePE \
-  --vnet-name myVNet \
-  --subnet PrivateEndpointSubnet \
-  --private-connection-resource-id /subscriptions/.../storageAccounts/myStorage \
-  --group-id table \
-  --connection-name myTableConnection
-```
+1. **Disambiguate the consumer cloud and the target service** — e.g. "Azure consumer reaching storage blob" vs "AWS consumer reaching SQS" vs "GCP consumer reaching Google APIs". If unclear, ask.
+2. **Load the consumer-side vault page** for that cloud (table above).
+3. **Pick the endpoint type** (cloud-specific decision — defer to the vault page):
+   - Azure: always Private Endpoint, **must** specify the right `groupId` (one PE per groupId; storage typically needs `blob` + `dfs` + `file` + … separately).
+   - AWS: Interface endpoint by default; **Gateway endpoint only for S3 and DynamoDB** when the consumer is in-VPC (no cross-VPC / on-prem reach).
+   - GCP: PSC endpoint with `all-apis` bundle for Google APIs, or a service-attachment URI for a published service.
+4. **Decide centralised vs distributed PE placement**:
+   - **Centralised (hub)**: single Private DNS zone, hub firewall inspection, extra peering hop / latency.
+   - **Distributed (per spoke)**: lower latency, requires Private DNS zone links per VNet, more zone management.
+5. **Size the PE subnet** per the vault page (Azure: 1 IP per PE; AWS interface endpoint: 1 ENI per AZ; GCP PSC: 1 forwarding-rule IP). Plan for ≥2× current usage. Never put PEs in `GatewaySubnet` / `AzureFirewallSubnet` / equivalents.
+6. **Surface the approval mode** the consumer will hit (auto / manual / cross-tenant) — table in the vault page.
+7. **Call out public-access lockdown**: the PE alone does not block the public path. The producer must also disable public network access (e.g. Azure `publicNetworkAccess: Disabled`, AWS bucket policies that deny non-VPC access, GCP service-level controls).
+8. **Emit the output** in the shape below.
 
 ---
 
-## AWS VPC Endpoint Creation
+## Output format
 
-### Interface Endpoint
+Every endpoint-design answer should include, in this order:
 
-```bash
-# Create interface endpoint for SQS in specific subnets
-aws ec2 create-vpc-endpoint \
-  --vpc-id vpc-0123456789abcdef0 \
-  --vpc-endpoint-type Interface \
-  --service-name com.amazonaws.us-east-1.sqs \
-  --subnet-ids subnet-aaa subnet-bbb subnet-ccc \
-  --security-group-ids sg-0123456789abcdef0 \
-  --private-dns-enabled
-
-# List available services
-aws ec2 describe-vpc-endpoint-services \
-  --query 'ServiceNames[?contains(@, `sqs`)]'
-```
-
-### Gateway Endpoint (S3 / DynamoDB only)
-
-```bash
-# Create gateway endpoint for S3
-aws ec2 create-vpc-endpoint \
-  --vpc-id vpc-0123456789abcdef0 \
-  --vpc-endpoint-type Gateway \
-  --service-name com.amazonaws.us-east-1.s3 \
-  --route-table-ids rtb-0123456789abcdef0
-```
-
-**Gateway vs Interface for S3:**
-- **Gateway**: Free, route-based, no ENI, works within VPC only.
-- **Interface**: Costs money, ENI-based, supports cross-VPC/on-prem access via PrivateLink.
+1. **Endpoint type recommendation** — exact resource type for the user's cloud and service (Azure PE with groupId X, AWS interface endpoint vs gateway endpoint, GCP PSC endpoint variant).
+2. **Subnet plan** — dedicated vs shared, size, naming, NSG/SG stance — cite the vault page's sizing table.
+3. **GroupId / sub-resource / service name** — for Azure: the exact `groupId` and corresponding Private DNS zone; for AWS: `com.amazonaws.<region>.<service>`; for GCP: the `target-google-apis-bundle` or service-attachment URI. **Cite the vault page** — do not recall from memory.
+4. **Placement decision** — centralised hub vs distributed spoke, with the latency / DNS-mgmt trade-off stated.
+5. **Approval-mode expectation** — what the consumer should expect (auto-approved / waiting on producer manual approval / cross-tenant flow).
+6. **Lockdown reminder** — explicitly note that public access must be disabled at the producer service for the PE to be the only path.
+7. **DNS pointer** — one-sentence pointer to `dns-integration` if the consumer also needs Private DNS zones / forwarders.
+8. **Footer** — `Analysis only — verify against vendor documentation before applying.`
 
 ---
 
-## GCP Private Service Connect Endpoint
+## Common workflow mistakes (do not repeat these)
 
-```bash
-# Reserve an IP address for PSC endpoint
-gcloud compute addresses create my-psc-ip \
-  --region=us-central1 \
-  --subnet=psc-subnet \
-  --addresses=10.3.0.10
+These are **workflow** anti-patterns specific to this skill — they are not a substitute for the vault page's pitfall list. Always also surface the loaded vault page's "Common pitfalls" / "Common PE Design Mistakes" section.
 
-# Create PSC endpoint for Google APIs (all-apis bundle)
-gcloud compute forwarding-rules create my-psc-endpoint \
-  --region=us-central1 \
-  --network=my-vpc \
-  --subnet=psc-subnet \
-  --address=my-psc-ip \
-  --target-google-apis-bundle=all-apis
-
-# Create PSC endpoint for a published service
-gcloud compute forwarding-rules create my-psc-producer \
-  --region=us-central1 \
-  --network=my-vpc \
-  --subnet=psc-subnet \
-  --address=my-psc-ip \
-  --target-service-attachment=projects/producer-project/regions/us-central1/serviceAttachments/my-service
-```
-
----
-
-## Approval Workflows
-
-| Cloud | Auto-Approval | Manual Approval | Cross-Tenant |
-|---|---|---|---|
-| **Azure** | Same subscription by default | Configurable via `privateLinkServiceConnectionState` | Supported — provider sets visibility + approval list by subscription ID |
-| **AWS** | Configurable via `acceptance-required` flag | Default for cross-account PrivateLink | Supported — provider accepts/rejects connection requests |
-| **GCP** | `ACCEPT_AUTOMATIC` on service attachment | `ACCEPT_MANUAL` with project allow-lists | Supported — producer sets accept policy |
-
-```bash
-# Azure — approve a pending PE connection
-az network private-endpoint-connection approve \
-  --resource-name myStorage \
-  --resource-group myRG \
-  --type Microsoft.Storage/storageAccounts \
-  --name myPEConnection \
-  --description "Approved by network team"
-
-# AWS — accept VPC endpoint connection
-aws ec2 accept-vpc-endpoint-connections \
-  --service-id vpce-svc-0123456789abcdef0 \
-  --vpc-endpoint-ids vpce-0123456789abcdef0
-
-# GCP — not needed if ACCEPT_AUTOMATIC; for manual:
-gcloud compute service-attachments update my-service \
-  --region=us-central1 \
-  --consumer-accept-list=consumer-project-id=10
-```
-
----
-
-## Common PE Design Mistakes
-
-1. **Undersized PE subnet** — running out of IPs when adding new PEs. Always size for 2× current needs.
-2. **Missing groupId** — creating a PE for `blob` but needing `table` and `queue` too. One PE per groupId.
-3. **No automation** — manually creating PEs and DNS records doesn't scale. Use Terraform/Bicep + Azure Policy.
-4. **Forgetting multi-region** — PEs are regional. Cross-region workloads need PEs in each region or use VNet peering.
-5. **Not disabling public access** — PE alone doesn't block public access. Set `publicNetworkAccess: Disabled` separately.
+1. **Answering without loading the vault page.** The `groupId` table, subnet rules, and approval matrices change over time; recall from memory is unreliable. Load first, then answer.
+2. **One PE for a multi-sub-resource Azure service.** Storage has `blob`, `file`, `table`, `queue`, `dfs` — each needs its own PE if you use that sub-resource. Recommending "one PE for storage" is wrong.
+3. **Recommending Gateway endpoint for cross-VPC / on-prem S3 access.** Gateway endpoints are free but VPC-local; cross-VPC or on-prem reach requires an Interface endpoint. Decide based on the consumer's reach pattern.
+4. **Skipping the public-access lockdown step.** A PE without disabling the producer's public path is a hardening illusion — public DNS and public IP still work. Always pair the PE recommendation with the producer-side public-network-access disable.
+5. **Undersizing the PE subnet.** A `/28` looks fine for "we have 5 PEs today" but breaks the next time the team adds a service. Default to ≥2× current count, and document the planned ceiling.
+6. **Putting PEs in a multi-purpose subnet.** Mixed NSG / route requirements between workload VMs and PEs lead to silent breakage. Default to a dedicated PE subnet for production.
+7. **Forgetting multi-region.** PEs are regional. Multi-region consumers need PEs in each region (and either per-region zones or a regional DNS strategy) — covered in `dns-integration`.
 
 **Analysis only — verify against vendor documentation before applying.**

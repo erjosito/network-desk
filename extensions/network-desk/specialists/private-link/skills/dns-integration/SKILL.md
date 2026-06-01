@@ -1,241 +1,101 @@
 # Skill: Private Endpoint DNS Integration (`pl_dns_integration`)
 
-Configure DNS resolution for private endpoints so that PaaS FQDNs resolve to private IPs instead of public IPs. Covers Azure Private DNS zones, `privatelink.*` zone naming, VNet linking strategy, custom DNS vs Azure-provided DNS, AWS private DNS for VPC endpoints, and GCP PSC DNS.
+Configure DNS so that PaaS / cross-cloud / partner FQDNs resolve to **private** endpoint IPs from inside the VNet/VPC — Azure Private DNS zones, AWS VPC endpoint private DNS, GCP PSC DNS, plus hub-spoke and on-prem forwarding.
 
-**DNS is the #1 cause of private endpoint failures.** If DNS is wrong, connectivity will not work — even if the private endpoint is healthy and the network path is correct.
-
----
-
-## How Private Endpoint DNS Works (Azure)
-
-When you create a private endpoint for a storage account `mystorageaccount`:
-
-**Before PE:**
-```
-mystorageaccount.blob.core.windows.net
-  → CNAME → mystorageaccount.blob.core.windows.net (public IP: 52.239.x.x)
-```
-
-**After PE (with correct DNS):**
-```
-mystorageaccount.blob.core.windows.net
-  → CNAME → mystorageaccount.privatelink.blob.core.windows.net
-  → A → 10.0.1.4 (private IP from PE subnet)
-```
-
-The CNAME to `privatelink.*` is automatically added by Azure when the PE is created. But the **A record in the private DNS zone** must exist for the final resolution to the private IP.
+**DNS is the #1 cause of private endpoint failures.** If DNS is wrong, the PE looks healthy and the network path is correct, and it still won't work.
 
 ---
 
-## Azure Private DNS Zone Configuration
+## Knowledge loading contract
 
-### Required Zones
+This is a **thin specialist skill**. It owns the workflow, output shape, and DNS-specific guardrails. The per-cloud zone names, command-line steps, hub-spoke architecture, custom-DNS rules, and pitfalls live in the vault and **must be loaded with `cn_vault_page` before answering** — do not paraphrase or recall them from memory (zone names and `privatelink.*` suffixes change as new PaaS services ship — recall is unreliable).
 
-Each PaaS service type requires its own private DNS zone. Common zones (non-exhaustive):
+Mandatory steps every time you use this skill:
 
-```bash
-# Create all common privatelink zones
-ZONES=(
-  "privatelink.blob.core.windows.net"
-  "privatelink.file.core.windows.net"
-  "privatelink.queue.core.windows.net"
-  "privatelink.table.core.windows.net"
-  "privatelink.dfs.core.windows.net"
-  "privatelink.database.windows.net"
-  "privatelink.documents.azure.com"
-  "privatelink.mongo.cosmos.azure.com"
-  "privatelink.vaultcore.azure.net"
-  "privatelink.azurecr.io"
-  "privatelink.servicebus.windows.net"
-  "privatelink.azconfig.io"
-  "privatelink.azurewebsites.net"
-  "privatelink.cognitiveservices.azure.com"
-  "privatelink.openai.azure.com"
-)
+1. Identify the consumer cloud(s) and whether the resolver is Azure-provided DNS, custom DNS in the VNet, or on-prem DNS.
+2. Call `cn_vault_page` for the consumer cloud's DNS reference page from the table below.
+3. Build the answer around the loaded page(s); cite the page name when you state a zone name, forwarder target, or required setting.
 
-for zone in "${ZONES[@]}"; do
-  az network private-dns zone create --resource-group dns-rg --name "$zone"
-done
-```
-
-### VNet Linking Strategy
-
-Every VNet that needs to resolve privatelink names must be linked to the corresponding private DNS zone.
-
-```bash
-# Link zone to VNet (resolution only — no auto-registration)
-az network private-dns link vnet create \
-  --resource-group dns-rg \
-  --zone-name privatelink.blob.core.windows.net \
-  --name hubVNetLink \
-  --virtual-network /subscriptions/.../virtualNetworks/hubVNet \
-  --registration-enabled false
-
-# Link spoke VNets too
-az network private-dns link vnet create \
-  --resource-group dns-rg \
-  --zone-name privatelink.blob.core.windows.net \
-  --name spoke1Link \
-  --virtual-network /subscriptions/.../virtualNetworks/spoke1VNet \
-  --registration-enabled false
-```
-
-**Important:** Set `--registration-enabled false` for privatelink zones. Auto-registration is for VM A records, not PE records.
-
-### A Record Management
-
-When a PE is created, the A record in the private DNS zone can be:
-
-1. **Auto-created** — if you enable DNS integration during PE creation (`--private-dns-zone-group`):
-   ```bash
-   az network private-endpoint dns-zone-group create \
-     --resource-group myRG \
-     --endpoint-name myBlobPE \
-     --name myZoneGroup \
-     --private-dns-zone /subscriptions/.../privateDnsZones/privatelink.blob.core.windows.net \
-     --zone-name blob
-   ```
-
-2. **Auto-created via Azure Policy** — deploy the `Deploy-DNSPE-*` built-in policies to automatically create DNS zone groups when PEs are provisioned in any subscription.
-
-3. **Manually created** — for custom DNS scenarios:
-   ```bash
-   az network private-dns record-set a add-record \
-     --resource-group dns-rg \
-     --zone-name privatelink.blob.core.windows.net \
-     --record-set-name mystorageaccount \
-     --ipv4-address 10.0.1.4
-   ```
+If the user asks about a service or DNS pattern not in the table, fall back to `cn_search({ query: "<keywords>", specialist: "cn_pl" })` or `cn_search({ query: "<keywords>", specialist: "cn_dns" })`, identify the right page, then load it.
 
 ---
 
-## Hub-Spoke DNS Architecture for Private Endpoints
+## When to use DNS integration
 
-```
-Hub VNet (10.0.0.0/16)
-├── DNS Private Resolver (inbound: 10.0.2.4, outbound: 10.0.3.4)
-├── Private DNS Zones:
-│   ├── privatelink.blob.core.windows.net (linked to hub + all spokes)
-│   ├── privatelink.database.windows.net (linked to hub + all spokes)
-│   └── ... (all other privatelink zones)
-└── PE Subnet (10.0.4.0/24) — centralized PEs
+| Scenario | DNS task |
+|---|---|
+| Consumer just created a private endpoint and the FQDN still resolves to the public IP | Wire up the Private DNS zone + VNet link (Azure) / enable `--private-dns-enabled` (AWS) / create the private managed zone (GCP) |
+| On-prem clients need to resolve a PaaS FQDN to the private IP via ExpressRoute / VPN | Add a DNS Private Resolver inbound endpoint and conditional forwarders on the on-prem resolver |
+| Hub-spoke topology with central PEs and many spoke VNets | Centralise the privatelink zones in the hub, link every spoke VNet to every zone |
+| Custom DNS server (AD DCs, BIND, Unbound) inside the VNet | Forward `privatelink.*` queries to 168.63.129.16 (in-VNet) or the DNS Private Resolver inbound EP (on-prem) |
+| Cross-account or cross-VPC shared endpoints (AWS) | Use Route 53 Private Hosted Zones shared via RAM |
+| Multi-region PEs | Per-region zones / split-horizon strategy — pair with `endpoint-design` |
 
-Spoke 1 VNet (10.1.0.0/16) — linked to all privatelink zones
-Spoke 2 VNet (10.2.0.0/16) — linked to all privatelink zones
+**Not this skill — use the sibling skill instead:**
 
-On-Premises DNS
-├── Conditional forwarder: privatelink.blob.core.windows.net → 10.0.2.4 (inbound EP)
-├── Conditional forwarder: privatelink.database.windows.net → 10.0.2.4
-└── ... (all privatelink zones)
-```
-
-**Key rules:**
-1. **Central DNS zones** in hub or shared-services subscription.
-2. **Link every VNet** to every relevant privatelink zone.
-3. **DNS Private Resolver inbound endpoint** for on-prem resolution.
-4. **On-prem conditional forwarders** for every `privatelink.*` zone used.
+- Designing the PE / endpoint itself (subnet, groupId, placement) → `cn_skill({ specialist: "cn_pl", skill: "endpoint-design" })`
+- Producer-side (exposing your service) → `cn_skill({ specialist: "cn_pl", skill: "service-exposure" })`
+- "Resolution is broken — what now?" → `cn_skill({ specialist: "cn_pl", skill: "troubleshoot" })` for PE-specific issues, or `cn_skill({ specialist: "cn_dns", skill: "troubleshoot" })` for general DNS
 
 ---
 
-## Custom DNS Server Scenarios
+## Reference pages (load these first)
 
-If VNets use a **custom DNS server** (e.g., AD domain controllers, BIND) instead of Azure-provided DNS:
+| Topic | Vault page | Load with |
+|---|---|---|
+| Cross-cloud canonical reference — PE DNS, zone names, hub-spoke, custom DNS, validation, pitfalls | [[Private-Endpoint-DNS-Integration]] | `cn_vault_page({ page: "Private-Endpoint-DNS-Integration" })` |
+| Azure consumer-side concept (groupId ↔ Private DNS zone mapping) | [[Private-Endpoint]] | `cn_vault_page({ page: "Private-Endpoint" })` |
+| AWS consumer (interface endpoint `--private-dns-enabled` semantics, ENI per AZ) | [[VPC-Endpoint]] | `cn_vault_page({ page: "VPC-Endpoint" })` |
+| GCP consumer (PSC DNS — Google APIs bundle vs published service) | [[Private-Service-Connect]] | `cn_vault_page({ page: "Private-Service-Connect" })` |
+| Azure DNS Private Resolver design (inbound/outbound endpoints, rule sets) | [[DNS-Resolver-Design]] | `cn_vault_page({ page: "DNS-Resolver-Design" })` |
+| Private DNS zone design (split-horizon, naming, multi-region) | [[DNS-Zone-Design]] | `cn_vault_page({ page: "DNS-Zone-Design" })` |
 
-1. The custom DNS server must forward `privatelink.*` queries to **168.63.129.16** (Azure DNS).
-2. The custom DNS server's VNet must be linked to the private DNS zones.
-3. If the custom DNS is on-premises (not in Azure), it must forward to the **DNS Private Resolver inbound endpoint**.
-
-```powershell
-# On custom DNS server (Windows DNS / AD DC) — forward privatelink zones to Azure DNS
-Add-DnsServerConditionalForwarderZone -Name "privatelink.blob.core.windows.net" -MasterServers 168.63.129.16
-Add-DnsServerConditionalForwarderZone -Name "privatelink.database.windows.net" -MasterServers 168.63.129.16
-Add-DnsServerConditionalForwarderZone -Name "privatelink.vaultcore.azure.net" -MasterServers 168.63.129.16
-```
+Call **only the row(s) relevant to the user's scenario**. The PE-DNS canonical page is almost always row #1; the other rows are conditional on cloud / advanced pattern.
 
 ---
 
-## AWS VPC Endpoint DNS
+## Workflow
 
-### Private DNS Names
-
-When you create an interface VPC endpoint with `--private-dns-enabled`:
-
-- AWS creates a **private hosted zone** in your VPC that overrides the service's public DNS name.
-- Example: `sqs.us-east-1.amazonaws.com` resolves to the endpoint's private IPs within the VPC.
-
-**Requirements:**
-- VPC must have `enableDnsSupport: true` and `enableDnsHostnames: true`.
-- Only ONE endpoint per service per VPC can have private DNS enabled.
-
-```bash
-# Verify VPC DNS settings
-aws ec2 describe-vpc-attribute --vpc-id vpc-... --attribute enableDnsSupport
-aws ec2 describe-vpc-attribute --vpc-id vpc-... --attribute enableDnsHostnames
-
-# Check endpoint DNS entries
-aws ec2 describe-vpc-endpoints --vpc-endpoint-ids vpce-... \
-  --query 'VpcEndpoints[].DnsEntries'
-```
-
-### Cross-Account / Cross-VPC DNS
-
-For shared services or centralized endpoints:
-- Use **Route 53 Private Hosted Zones** shared via RAM.
-- Create alias records in the shared zone pointing to the endpoint's DNS name.
+1. **Disambiguate the resolver topology** — Azure-provided DNS / custom DNS in the VNet / on-prem-as-authoritative? If unclear, ask. The wiring is different in each case.
+2. **Load the canonical PE-DNS vault page** ([[Private-Endpoint-DNS-Integration]]).
+3. **Load the cloud-specific consumer page** for the target cloud (Azure / AWS / GCP).
+4. **Walk the user through the DNS chain** for their cloud, citing the loaded page:
+   - **Azure**: public FQDN → CNAME to `privatelink.*` (auto) → A record in the privatelink Private DNS zone (must exist; auto via DNS zone group, or via Azure Policy, or manually).
+   - **AWS**: `--private-dns-enabled` on the interface endpoint creates a private hosted zone that overrides the service's public DNS inside the VPC (requires `enableDnsSupport=true` and `enableDnsHostnames=true`; only ONE endpoint per service per VPC can hold private DNS).
+   - **GCP**: a private managed zone for the service domain (or `googleapis.com` for the all-apis bundle), with A / CNAME records pointing at the PSC endpoint IP.
+5. **Address the spoke-VNet linking** if the topology is hub-spoke — every VNet that needs resolution must be linked to every relevant privatelink zone, with `registration-enabled=false`.
+6. **Address on-prem resolution** if applicable — DNS Private Resolver inbound endpoint + conditional forwarder per `privatelink.*` zone on the on-prem resolver.
+7. **Address custom DNS in the VNet** if applicable — forwarders to 168.63.129.16 (Azure) / forwarders to the Private Resolver inbound EP (on-prem custom DNS).
+8. **Hand the user a validation checklist** (vault page's "Validation Checklist" section — `dig` / `nslookup` chain from inside the VNet).
+9. **Emit the output** in the shape below.
 
 ---
 
-## GCP Private Service Connect DNS
+## Output format
 
-### For Google APIs
+Every DNS-integration answer should include, in this order:
 
-```bash
-# Create DNS entries for googleapis.com pointing to PSC endpoint IP
-gcloud dns managed-zones create psc-googleapis \
-  --dns-name="googleapis.com." \
-  --visibility=private \
-  --networks=my-vpc
-
-gcloud dns record-sets create "*.googleapis.com." --zone=psc-googleapis \
-  --type=CNAME --ttl=300 --rrdatas="googleapis.com."
-gcloud dns record-sets create "googleapis.com." --zone=psc-googleapis \
-  --type=A --ttl=300 --rrdatas="10.3.0.10"
-```
-
-### For Published Services
-
-The producer provides the service's DNS name. Create A records in private DNS pointing to the PSC endpoint's IP.
+1. **Resolver topology** — restated in one line ("Azure-provided DNS, hub-spoke, on-prem via ExpressRoute" / "Custom AD DNS in the VNet" / etc.).
+2. **Required zones / private hosted zones** — list, cited from the vault page. **Do not invent zone names.** If unsure, load the vault and cite the exact `privatelink.*` zone name (or AWS / GCP equivalent).
+3. **Zone-to-VNet linkage plan** — which VNets / VPCs / projects must be linked to which zones, with `registration-enabled=false` (Azure) or RAM share (AWS) called out.
+4. **A-record source** — auto via DNS zone group / auto via Azure Policy / via `--private-dns-enabled` / manual — name the mechanism and cite the page.
+5. **On-prem forwarder list** — if on-prem clients need resolution, list the zones to forward and the forwarder target (Private Resolver inbound EP IP / equivalent).
+6. **Custom-DNS adjustments** — if the VNet runs custom DNS, list the forward-zone entries required (e.g. `Add-DnsServerConditionalForwarderZone` with `168.63.129.16` for Azure, vault page has the exact commands).
+7. **Validation checklist** — pointer to the vault page's `dig` / `nslookup` chain, run from inside the VNet (not from a developer laptop on the public internet).
+8. **Footer** — `Analysis only — verify against vendor documentation before applying.`
 
 ---
 
-## Validation Checklist
+## Common workflow mistakes (do not repeat these)
 
-```bash
-# 1. Verify CNAME chain exists
-dig mystorageaccount.blob.core.windows.net CNAME +short
-# Expected: mystorageaccount.privatelink.blob.core.windows.net
+These are **workflow** anti-patterns specific to this skill — they are not a substitute for the vault page's pitfall list. Always also surface the loaded vault page's "Common DNS Integration Mistakes" section.
 
-# 2. Verify A record resolves to private IP
-dig mystorageaccount.privatelink.blob.core.windows.net A +short
-# Expected: 10.0.1.4
-
-# 3. Full resolution test
-nslookup mystorageaccount.blob.core.windows.net
-# Expected: Name: mystorageaccount.privatelink.blob.core.windows.net
-#           Address: 10.0.1.4
-
-# 4. If showing public IP, check from INSIDE the VNet (not from a machine outside Azure)
-# 5. If still public, verify VNet link exists to the privatelink zone
-```
-
----
-
-## Common DNS Integration Mistakes
-
-1. **Zone not linked to the workload VNet** — the privatelink zone exists but the VNet can't see it.
-2. **Custom DNS not forwarding privatelink queries** — custom DNS resolves via public DNS, bypassing private zones.
-3. **On-prem forwarders missing for privatelink zones** — on-prem clients get public IPs for PaaS services.
-4. **Using auto-registration instead of DNS zone groups** — auto-registration doesn't create PE records; DNS zone groups do.
-5. **Wrong zone name** — each PaaS service has a specific zone name. `privatelink.blob.core.windows.net` ≠ `privatelink.storage.core.windows.net`.
+1. **Answering without loading the vault page.** Zone names (e.g. `privatelink.openai.azure.com` vs `privatelink.cognitiveservices.azure.com`) and forwarder targets are exact strings; recall from memory is unreliable. Load first, then answer.
+2. **Recommending auto-registration on a privatelink zone.** `registration-enabled=true` is for VM A records; on a privatelink zone it does nothing useful and clutters the zone. Always `false`.
+3. **Forgetting the spoke links.** Centralising the zones in the hub but not linking spoke VNets means spokes resolve via public DNS → public IP → silent breakage on the path.
+4. **Forgetting on-prem.** If clients on-prem (via ExpressRoute / VPN) need to resolve PaaS FQDNs to the private IP, they need both a Private Resolver inbound endpoint **and** a conditional forwarder per `privatelink.*` zone. Skipping either side fails.
+5. **Testing from outside the VNet.** A `dig` from a developer laptop on the public internet will always return the public IP; the test must run from an in-VNet machine (or via the Private Resolver inbound EP).
+6. **Forwarding `*.<service>` instead of `privatelink.<service>` (custom DNS).** On a custom DNS server, only the `privatelink.*` chain needs the forwarder; forwarding the parent zone breaks public-facing names.
+7. **Assuming multi-region just works.** PE DNS is regional by zone-link scope; multi-region consumers need a deliberate strategy (per-region zones, split-horizon, or geo-DNS) — pair with `endpoint-design` and the vault zone-design page.
 
 **Analysis only — verify against vendor documentation before applying.**
