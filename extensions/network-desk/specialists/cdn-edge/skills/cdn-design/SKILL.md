@@ -1,384 +1,113 @@
-# Skill: CDN Architecture Design
+# Skill: CDN Architecture Design (`cdn_skill_cdn_design`)
 
-## Purpose
-
-Design content delivery network architectures that optimize for performance, reliability, and cost across Azure Front Door, AWS CloudFront, and GCP Cloud CDN. Covers origin configuration, multi-origin failover, origin shielding, protocol optimization, and private origin connectivity.
-
-## Core Knowledge
-
-### Origin Types
-
-#### Storage Origins
-- Azure Blob Storage / Static Website hosting
-- AWS S3 (bucket as origin with OAC/OAI)
-- GCP Cloud Storage (bucket backend)
-- Best for: static assets, media files, SPA hosting
-
-#### Application Origins
-- Azure App Service, Container Apps, AKS
-- AWS ALB, API Gateway, ECS/EKS
-- GCP Cloud Run, GKE, Compute Engine instance groups
-- Best for: dynamic content, API responses, SSR applications
-
-#### Custom Origins
-- Any HTTP/HTTPS endpoint with a public or private IP
-- On-premises servers via hybrid connectivity
-- Third-party SaaS endpoints
-- Best for: legacy migrations, multi-cloud backends
-
-#### Origin Groups (Failover)
-- Primary + secondary origins with health probes
-- Active-passive or active-active configurations
-- Weighted distribution across origins
-
-### Multi-Origin Failover
-
-```
-┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   Client    │────▶│   CDN Edge POP   │────▶│  Origin Group   │
-└─────────────┘     └──────────────────┘     │                 │
-                                              │  ┌───────────┐  │
-                                              │  │ Primary   │  │
-                                              │  │ (weight:80)│  │
-                                              │  └───────────┘  │
-                                              │  ┌───────────┐  │
-                                              │  │ Secondary │  │
-                                              │  │ (weight:20)│  │
-                                              │  └───────────┘  │
-                                              └─────────────────┘
-```
-
-**Health Probe Configuration:**
-- Probe path: `/health` or `/.well-known/health`
-- Probe interval: 30s (Azure), 5–30s (CloudFront)
-- Threshold: 3 consecutive failures before failover
-- Protocol: HTTPS preferred, match origin protocol
-
-### Origin Shielding
-
-Origin shielding reduces load on the origin by consolidating cache fills through a designated intermediate cache tier.
-
-**When to use:**
-- High traffic with many edge POPs hitting origin
-- Origin cannot handle thundering herd on cache expiry
-- Geographic concentration of origin infrastructure
-
-**Provider implementations:**
-- Azure Front Door: Built-in for supported tiers; verify current tier capabilities in Azure docs
-- AWS CloudFront: Origin Shield (per-region, additional request cost — verify current pricing in AWS docs)
-- GCP Cloud CDN: Built-in with Cloud CDN cache hierarchy
-- Akamai: Tiered Distribution / SureRoute
-- Cloudflare: Tiered Cache (free), Argo Tiered Cache (paid)
-
-### Protocol Optimization
-
-| Protocol | Benefit | Support |
-|----------|---------|---------|
-| HTTP/2 | Multiplexing, header compression, server push | All CDNs (client-side default) |
-| HTTP/3 (QUIC) | 0-RTT, no head-of-line blocking, connection migration | Azure FD ✓, CloudFront ✓, Cloud CDN ✓ |
-| WebSocket | Persistent bidirectional connections | Azure FD ✓, CloudFront ✓ (limited), Cloud CDN ✗ |
-| gRPC | Binary protocol, streaming | Azure FD (Premium) ✓, CloudFront ✗, Cloud CDN ✓ |
-
-### Global vs Regional CDN Patterns
-
-**Global CDN (Anycast):**
-- Single entry point, globally distributed POPs
-- Best for: public-facing websites, global APIs, media delivery
-- Examples: Azure Front Door, CloudFront, Cloud CDN
-
-**Regional CDN:**
-- Dedicated POPs in specific regions only
-- Best for: compliance (data residency), region-locked content, cost optimization
-- Examples: Azure CDN profiles with region restrictions, CloudFront geo-restriction
-
-## Provider Examples
-
-### Azure Front Door (Standard/Premium)
-
-```bicep
-resource frontDoor 'Microsoft.Cdn/profiles@2023-05-01' = {
-  name: 'fd-global-cdn'
-  location: 'global'
-  sku: {
-    name: 'Premium_AzureFrontDoor'  // or Standard_AzureFrontDoor
-  }
-}
-
-resource endpoint 'Microsoft.Cdn/profiles/afdEndpoints@2023-05-01' = {
-  parent: frontDoor
-  name: 'ep-webapp'
-  location: 'global'
-  properties: {
-    enabledState: 'Enabled'
-  }
-}
-
-resource originGroup 'Microsoft.Cdn/profiles/originGroups@2023-05-01' = {
-  parent: frontDoor
-  name: 'og-webapp'
-  properties: {
-    loadBalancingSettings: {
-      sampleSize: 4
-      successfulSamplesRequired: 3
-      additionalLatencyInMilliseconds: 50
-    }
-    healthProbeSettings: {
-      probePath: '/health'
-      probeRequestType: 'HEAD'
-      probeProtocol: 'Https'
-      probeIntervalInSeconds: 30
-    }
-    sessionAffinityState: 'Disabled'
-  }
-}
-
-resource originPrimary 'Microsoft.Cdn/profiles/originGroups/origins@2023-05-01' = {
-  parent: originGroup
-  name: 'origin-eastus'
-  properties: {
-    hostName: 'webapp-eastus.azurewebsites.net'
-    httpPort: 80
-    httpsPort: 443
-    originHostHeader: 'webapp-eastus.azurewebsites.net'
-    priority: 1
-    weight: 1000
-    enabledState: 'Enabled'
-    enforceCertificateNameCheck: true
-  }
-}
-
-resource originSecondary 'Microsoft.Cdn/profiles/originGroups/origins@2023-05-01' = {
-  parent: originGroup
-  name: 'origin-westus'
-  properties: {
-    hostName: 'webapp-westus.azurewebsites.net'
-    httpPort: 80
-    httpsPort: 443
-    originHostHeader: 'webapp-westus.azurewebsites.net'
-    priority: 2
-    weight: 1000
-    enabledState: 'Enabled'
-    enforceCertificateNameCheck: true
-  }
-}
-```
-
-**Private Link Origin (Premium only):**
-
-```bicep
-resource originPrivate 'Microsoft.Cdn/profiles/originGroups/origins@2023-05-01' = {
-  parent: originGroup
-  name: 'origin-private'
-  properties: {
-    hostName: 'internal-api.privatelink.azurewebsites.net'
-    httpPort: 80
-    httpsPort: 443
-    originHostHeader: 'internal-api.azurewebsites.net'
-    priority: 1
-    weight: 1000
-    enabledState: 'Enabled'
-    sharedPrivateLinkResource: {
-      privateLink: {
-        id: '/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Web/sites/internal-api'
-      }
-      groupId: 'sites'
-      privateLinkLocation: 'eastus2'
-      requestMessage: 'Front Door Private Link connection'
-    }
-  }
-}
-```
-
-### AWS CloudFront
-
-```json
-{
-  "DistributionConfig": {
-    "Origins": {
-      "Quantity": 2,
-      "Items": [
-        {
-          "Id": "primary-alb",
-          "DomainName": "alb-primary.us-east-1.elb.amazonaws.com",
-          "CustomOriginConfig": {
-            "HTTPPort": 80,
-            "HTTPSPort": 443,
-            "OriginProtocolPolicy": "https-only",
-            "OriginSslProtocols": { "Items": ["TLSv1.2"], "Quantity": 1 },
-            "OriginReadTimeout": 30,
-            "OriginKeepaliveTimeout": 5
-          },
-          "OriginShield": {
-            "Enabled": true,
-            "OriginShieldRegion": "us-east-1"
-          }
-        },
-        {
-          "Id": "s3-static",
-          "DomainName": "my-bucket.s3.us-east-1.amazonaws.com",
-          "S3OriginConfig": {
-            "OriginAccessIdentity": ""
-          },
-          "OriginAccessControlId": "E2TB3FJSLURP4A"
-        }
-      ]
-    },
-    "OriginGroups": {
-      "Quantity": 1,
-      "Items": [
-        {
-          "Id": "failover-group",
-          "FailoverCriteria": {
-            "StatusCodes": { "Items": [500, 502, 503, 504], "Quantity": 4 }
-          },
-          "Members": {
-            "Items": [
-              { "OriginId": "primary-alb" },
-              { "OriginId": "s3-static" }
-            ],
-            "Quantity": 2
-          }
-        }
-      ]
-    },
-    "DefaultCacheBehavior": {
-      "TargetOriginId": "failover-group",
-      "ViewerProtocolPolicy": "redirect-to-https",
-      "AllowedMethods": ["GET", "HEAD", "OPTIONS"],
-      "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
-      "Compress": true
-    },
-    "HttpVersion": "http2and3",
-    "PriceClass": "PriceClass_100"
-  }
-}
-```
-
-**AWS CLI — Create distribution with OAC for S3:**
-
-```bash
-# Create Origin Access Control
-aws cloudfront create-origin-access-control \
-  --origin-access-control-config \
-    Name=my-oac,SigningProtocol=sigv4,SigningBehavior=always,OriginAccessControlOriginType=s3
-
-# S3 bucket policy for OAC
-cat <<'EOF'
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "AllowCloudFrontServicePrincipal",
-      "Effect": "Allow",
-      "Principal": { "Service": "cloudfront.amazonaws.com" },
-      "Action": "s3:GetObject",
-      "Resource": "arn:aws:s3:::my-bucket/*",
-      "Condition": {
-        "StringEquals": {
-          "AWS:SourceArn": "arn:aws:cloudfront::123456789012:distribution/EDFDVBD6EXAMPLE"
-        }
-      }
-    }
-  ]
-}
-EOF
-```
-
-### GCP Cloud CDN
-
-```bash
-# Create a backend bucket with Cloud CDN enabled
-gcloud compute backend-buckets create cdn-backend-bucket \
-  --gcs-bucket-name=my-static-assets \
-  --enable-cdn \
-  --cache-mode=CACHE_ALL_STATIC \
-  --default-ttl=3600 \
-  --max-ttl=86400 \
-  --client-ttl=3600
-
-# Create a backend service with Cloud CDN
-gcloud compute backend-services create cdn-backend-service \
-  --protocol=HTTPS \
-  --port-name=https \
-  --health-checks=https-health-check \
-  --enable-cdn \
-  --cache-mode=USE_ORIGIN_HEADERS \
-  --global
-
-# Add NEG or instance group as backend
-gcloud compute backend-services add-backend cdn-backend-service \
-  --network-endpoint-group=api-neg \
-  --network-endpoint-group-zone=us-central1-a \
-  --balancing-mode=RATE \
-  --max-rate-per-endpoint=100 \
-  --global
-
-# URL map for routing
-gcloud compute url-maps create cdn-url-map \
-  --default-service=cdn-backend-service \
-  --global
-
-# HTTPS proxy with HTTP/3
-gcloud compute target-https-proxies create cdn-https-proxy \
-  --url-map=cdn-url-map \
-  --ssl-certificates=my-cert \
-  --quic-override=ENABLE \
-  --global
-
-# Global forwarding rule (anycast IP)
-gcloud compute forwarding-rules create cdn-forwarding-rule \
-  --target-https-proxy=cdn-https-proxy \
-  --ports=443 \
-  --global \
-  --ip-version=IPV4
-```
-
-### Private Origin Connectivity
-
-| Provider | Mechanism | Supported Origins |
-|----------|-----------|-------------------|
-| Azure Front Door Premium | Private Link | App Service, Storage, ALB, AKS, Custom (any PE-enabled) |
-| AWS CloudFront | VPC Origin | Private ALB/NLB origins; verify current restrictions: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html |
-| GCP Cloud CDN | Internal backend via PSC | Internal HTTP(S) LB, Cloud Run (internal) |
-
-**CloudFront VPC Origin restrictions:** Verify current restrictions in AWS docs. Notable constraints include no Gateway Load Balancer origins, no dual-stack NLB origins, no NLB TLS listeners, security-group requirements for NLB origins, and feature exclusions such as gRPC or Lambda@Edge origin triggers.
-
-**Azure Private Link Origin Flow:**
-```
-Client → Front Door POP → Microsoft Backbone → Private Endpoint → Origin (no public IP)
-```
-
-**Benefits:**
-- Origin has no public IP exposure
-- Traffic stays on provider backbone
-- Simplifies NSG/firewall rules on origin
-- Eliminates IP allowlisting maintenance
-
-### GCP Media CDN
-
-Use **Cloud CDN** for general web acceleration behind global external Application Load Balancers or backend buckets. Consider **Media CDN** for large-scale media delivery such as HLS/DASH streaming, video-on-demand, large downloads, and origin protection where media-specific cache behavior and performance/cost controls matter. Verify current product fit and feature differences: https://docs.cloud.google.com/cdn/docs/choose-cdn-product.
-
-| Requirement | Prefer Cloud CDN | Prefer Media CDN |
-|-------------|------------------|------------------|
-| Web apps/APIs/static assets | Yes | Usually no |
-| HLS/DASH or large media libraries | Sometimes | Yes |
-| Tight ALB/WAF integration | Yes | Verify fit |
-| Media origin protection and cache efficiency | Verify fit | Yes |
-
-## Design Decision Matrix
-
-| Requirement | Azure | AWS | GCP |
-|-------------|-------|-----|-----|
-| Global anycast + WAF | Front Door Premium | CloudFront + WAF | Cloud CDN + Cloud Armor |
-| Private origins | Front Door Premium (Private Link) | VPC Origins | PSC + Internal LB |
-| HTTP/3 | ✓ Default | ✓ Opt-in | ✓ QUIC override |
-| WebSocket | ✓ | ✓ | ✗ |
-| gRPC | Premium only | ✗ | ✓ |
-| Origin shield | Built-in | Paid add-on ($) | Built-in hierarchy |
-| Real-time logs | ✓ (Log Analytics) | ✓ (Kinesis/S3) | ✓ (Cloud Logging) |
-| Edge compute | Rules Engine | CF Functions + Lambda@Edge | Service Extensions for supported global external Application Load Balancer paths; verify current limits: https://cloud.google.com/cdn/docs/integration-with-service-extensions |
-| Cost model | Per-request + egress | Per-request + egress | Per-request + egress (cache egress free) |
+Design content-delivery network architectures across Azure Front Door, AWS CloudFront, and GCP Cloud CDN / Media CDN — origin selection, multi-origin failover, origin shielding, protocol optimisation (HTTP/2, HTTP/3, WebSocket, gRPC), and private-origin connectivity (Private Link Origin, VPC Origin, PSC). Provider Bicep/CLI/JSON templates and the cross-cloud feature/decision matrix live in the vault.
 
 ---
+
+## Knowledge loading contract
+
+This is a **thin specialist skill**. It owns the cross-cloud origin-selection decision, the multi-origin failover pattern, the protocol selection methodology (HTTP/3 / WebSocket / gRPC), the private-origin pattern (when to invest in Private Link Origin / VPC Origin / PSC), and CDN-specific workflow anti-patterns. Provider Bicep / JSON / gcloud templates, the per-feature provider matrix, and Media CDN vs. Cloud CDN guidance live in the vault.
+
+Mandatory steps every time you use this skill:
+
+1. Call `cn_vault_page({ page: "CDN-Architecture-Design" })` for canonical origin examples, provider templates, and the design decision matrix.
+2. Call vault pages for any provider explicitly in scope: `Front-Door` (Azure), `CloudFront` (AWS), `Cloud-CDN` (GCP).
+3. Call `cn_vault_page({ page: "Edge-WAF-and-DDoS" })` when WAF / bot / DDoS is in scope.
+4. Cite the vault page when stating provider feature availability (HTTP/3, gRPC, private origins, Media CDN).
+
+If a feature is not in the vault, fall back to `cn_search({ query: "<keywords>", specialist: "cn_cdn" })`.
+
+---
+
+## When to use CDN design
+
+| Scenario | Behaviour |
+|---|---|
+| "Pick a CDN for our public site / API" | Run origin-selection workflow + decision matrix (vault page) |
+| "We need multi-region failover for our CDN origin" | Multi-origin pattern (primary + secondary, health probes, status-code-driven failover) |
+| "Should we use Private Link Origin / VPC Origin / PSC?" | Private-origin sub-workflow + caveat list |
+| "Do we need Origin Shield?" | Origin-shielding decision (per provider) |
+| "Pick between Cloud CDN and Media CDN" | Media-vs-Cloud sub-workflow (GCP only) |
+| Cache rules / TTL strategy / cache-key normalisation | Redirect: `cn_skill({ specialist: "cn_cdn", skill: "cache-optimization" })` |
+| Edge routing / rules engine logic / SR / geo-block | Redirect: `cn_skill({ specialist: "cn_cdn", skill: "edge-routing" })` |
+| WAF / bot management / DDoS | Redirect: `cn_skill({ specialist: "cn_cdn", skill: "waf-ddos" })` |
+| CDN troubleshooting (cache MISS, 502 from edge, etc.) | Redirect: `cn_skill({ specialist: "cn_cdn", skill: "troubleshoot" })` |
+| CDN egress cost / SKU comparison | Redirect: `cn_skill({ specialist: "cn_price", skill: "egress-architecture" })` |
+
+---
+
+## Reference pages (load these first)
+
+| Topic | Vault page | Load with |
+|---|---|---|
+| Canonical CDN reference — origin types, multi-origin failover, origin shielding, protocols, private origins, Media CDN decision, design matrix | [[CDN-Architecture-Design]] | `cn_vault_page({ page: "CDN-Architecture-Design" })` |
+| Azure Front Door service page (when Azure is in scope) | [[Front-Door]] | `cn_vault_page({ page: "Front-Door" })` |
+| AWS CloudFront service page (when AWS is in scope) | [[CloudFront]] | `cn_vault_page({ page: "CloudFront" })` |
+| GCP Cloud CDN service page (when GCP is in scope) | [[Cloud-CDN]] | `cn_vault_page({ page: "Cloud-CDN" })` |
+| Edge WAF / DDoS (when public-facing endpoint is in scope) | [[Edge-WAF-and-DDoS]] | `cn_vault_page({ page: "Edge-WAF-and-DDoS" })` |
+| Cache optimisation (always link as the next step) | [[CDN-Cache-Optimization]] | `cn_vault_page({ page: "CDN-Cache-Optimization" })` |
+
+Row #1 is mandatory. Rows #2–4 are mandatory when the cloud is in scope. Row #5 is mandatory for public-facing endpoints (WAF is recommended for every public L7 origin).
+
+---
+
+## Required inputs — collect before answering
+
+1. **Cloud(s) in scope** — Azure / AWS / GCP / multi-cloud.
+2. **Traffic profile** — static web / dynamic API / streaming media / large downloads / mixed.
+3. **Origin type** — storage (Blob / S3 / GCS), application LB (AppGW / ALB / GCP HTTPS LB), custom HTTP, on-prem.
+4. **Origin reachability** — public IP today vs. private-only (drives Private Link / VPC Origin / PSC).
+5. **Geographic profile** — single-region origin vs. multi-region; user base by region (drives PriceClass / POP selection).
+6. **Protocol requirements** — HTTP/3, WebSocket, gRPC?
+7. **WAF / DDoS / bot management** — required (almost always for public-facing).
+8. **SLA / failover requirements** — single origin vs. multi-origin with auto-failover; acceptable detection time.
+
+---
+
+## Workflow
+
+1. **Collect inputs** above. Push back on "what CDN should we use?" until you have at least cloud + origin type + traffic profile.
+2. **Load `CDN-Architecture-Design`** plus the relevant provider service page.
+3. **Pick the CDN product** using the vault page's design decision matrix (Front Door Standard/Premium vs. CloudFront vs. Cloud CDN / Media CDN).
+4. **Pick the origin type + topology** — single origin, multi-origin failover (primary + secondary), or weighted multi-origin.
+5. **Decide on origin shielding** if traffic is high or origin is fragile.
+6. **Decide on private origin connectivity** if origin should not be public — Front Door Premium + Private Link, CloudFront VPC Origin, or PSC + Internal LB. Cite vault page for restrictions (e.g. CloudFront VPC Origin GLB / dual-stack NLB / TLS-listener caveats).
+7. **Pick protocols** — HTTP/2 / HTTP/3 / WebSocket / gRPC — and call out gaps (e.g. Cloud CDN has no WebSocket; CloudFront has no gRPC).
+8. **Bolt on WAF / DDoS / bot** — recommend by default for public-facing; redirect to `cn_skill({ specialist: "cn_cdn", skill: "waf-ddos" })`.
+9. **Emit** in the format below.
+
+---
+
+## Output format
+
+Every CDN-design answer should emit:
+
+1. **Inputs assumed** — one line each.
+2. **Product choice + rationale** — cite the vault page row that justifies it.
+3. **Architecture** — POP → origin group → primary / secondary origins (single table or compact diagram).
+4. **Origin connectivity** — public vs. private (Private Link / VPC Origin / PSC) + caveats.
+5. **Protocol plan** — HTTP/3 on/off, WebSocket, gRPC; gaps surfaced.
+6. **Failover plan** — health probe path, interval, threshold; failover status codes.
+7. **Origin shielding** — yes / no + which region.
+8. **WAF / DDoS plan** — recommendation + handoff.
+9. **Provisioning** — pointer to the vault page section (do not duplicate templates inline).
+10. **What this excludes** — cache rules / TTL strategy / edge routing rules / WAF detail / pricing detail (handed off to sibling skills).
+11. **Footer** — `Analysis only — verify against vendor documentation before applying.`
+
+---
+
+## Common workflow mistakes (do not repeat these)
+
+These are workflow anti-patterns specific to this skill — not a substitute for the vault page's pitfall content.
+
+1. **Recommending a CDN without identifying the origin.** Origin type drives 80% of the design (storage vs. ALB vs. custom vs. private origin). Refuse to design "in the abstract".
+2. **Picking Front Door Standard when Private Link Origin is needed.** Premium-only feature; surface this gate early in the conversation.
+3. **Forgetting protocol gaps.** Cloud CDN has no WebSocket. CloudFront has no gRPC. Don't recommend a product if the user explicitly needs the missing protocol.
+4. **Recommending Origin Shield for low-traffic apps.** Origin Shield adds request-cost / latency and only pays off at high cache-fill volume. Use the vault page's "when to use" gating.
+5. **Skipping WAF for public origins.** Every public-facing L7 endpoint should have a WAF. Don't ship a design without it (or an explicit "we accept this risk" sign-off).
+6. **Designing a single-origin global CDN as "highly available".** A single origin region is a single point of failure regardless of how many POPs the CDN has. Force the multi-origin question.
+7. **Confusing Cloud CDN with Media CDN.** Cloud CDN is for web/API/static; Media CDN is for HLS/DASH / VOD / large downloads with origin protection. Don't quote Media CDN features for a generic web app.
+8. **CloudFront VPC Origin without checking restrictions.** GLB / dual-stack NLB / NLB TLS listeners / Lambda@Edge / gRPC are excluded. Always validate against the vault page restriction list (and the AWS doc linked there).
+9. **Quoting cache behaviour as part of design.** Cache rules belong to `cache-optimization`. CDN design owns origin + protocol + failover + WAF integration, not TTL or cache-key strategy.
 
 **Analysis only — verify against vendor documentation before applying.**
