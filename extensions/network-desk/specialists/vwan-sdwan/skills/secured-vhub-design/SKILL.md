@@ -1,264 +1,122 @@
-# Skill: Secured Virtual Hub Design (Azure Virtual WAN)
+# Skill: Secured Virtual Hub Design (`vwan_skill_secured_vhub_design`)
 
-> Pairs with `vwan_skill_vwan_design` (overall vWAN topology), `vwan_skill_routing_intent` (intent-based routing), `vwan_skill_nva_integration` (third-party NVAs), and `fw_skill_policy_design` (firewall rule design). Use this skill to design **Secured Virtual Hubs** — vWAN hubs with integrated firewall inspection. Analysis only.
+Design Azure Virtual WAN hubs with integrated firewall inspection — Azure Firewall (Standard / Premium / Basic) or supported partner NVA (PAN, Check Point, Fortinet, Cisco, Versa, ZScaler). Owns the "secured vHub vs. classic hub-spoke + NVA" decision, the routing-intent selection (internet / private / both), the SKU sizing for cloud-native vs. partner NVAs, and the cross-region / DR pattern.
 
-## Purpose
-
-Design Azure Virtual WAN deployments where traffic between branches, VNets, internet, and on-premises is inspected by a firewall in the hub itself (Azure Firewall or supported third-party NVA), with **routing intent** managing forced-tunneling without manual route tables.
-
-A secured vHub is the recommended pattern when:
-- You need centralized inspection without operating standalone hub VNets and UDRs.
-- Multiple workloads share a hub and each needs egress inspection.
-- You want a managed firewall data path (SLA-backed) rather than HA NVA pairs you operate.
+**Routing intent is the heart of the secured vHub.** Get the intent mode right (internet / private / both) and the rest of the design follows; get it wrong and traffic silently bypasses inspection.
 
 ---
 
-## When to choose Secured vHub vs alternatives
+## Knowledge loading contract
 
-```mermaid
-flowchart TD
-    A[Need centralized inspection?] -- No --> A0[Plain vWAN hub<br/>spoke-to-spoke direct]
-    A -- Yes --> B{Cloud-native FW acceptable?}
-    B -- Yes --> C[Secured vHub<br/>+ Azure Firewall]
-    B -- No, need vendor X --> D{Vendor supports vWAN integration?}
-    D -- Yes (PAN, Check Point, Fortinet, etc.) --> E[Secured vHub<br/>+ partner NVA]
-    D -- No --> F[Hub-spoke with NVA in spoke or hub VNet<br/>not vWAN-managed]
-    C --> G[Routing intent decides forced-tunnel scope]
-    E --> G
-```
+This is a **thin specialist skill**. It owns the decision tree (secured vHub vs. alternatives), the routing-intent semantics, the SKU-selection methodology (Standard vs. Premium vs. Basic vs. partner NVA), the "minimum rule classes" framing for the firewall policy, the DR pattern, the verification checklist, and the design-review discipline. Exact provisioning commands, sizing tables, KQL queries, and pricing formula live in the vault.
 
-Trade-offs vs hub-spoke-with-NVA:
+Mandatory steps every time you use this skill:
 
-| Aspect | Secured vHub | Classic hub-spoke + NVA |
+1. Call `cn_vault_page({ page: "Secured-Virtual-Hub" })` for the canonical reference architecture, sizing tables, observability KQL, common pitfalls, and verification checklist.
+2. Call `cn_vault_page({ page: "VWAN-Routing-Intent" })` for the intent-mode semantics.
+3. Load partner-NVA pages if a specific vendor is in play.
+4. Cite the vault page when stating SKU throughput, FW pricing inputs, or routing-intent behaviour.
+
+If the user asks about a specific partner NVA in vWAN, fall back to `cn_search({ query: "<vendor> vwan", specialist: "cn_vwan" })`.
+
+---
+
+## When to use secured vHub design
+
+| Scenario | Behaviour |
+|---|---|
+| "We need centralised inspection across regions" | Run secured-vHub design |
+| "Should we use secured vHub or hub-spoke with NVA?" | Run the decision tree (vault page §When to choose) |
+| "Which Azure Firewall SKU?" | SKU selection (Standard / Premium / Basic) using the vault's feature/throughput matrix |
+| "Can we use Palo Alto / Fortinet / Check Point in vWAN?" | Partner-NVA design |
+| "Inspect internet traffic only / private traffic only / both?" | Routing-intent mode selection (vault page §Routing intent) |
+| "Force-tunnel some workloads on-prem and inspect others in cloud" | Forced-tunneling sub-workflow |
+| Pure vWAN topology (no firewall) | Redirect: `cn_skill({ specialist: "cn_vwan", skill: "vwan-design" })` |
+| Routing intent specifics (intent across hubs) | Redirect: `cn_skill({ specialist: "cn_vwan", skill: "routing-intent" })` |
+| Branch / VPN / ER gateway design | Redirect: `cn_skill({ specialist: "cn_vwan", skill: "branch-connectivity" })` |
+| Detailed firewall rule design | Redirect: `cn_skill({ specialist: "cn_fw", skill: "policy-design" })` |
+| Firewall cost estimation | Redirect: `cn_skill({ specialist: "cn_price", skill: "firewall-pricing" })` + `egress-architecture` |
+
+---
+
+## Reference pages (load these first)
+
+| Topic | Vault page | Load with |
 |---|---|---|
-| Operational overhead | Low (managed data path) | High (NVA HA, patching, capacity) |
-| Throughput per hub | Azure FW Premium: 30+ Gbps; partner NVAs: vendor-specific | Limited by NVA SKU and VMSS scale |
-| Customization | Lower (vendor parity gap) | Highest |
-| BGP / DPDK / SR-IOV | Not directly user-controlled | Full control |
-| Cost | Hub + FW + Routing intent | NVA VM + LB + cross-zone bandwidth |
-| Cross-region transit | Native via hub-to-hub | Manual peering / global peering |
+| Canonical secured-vHub reference architecture, SKU matrix, routing intent integration, observability, pitfalls, verification checklist | [[Secured-Virtual-Hub]] | `cn_vault_page({ page: "Secured-Virtual-Hub" })` |
+| Routing intent semantics (internet / private / both modes; cross-hub behaviour) | [[VWAN-Routing-Intent]] | `cn_vault_page({ page: "VWAN-Routing-Intent" })` |
+| NVA integration patterns (partner NVAs in vHub vs. spoke) | [[VWAN-NVA-Integration]] | `cn_vault_page({ page: "VWAN-NVA-Integration" })` |
+| Branch / gateway specifics (S2S/P2S/ER inside the secured hub) | [[VWAN-Branch-Connectivity]] | `cn_vault_page({ page: "VWAN-Branch-Connectivity" })` |
+| Troubleshooting (for verification + drift detection) | [[VWAN-Troubleshooting]] | `cn_vault_page({ page: "VWAN-Troubleshooting" })` |
+| Virtual WAN core pattern (transit-hub framing) | [[Hub-and-Spoke]] | `cn_vault_page({ page: "Hub-and-Spoke" })` |
+
+Rows #1 and #2 are mandatory. Row #3 is mandatory when partner NVA is in play.
 
 ---
 
-## Reference architecture
+## Required inputs — collect before answering
 
-```mermaid
-flowchart LR
-    Branch[🏢 Branch SD-WAN] -- IPsec / SD-WAN GW --> Hub
-    OnPrem[🏢 On-Prem DC] -- ExpressRoute --> Hub
-    User[👤 Remote User] -- P2S VPN / Entra Private Access --> Hub
-
-    subgraph Hub[Secured Virtual Hub]
-      FW[🛡️ Azure Firewall<br/>or partner NVA]
-      RT[Default route table]
-      NoneRT[None route table]
-    end
-
-    Hub <-- VNet conn --> SpokeA[Spoke-Prod<br/>10.10.0.0/16]
-    Hub <-- VNet conn --> SpokeB[Spoke-Dev<br/>10.20.0.0/16]
-    Hub <-- VNet conn --> SpokeShared[Spoke-Shared<br/>10.30.0.0/16]
-    FW -- Egress + inspection --> Internet[☁️ Internet]
-```
-
-Key elements:
-
-- **One regional hub** per Azure region; up to 30 hubs per vWAN (raise via support).
-- **Hub address space**: use /22 or larger for Azure Firewall secured hubs; /24 applies only to non-firewall hubs. Verify current sizing requirements in Azure hub settings: https://learn.microsoft.com/en-us/azure/virtual-wan/hub-settings.
-- **Connections**: VPN sites, ExpressRoute circuits, VNet connections, P2S configs — all attach to the hub.
-- **Firewall**: Azure Firewall (Standard, Premium, or Basic) **or** a supported third-party NVA (Palo Alto Cloud NGFW, Check Point CloudGuard, Fortinet FortiGate, Cisco vMX, Versa, ZScaler, etc.).
+1. **Regions** — one secured hub per region usually; up to 30 hubs per vWAN.
+2. **Workload count / spoke VNets** — drives hub HPU sizing.
+3. **Firewall preference** — Azure FW (Standard / Premium / Basic) vs. partner NVA (which vendor).
+4. **Inspection scope** — internet only / private only / both. (This is the **routing intent mode** — the most important decision.)
+5. **Peak throughput** — Mbps or Gbps; gates SKU choice (Basic caps at 250 Mbps; Standard/Premium ~30 Gbps).
+6. **TLS inspection / IDPS / URL filtering needed?** — gates Standard vs. Premium.
+7. **Hub address space** — /22 or larger for Azure Firewall secured hubs (/24 only for non-firewall hubs).
+8. **Cross-region transit** — hub-to-hub default? Selective via Custom Route Groups?
+9. **Forced-tunnel on-prem** — yes / no / selective? Affects routing intent + on-prem advertised prefixes.
+10. **Existing spoke peerings** — direct spoke-to-spoke peerings bypass the hub firewall silently; need to audit + remove.
 
 ---
 
-## Routing intent (the heart of secured vHub)
+## Workflow
 
-Routing intent replaces manual UDRs with declarative policy: "All internet-bound traffic → firewall" and/or "All private traffic between connected VNets, branches, VPN sites, and ExpressRoute circuits → firewall". The hub generates the routes automatically across all connections.
-
-```mermaid
-flowchart LR
-    subgraph Intent[Routing intent options]
-        I1[Internet traffic → FW]
-        I2[Private traffic → FW]
-    end
-    I1 --> R1[All 0.0.0.0/0 routes point to FW]
-    I2 --> R2[Connected and learned private prefixes point to FW]
-```
-
-Three deployment modes:
-
-1. **Internet only** — egress to internet inspected; spoke-to-spoke and spoke-to-on-prem unchanged.
-2. **Private only** — east-west and hybrid inspected; internet egress uses default (direct from spoke if SNAT'd, or via UDR you define).
-3. **Both** — fully inspected hub; the recommended default for new builds.
-
-**Rule of thumb**: pick one mode and stick with it for the hub. Mixing is supported but rare and adds operational complexity. Hand off cross-hub planning to `vwan_skill_routing_intent`.
+1. **Collect inputs** above. Push back on vague "do we need this?" until the user confirms inspection scope.
+2. **Load `Secured-Virtual-Hub`** and `VWAN-Routing-Intent`.
+3. **Validate the decision** using the vault page's "When to choose" decision tree. If hub-spoke + NVA is the better fit, say so and redirect.
+4. **Pick the firewall** — Azure FW SKU (Standard / Premium / Basic) using the SKU matrix on the vault page; if partner NVA, name the vendor + SKU + verify vWAN integration support.
+5. **Pick the routing-intent mode** — Internet only / Private only / Both — using §Routing intent. Recommend "Both" as the default for new builds; document any exception.
+6. **Size the hub** — address space (/22+ for FW-secured), HPU, connection units. Cite vault page.
+7. **Design the rule set** — minimum classes from the vault page (spoke-to-spoke, spoke-to-internet, spoke-to-on-prem, on-prem-to-spoke, default deny). Hand off detailed rule generation to `cn_fw` skills.
+8. **Plan forced tunnelling** if applicable (selective prefixes via Custom Route Groups; keep complexity minimal).
+9. **Plan DR** — cross-region hub-to-hub peering; per-region FW vs. centralised; policy in Git + CI/CD.
+10. **Plan observability** — Azure Firewall logs + vWAN diagnostic logs + daily `az network vhub get-effective-routes` snapshots for drift detection. Cite KQL sample on vault page.
+11. **Run the verification checklist** from the vault page (routing-intent mode documented, deny + explicit allow ruleset, no rogue peerings, hub /22+, FW SKU sized, logging on, effective routes baseline, PE strategy, on-prem advertised prefixes filtered, DR plan, rollback).
+12. **Emit** in the format below.
 
 ---
 
-## Sizing & SKU selection
+## Output format
 
-### Azure Firewall in vHub
+Every secured-vHub design answer should emit:
 
-| Aspect | Standard | Premium | Basic |
-|---|---|---|---|
-| TLS inspection | No | Yes | No |
-| IDPS | No | Yes | No |
-| Web categories / URL filter | No | Yes | No |
-| Throughput per FW | 30 Gbps | 30 Gbps (with TLS adds CPU) | 250 Mbps |
-| Pricing | $$ | $$$ | $ |
-| When | Most workloads | Compliance / advanced threat | Dev/test only |
-
-Scale-out: Azure Firewall is autoscaling within a hub up to ~50 IPs / ~30 Gbps. For higher throughput, split across multiple hubs (per region or per workload class).
-
-### Partner NVA in vHub
-
-- Available SKUs per vendor; check Marketplace. Typical: 2-vCPU through 16-vCPU per instance, deployed as VMSS managed by the partner.
-- Throughput depends on vendor — published "vWAN Hub" datasheets are authoritative.
-- TLS inspection / IDPS / DLP availability is vendor-specific.
+1. **Inputs assumed** — one line each.
+2. **Decision validation** — secured vHub is the right pattern (or it isn't, redirect).
+3. **Architecture** — hub region(s), firewall (Azure FW SKU or partner NVA), routing intent mode, hub /22+, connection list.
+4. **Routing intent mode + rationale** — internet / private / both, with the rule of thumb cited from the vault.
+5. **Sizing** — FW SKU + expected throughput + headroom; HPU + connection units; cite vault page.
+6. **Rule-set skeleton** — minimum classes (default deny + 3–5 allow classes); detailed rule generation handed off to `cn_fw`.
+7. **DR plan** — hub-to-hub peering, per-region vs. centralised, policy in Git.
+8. **Observability** — log categories to enable; daily effective-routes snapshot.
+9. **Verification checklist** — short version, pointer to vault page for full list.
+10. **What this excludes** — actual FW rule content (handed off to `cn_fw`), branch CPE config, pricing detail (handed off to `cn_price`).
+11. **Footer** — `Analysis only — verify against vendor documentation before applying.`
 
 ---
 
-## Designing the rule set
+## Common workflow mistakes (do not repeat these)
 
-Even though routing intent steers everything to the firewall, **the firewall still needs explicit rules** — secured vHub does not auto-permit east-west.
+These are workflow anti-patterns specific to this skill — not a substitute for the vault page's "Common pitfalls" section. Always also surface the vault page's pitfalls.
 
-Minimum rule classes:
-
-```yaml
-- name: spoke-to-spoke-tier-allow
-  source: spoke-prod-app-asg
-  destination: spoke-prod-db-asg
-  ports: [5432, 6379]
-  action: allow
-
-- name: spoke-to-internet-corp-services
-  source: any-spoke
-  destination: fqdn:[*.microsoft.com, *.azure.com]
-  ports: [443]
-  action: allow
-
-- name: spoke-to-onprem-shared-services
-  source: any-spoke
-  destination: 192.168.0.0/16
-  ports: [53, 88, 389, 445, 636]
-  action: allow
-
-- name: onprem-to-spoke-jumphost-only
-  source: 192.168.10.0/24
-  destination: spoke-prod-jumphost-asg
-  ports: [22, 3389]
-  action: allow
-
-- name: default-deny
-  source: any
-  destination: any
-  ports: [any]
-  action: deny + log
-```
-
-Use **Azure Firewall Policy** with hierarchy: tenant-wide base policy → regional policy → per-hub policy override. Lets you publish once and inherit everywhere. Hand off rule generation to `fw_skill_policy_design` and `fw_skill_config_gen`.
-
----
-
-## Forced-tunneling on-prem
-
-If you advertise a `0.0.0.0/0` default from on-prem (via ExpressRoute or VPN), you may want some workloads to egress via on-prem and others via the cloud firewall:
-
-- **Default vHub behavior with private intent**: spokes send everything to FW; FW then learns `0.0.0.0/0` from on-prem and forwards there.
-- **For "internet via cloud FW" + "private via on-prem"**: configure routing intent's internet rule to point to FW; FW egresses directly.
-- **Selective scopes**: use a static route on the connection's route table or a Custom Route Group to override for specific prefixes. Complexity rises quickly — keep this minimal.
-
----
-
-## High availability & DR
-
-- **Within a region**: Azure Firewall and partner NVAs in vHub are zone-redundant by default (Standard/Premium tiers) — pin to specific zones if required.
-- **Cross-region**: peer hubs via **Hub-to-Hub** (default in vWAN). Internet egress can stay local (per-region FW) or be centralized via a single hub with a Global Reach-style design.
-- **Failover testing**: simulate by failing one FW instance (preview only — managed service) or use Chaos Studio in non-prod.
-- **Backup**: Firewall policy exports via ARM template / Bicep + Git; rules are source-of-truth in Git, not in the portal.
-
----
-
-## Observability
-
-Mandatory streams to Log Analytics:
-
-- **Azure Firewall logs**: AzureFirewallNetworkRule, AzureFirewallApplicationRule, AzureFirewallNatRule, AzureFirewallThreatIntelLog, AzureFirewallIDPSLog (Premium).
-- **vWAN diagnostic logs**: GatewayDiagnosticLog, IKEDiagnosticLog, RouteDiagnosticLog, TunnelDiagnosticLog.
-- **Effective routes** snapshot daily — store the output of `az network vhub get-effective-routes` to detect drift.
-- **Hit-count telemetry**: Policy Analytics on the Firewall Policy.
-
-Sample KQL — top denied 5-tuples in last 1h:
-
-```kql
-AzureDiagnostics
-| where Category == "AzureFirewallNetworkRule"
-| where msg_s contains "Deny"
-| extend src = extract(@"from (\S+)", 1, msg_s),
-         dst = extract(@"to (\S+)", 1, msg_s),
-         proto = extract(@"(TCP|UDP|ICMP)", 1, msg_s)
-| where TimeGenerated > ago(1h)
-| summarize hits = count() by src, dst, proto
-| top 50 by hits desc
-```
-
----
-
-## Cost considerations
-
-Per-hub steady-state costs include:
-
-- Hub processing units (HPU) — base + per-Gbps.
-- Connection units per VNet/branch.
-- Firewall: deployment cost + per-Gbps data processed.
-- Routing intent: no extra charge, but traffic that traverses the FW data path is billed.
-- Cross-region hub-to-hub: bandwidth charges in both directions.
-
-Sanity check before approval:
-
-```text
-Approx monthly = base_hub_cost
-               + Σ(connection_cost_i for each connection)
-               + firewall_fixed_per_hour × 730
-               + firewall_data_processed_GB × $/GB
-               + cross_region_egress_GB × $/GB
-```
-
-Hand off to `price_skill_firewall_pricing` and `price_skill_egress_architecture` for accurate quoting.
-
----
-
-## Common pitfalls
-
-- **Spokes peered directly to spokes outside vWAN** — bypasses the hub firewall silently. Audit with `Get-AzVirtualNetworkPeering` and remove direct peerings unless explicitly intended.
-- **Inspecting Private Endpoint traffic** — PE traffic stays on Microsoft backbone and isn't seen by Azure Firewall by default. Need `Force Tunneling` + UDR on the PE subnet or **Private Endpoint Network Policies** with explicit routes — covered in `pl_skill_endpoint_design`.
-- **Routing intent vs custom route tables collision** — when intent is enabled, custom route tables are restricted. Plan before enabling intent in a live hub.
-- **Address-space overlap** — vWAN supports overlapping spoke address spaces only with NAT on the firewall (Premium / partner) or via separate hubs.
-- **Crossing Azure Subscription boundaries** — RBAC permissions on the hub vs Firewall Policy are separate; mismatches lead to "Forbidden" errors on deploy.
-- **Migration from classic hub-spoke** — moving live workloads requires sequenced re-peering, IP unchanged, monitoring rollback. Pre-stage in a parallel hub if downtime budget is tight.
-
----
-
-## Verification checklist
-
-- [ ] Routing intent mode chosen (internet / private / both) and documented.
-- [ ] Default deny + explicit allow rule set drafted in Firewall Policy (hierarchical).
-- [ ] All spokes connected via vWAN VNet connection — no rogue direct peerings.
-- [ ] Hub address space is /22 or larger for Azure Firewall secured hubs (/24 only for non-firewall hubs), with no overlap with any spoke or on-prem range.
-- [ ] Firewall SKU sized for forecast throughput (peak + 30% headroom).
-- [ ] Logging to Log Analytics enabled; Policy Analytics on.
-- [ ] Effective-routes baseline captured and stored for drift detection.
-- [ ] Private endpoint traffic strategy decided.
-- [ ] On-prem advertised prefixes filtered to avoid default-route surprises.
-- [ ] DR plan: cross-region hub peering tested; rule policy in Git with CI/CD.
-- [ ] Rollback plan documented; pre-deploy snapshot of routing tables and policy.
-
----
-
-## References
-
-- Virtual WAN Secured Hub: https://learn.microsoft.com/azure/firewall-manager/secured-virtual-hub
-- Routing intent and routing policies: https://learn.microsoft.com/azure/virtual-wan/how-to-routing-policies
-- Azure Firewall in vWAN: https://learn.microsoft.com/azure/firewall-manager/vhubs-and-vnets
-- NVA partners supported in vWAN: https://learn.microsoft.com/azure/virtual-wan/about-nva-hub
-- Virtual WAN FAQ & limits: https://learn.microsoft.com/azure/virtual-wan/virtual-wan-faq
+1. **Designing without picking the routing-intent mode.** Without an explicit mode, the hub doesn't steer traffic to the FW; the design is a non-design.
+2. **Forgetting rogue direct spoke peerings.** vWAN connections **and** native VNet peerings can both exist; the peering silently bypasses the firewall. Audit + remove unless explicitly intended.
+3. **Recommending Basic for production.** Basic FW caps at 250 Mbps and lacks Premium features — it's dev/test-only.
+4. **Sizing the FW for average, not peak.** Quote peak + 30% headroom. The vault page's per-SKU throughput is steady-state.
+5. **Hub address space /24.** /24 is allowed only for non-firewall hubs; secured hubs need /22 or larger. Surface this early — changing it later means redeploying the hub.
+6. **Promising TLS inspection on Standard.** TLS inspection / IDPS / URL filtering are Premium-only. Don't quote them for Standard.
+7. **Forgetting Private Endpoint traffic.** PE traffic doesn't transit the FW by default; need PE network policies + explicit routes, or accept that PE is uninspected. Surface the trade-off — most customers want it inspected.
+8. **Inheriting rules from a tenant policy without testing.** Hierarchical Firewall Policy is powerful but can deny critical flows from inherited rules; always test in non-prod.
+9. **Forgetting policy-in-Git.** Portal-edited rules drift; recommend ARM/Bicep export + Git + CI/CD as part of the design, not as an afterthought.
+10. **Treating "intent = both" as automatic east-west allow.** Routing intent steers traffic to the FW; the FW still needs explicit allow rules. Default deny + minimum rule classes are mandatory.
 
 **Analysis only — verify against vendor documentation before applying.**

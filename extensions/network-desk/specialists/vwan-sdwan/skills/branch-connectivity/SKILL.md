@@ -1,180 +1,111 @@
-# vwan_branch_connectivity — Branch Connectivity (S2S VPN, P2S VPN, ExpressRoute)
+# Skill: Branch Connectivity (`vwan_branch_connectivity`)
 
-## Overview
+Design how branches, remote users, and on-premises datacenters connect into an Azure Virtual WAN hub — S2S VPN, P2S VPN, and ExpressRoute gateways inside the hub. Owns the gateway-selection workflow, scale-unit sizing, BGP / IPsec defaults, and the SD-WAN-orchestrator auto-connect pattern. The exact CLI commands, default IPsec/IKE parameter tables, scale-unit throughput values, and per-protocol limits live in the vault.
 
-Azure Virtual WAN provides three primary mechanisms for connecting branch offices, remote users, and datacenters to the virtual hub: Site-to-Site (S2S) VPN for branch office IPsec connectivity, Point-to-Site (P2S) VPN for remote user access, and ExpressRoute for dedicated private circuits from co-locations and datacenters. Each mechanism is deployed as a gateway within the hub and scales independently using scale units.
+---
 
-## Site-to-Site VPN
+## Knowledge loading contract
 
-### Protocol and Configuration
+This is a **thin specialist skill**. It owns the gateway-selection decision tree, scale-unit sizing methodology, BGP-with-vWAN ASN conventions (hub VPN GW uses AS 65515; hub router uses AS 65520), and the "what's missing from a typical branch design" review. Exact CLI, scale-unit throughput tables, default IPsec/IKE parameters, and protocol-limit comparisons live in the vault.
 
-S2S VPN in vWAN uses IKEv2 for tunnel establishment with IPsec for data encryption. Each VPN site represents a branch location and can have up to 4 links (for multi-ISP or active-active configurations).
+Mandatory steps every time you use this skill:
 
-Key capabilities:
+1. Identify which gateway types the user needs (S2S / P2S / ER, or any combination).
+2. Call `cn_vault_page({ page: "VWAN-Branch-Connectivity" })` for canonical CLI, scale-unit table, and protocol defaults.
+3. Load `Secured-Virtual-Hub` if the user's hub is firewall-secured (changes the routing-intent / inspection story).
+4. Cite the vault page when stating scale-unit throughput, IPsec defaults, or limits.
 
-- **IKEv2 protocol:** Main mode negotiation with support for DPD (Dead Peer Detection)
-- **BGP support:** Dynamic route exchange between branch CPE and hub VPN gateway. The hub VPN gateway uses AS 65515 for BGP peering with VPN sites (distinct from the hub router's AS 65520)
-- **Scale units:** 1 to 20+ scale units per hub. Each scale unit provides 500 Mbps aggregate throughput. At 20 units, the gateway supports 10 Gbps aggregate across all tunnels
-- **Custom IPsec/IKE policies:** Override default proposals with specific algorithms per connection
+If the user asks about an SD-WAN integration pattern or partner orchestrator not in the vault page, fall back to `cn_search({ query: "<keywords>", specialist: "cn_vwan" })`.
 
-Default IPsec/IKE parameters:
+---
 
-| Parameter | Phase 1 (IKE) | Phase 2 (IPsec) |
-|-----------|---------------|-----------------|
-| Encryption | AES256 | AES256 |
-| Integrity | SHA256 | SHA256 |
-| DH Group | DHGroup14 | DHGroup14 |
-| SA Lifetime | 28800 seconds | 3600 seconds |
+## When to use branch connectivity
 
-### Auto-Connect for VPN Sites
+| Scenario | Behaviour |
+|---|---|
+| "Connect branch X to our vWAN hub" | Run S2S design (single site) |
+| "Bring on N branches via SD-WAN orchestrator" | Auto-connect pattern (Cisco vManage / VMware Orchestrator / Fortinet FortiManager) |
+| "Remote users need to reach vWAN" | P2S sub-workflow |
+| "Bring on-prem DC into vWAN" | ExpressRoute sub-workflow |
+| "Sizing — what scale unit do I need?" | Sizing workflow (peak throughput + headroom + scale-unit math) |
+| Routing-intent semantics (forced tunnel / private inspection) | Pair with `cn_skill({ specialist: "cn_vwan", skill: "routing-intent" })` |
+| Hub is firewall-secured | Pair with `cn_skill({ specialist: "cn_vwan", skill: "secured-vhub-design" })` |
+| Branch troubleshooting | Redirect: `cn_skill({ specialist: "cn_vwan", skill: "troubleshoot" })` |
+| ExpressRoute / DX / Interconnect design that does NOT terminate in vWAN | Redirect: `cn_skill({ specialist: "cn_hyb", skill: "expressroute-design" })` |
 
-vWAN supports auto-connect functionality where VPN sites created through an SD-WAN partner orchestrator (Cisco vManage, VMware Orchestrator, Fortinet FortiManager) are automatically connected to the nearest hub based on geographic proximity. The partner API handles:
+---
 
-- VPN site creation with branch IP and link information
-- IPsec tunnel establishment to the hub VPN gateway
-- BGP session activation for dynamic routing
-- Hub assignment based on branch location metadata
+## Reference pages (load these first)
 
-### CLI Commands — S2S VPN
+| Topic | Vault page | Load with |
+|---|---|---|
+| Canonical vWAN branch connectivity — S2S/P2S/ER gateways, CLI, scale units, BGP, IPsec defaults, branch-to-branch routing | [[VWAN-Branch-Connectivity]] | `cn_vault_page({ page: "VWAN-Branch-Connectivity" })` |
+| Secured vHub (when the hub has Azure Firewall or NVA — changes how branch traffic is inspected) | [[Secured-Virtual-Hub]] | `cn_vault_page({ page: "Secured-Virtual-Hub" })` |
+| Routing intent — needed whenever branches must traverse firewall | [[VWAN-Routing-Intent]] | `cn_vault_page({ page: "VWAN-Routing-Intent" })` |
+| ExpressRoute service detail (peering types, FastPath, etc.) | [[ExpressRoute]] | `cn_vault_page({ page: "ExpressRoute" })` |
+| Site-to-Site VPN service detail (AWS context, useful when comparing) | [[Site-to-Site-VPN]] | `cn_vault_page({ page: "Site-to-Site-VPN" })` |
+| Troubleshooting (used when the answer needs validation steps) | [[VWAN-Troubleshooting]] | `cn_vault_page({ page: "VWAN-Troubleshooting" })` |
 
-```bash
-# Create a VPN gateway in the hub
-az network vpn-gateway create \
-  --name "vpn-gw-eastus" \
-  --resource-group "rg-networking" \
-  --vhub "hub-eastus" \
-  --location "eastus" \
-  --scale-unit 2
+Row #1 is mandatory. Rows #2 and #3 are mandatory when the hub is secured.
 
-# Create a VPN site representing a branch
-az network vpn-site create \
-  --name "branch-newyork" \
-  --resource-group "rg-networking" \
-  --location "eastus" \
-  --virtual-wan "contoso-vwan" \
-  --ip-address "203.0.113.10" \
-  --address-prefixes "10.200.0.0/24" \
-  --device-vendor "Cisco" \
-  --device-model "ISR4451" \
-  --link-speed 100 \
-  --bgp-peering-address "10.200.0.1" \
-  --asn 65010
+---
 
-# Connect the VPN site to the hub gateway
-az network vpn-gateway connection create \
-  --name "conn-branch-newyork" \
-  --resource-group "rg-networking" \
-  --gateway-name "vpn-gw-eastus" \
-  --remote-vpn-site "/subscriptions/{sub-id}/resourceGroups/rg-networking/providers/Microsoft.Network/vpnSites/branch-newyork" \
-  --enable-bgp true \
-  --protocol-type IKEv2
+## Required inputs — collect before answering
 
-# Apply custom IPsec policy to a connection
-az network vpn-gateway connection ipsec-policy add \
-  --resource-group "rg-networking" \
-  --gateway-name "vpn-gw-eastus" \
-  --connection-name "conn-branch-newyork" \
-  --ike-encryption AES256 \
-  --ike-integrity SHA384 \
-  --dh-group DHGroup14 \
-  --ipsec-encryption GCMAES256 \
-  --ipsec-integrity GCMAES256 \
-  --pfs-group PFS14 \
-  --sa-lifetime 3600 \
-  --sa-data-size 102400000
-```
+1. **Hub region** + **vWAN tier** (Basic doesn't support ER or secured vHub).
+2. **Gateway types** needed — S2S, P2S, ER, or combination.
+3. **Branch count** + **per-branch bandwidth** + **peak aggregate** — drives scale-unit sizing.
+4. **BGP support on CE** — vWAN strongly prefers BGP for dynamic routing; static-only branches lose auto-failover.
+5. **Authentication for P2S** — Azure AD (requires OpenVPN) / certificate / RADIUS.
+6. **SD-WAN orchestrator** — if any (Cisco / VMware / Fortinet) — enables auto-connect.
+7. **Hub firewall** — Azure FW / partner NVA / none — changes the routing-intent story.
+8. **ExpressRoute scenario** — circuit in same sub vs. cross-sub (auth key), Global Reach planned?
 
-## Point-to-Site VPN
+---
 
-### Protocols and Authentication
+## Workflow
 
-P2S VPN in vWAN provides remote user connectivity with support for multiple tunnel protocols and authentication methods:
+1. **Collect inputs** above.
+2. **Load `VWAN-Branch-Connectivity`** (and `Secured-Virtual-Hub` + `VWAN-Routing-Intent` if applicable).
+3. **Pick the gateway types** to deploy and **size** each:
+   - S2S: scale units = ⌈peak aggregate Mbps / 500⌉, with 20–30% headroom.
+   - P2S: scale units = ⌈peak users / 500/scale_unit_capacity⌉ (cite vault page for exact per-unit numbers).
+   - ER: min 2 scale units recommended; aggregate ≤ 20 Gbps.
+4. **Design BGP** — branch ASN, hub VPN GW ASN (65515), advertise/accept rules. Cite vault page.
+5. **Choose protocol/auth for P2S** — Azure AD + OpenVPN is the recommended default.
+6. **Plan auto-connect** if SD-WAN orchestrator is in play — the orchestrator handles VPN-site creation; you only define the hub side.
+7. **Plan branch-to-branch routing** — Standard tier auto-enabled; if FW-secured hub, ensure routing-intent private rule is on.
+8. **Plan failover** within the branch (single ISP vs. multi-link per VPN site; up to 4 links).
+9. **Emit** in the format below.
 
-**Supported protocols:**
+---
 
-- **OpenVPN (TCP/UDP 443):** Recommended for most deployments. Supports all OS platforms, traverses most firewalls.
-- **IKEv2:** Native support on Windows 10+, macOS, iOS. Better performance than OpenVPN but may be blocked by corporate firewalls.
-- **SSTP (TCP 443):** Windows-only, legacy support. Use OpenVPN for new deployments.
+## Output format
 
-**Authentication methods:**
+Every branch-connectivity answer should emit:
 
-- **Azure AD (Entra ID):** Recommended for enterprise deployments. Supports MFA, Conditional Access, and user/group-based authorization. Requires OpenVPN protocol.
-- **Certificate-based:** Mutual TLS authentication with client certificates. Supports all protocols. Suitable for device authentication scenarios.
-- **RADIUS:** Delegates authentication to an external RADIUS server (e.g., NPS, FreeRADIUS). Supports EAP-MSCHAPv2, EAP-TLS. Useful for integrating with existing identity infrastructure.
+1. **Inputs assumed** — one line each.
+2. **Gateway plan** — which gateways are in the hub + scale unit per gateway + rationale (cite vault page row).
+3. **Per-branch design** — IP allocation, links per site, BGP ASN, custom IPsec policy if needed.
+4. **Routing plan** — branch-to-branch behaviour, routing-intent involvement, ER Global Reach if applicable.
+5. **Provisioning commands** — pointer to vault page section (do not duplicate inline).
+6. **Sizing math** — explicit (peak Mbps + headroom / 500 = scale units), so the user can re-verify.
+7. **What this excludes** — branch CPE configuration (vendor-specific), partner SD-WAN orchestrator setup, P2S client distribution.
+8. **Footer** — `Analysis only — verify against vendor documentation before applying.`
 
-### CLI Commands — P2S VPN
+---
 
-```bash
-# Create a P2S VPN server configuration
-az network p2s-vpn-gateway create \
-  --name "p2s-gw-eastus" \
-  --resource-group "rg-networking" \
-  --vhub "hub-eastus" \
-  --location "eastus" \
-  --scale-unit 2 \
-  --vpn-server-config "p2s-config-aad" \
-  --address-space "172.30.0.0/16"
+## Common workflow mistakes (do not repeat these)
 
-# Download the P2S VPN client profile
-az network p2s-vpn-gateway vpn-client generate \
-  --name "p2s-gw-eastus" \
-  --resource-group "rg-networking" \
-  --authentication-method EAPTLS
-```
+These are workflow anti-patterns specific to this skill — not a substitute for the vault page's pitfall list.
 
-## ExpressRoute
-
-### Circuit Association and Route Propagation
-
-ExpressRoute provides private, dedicated connectivity from on-premises networks to Azure through an ExpressRoute circuit provisioned via a connectivity provider. In vWAN, ExpressRoute circuits are associated with the hub's ExpressRoute gateway.
-
-Key integration points:
-
-- **Circuit association:** ExpressRoute circuits are linked to the hub via an authorization key (cross-subscription) or directly (same subscription)
-- **Route propagation:** On-premises routes learned via ExpressRoute BGP peering are propagated to the hub route table and further to all connected VNets and VPN branches
-- **Peering configuration:** Private peering is required; Microsoft peering is used for Office 365/Dynamics 365 traffic
-- **ExpressRoute Global Reach:** Enables branch-to-branch routing directly over ExpressRoute circuits without traversing the hub VPN gateway. Traffic stays on the Microsoft backbone.
-
-### CLI Commands — ExpressRoute
-
-```bash
-# Create an ExpressRoute gateway in the hub
-az network express-route gateway create \
-  --name "er-gw-eastus" \
-  --resource-group "rg-networking" \
-  --vhub "hub-eastus" \
-  --location "eastus" \
-  --min-val 2
-
-# Connect an ExpressRoute circuit to the hub
-az network express-route gateway connection create \
-  --name "conn-er-datacenter" \
-  --resource-group "rg-networking" \
-  --gateway-name "er-gw-eastus" \
-  --peering "/subscriptions/{sub-id}/resourceGroups/rg-er/providers/Microsoft.Network/expressRouteCircuits/er-circuit-datacenter/peerings/AzurePrivatePeering" \
-  --authorization-key "{auth-key}"
-```
-
-## Branch-to-Branch Routing
-
-In Standard tier, branch-to-branch routing is enabled by default. Traffic between VPN-connected branches routes through the hub. Traffic between ExpressRoute-connected sites can use Global Reach for direct paths or transit through the hub.
-
-When routing intent private traffic policy is active, branch-to-branch traffic also transits through the Azure Firewall or NVA for inspection.
-
-## Scale and Performance Considerations
-
-| Component | Scale Unit Range | Throughput per Unit | Maximum Aggregate |
-|-----------|-----------------|--------------------|--------------------|
-| S2S VPN Gateway | 1–20 | 500 Mbps | 10 Gbps |
-| P2S VPN Gateway | 1–20 | 500 Mbps | 10 Gbps (100K users) |
-| ExpressRoute Gateway | 1–10 | 2 Gbps | 20 Gbps |
-
-Size gateways based on peak aggregate throughput across all connections, not individual tunnel bandwidth. Plan for 20–30% headroom above expected peak traffic to accommodate bursts and growth.
-
-## Reference
-
-- S2S VPN in vWAN: https://learn.microsoft.com/en-us/azure/virtual-wan/virtual-wan-site-to-site-portal
-- P2S VPN in vWAN: https://learn.microsoft.com/en-us/azure/virtual-wan/virtual-wan-point-to-site-portal
-- ExpressRoute in vWAN: https://learn.microsoft.com/en-us/azure/virtual-wan/virtual-wan-expressroute-portal
+1. **Sizing on tunnel bandwidth, not aggregate.** A scale unit = 500 Mbps **aggregate** across all branches on the gateway. Size for peak total, not per-tunnel.
+2. **Forgetting BGP recommendation.** Static-route branches can't take advantage of vWAN's auto-failover or route-intent. Push BGP unless the CE genuinely can't speak it.
+3. **Mixing the gateway ASN with the hub-router ASN.** Hub VPN GW = 65515 (for BGP with branches); hub router = 65520. Confusing them generates wrong BGP peers and broken sessions.
+4. **Recommending SSTP for new deployments.** Windows-only legacy. Use OpenVPN for new P2S work.
+5. **Forgetting Azure AD = OpenVPN only.** If the user wants AAD auth, the protocol is forced to OpenVPN (TCP/UDP 443). Don't promise AAD + IKEv2.
+6. **Not surfacing scale-unit-throughput trade-off.** Each scale unit adds cost; users routinely over-size out of fear. Cite the vault page's table and offer a sized recommendation.
+7. **Skipping routing-intent / firewall design for secured hubs.** If the hub has a firewall, branches route through it — but only if routing intent is configured. A "branch is up" answer that omits routing intent will not actually inspect east-west.
+8. **ER cross-sub without auth key.** Cross-sub ExpressRoute attachment needs an authorization key from the circuit owner's tenant. Surface this dependency early.
 
 **Analysis only — verify against vendor documentation before applying.**
