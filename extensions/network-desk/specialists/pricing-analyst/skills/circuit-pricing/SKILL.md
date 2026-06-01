@@ -1,217 +1,116 @@
 # Skill: Dedicated Circuit Pricing (`price_skill_circuit_pricing`)
 
-Pricing for dedicated private connectivity: Azure ExpressRoute, AWS Direct Connect, and GCP Cloud Interconnect. Includes port fees, data plans, partner costs, and break-even analysis against VPN.
+Price out Azure ExpressRoute, AWS Direct Connect, and GCP Cloud Interconnect. Owns the workflow for collecting the right inputs (region, bandwidth, redundancy, data plan), running the break-even vs. VPN, and producing a 3-year TCO. The exact $/month port fees, data-plan rates, partner pricing, and add-on charges live in the vault.
+
+**Pricing tables drift quarterly.** Never quote numbers from memory — always load the vault page.
 
 ---
 
-## Azure ExpressRoute Pricing
+## Knowledge loading contract
 
-### Port Fees (Monthly)
+This is a **thin specialist skill**. It owns the input-gathering checklist, the TCO methodology, the break-even framing, and the "always say what the price excludes" discipline. The numeric tables, SKU lists, partner-pricing tiers, and per-region egress rates live in the vault and **must be loaded with `cn_vault_page` before quoting any figure**.
 
-ExpressRoute circuits are billed for the port plus an optional data plan:
+Mandatory steps every time you use this skill:
 
-| Speed | Provider Port ($/month) | ExpressRoute Direct Port ($/month) |
-|---|---|---|
-| 50 Mbps | $55 | — |
-| 100 Mbps | $110 | — |
-| 200 Mbps | $220 | — |
-| 500 Mbps | $550 | — |
-| 1 Gbps | $1,100 | — |
-| 2 Gbps | $1,700 | — |
-| 5 Gbps | $3,600 | — |
-| 10 Gbps | $6,000 | $5,500 |
-| 40 Gbps | — | $20,000 |
-| 100 Gbps | — | $50,000 |
+1. Collect required inputs (cloud(s), region, bandwidth, data plan, redundancy, peering location, partner vs. direct).
+2. Call `cn_vault_page({ page: "Dedicated-Circuit-Pricing" })` for the canonical table.
+3. Cite specific table rows; do not paraphrase rates from memory.
+4. Surface the calculator URL (in the loaded vault page) so the user can validate.
 
-### Data Plans
+If the user asks about a circuit type not in the vault page, fall back to `cn_search({ query: "<keywords>", specialist: "cn_price" })`, identify the right page, then load it.
 
-| Plan | How It Works | Best For |
-|---|---|---|
-| **Metered** | Port fee + $0.025/GB egress | Variable/low bandwidth |
-| **Unlimited** | Port fee + flat unlimited surcharge | High/predictable bandwidth |
-| **Local SKU** | Port fee only (free egress to local region) | Single-region workloads near peering location |
+---
 
-Unlimited surcharge varies by speed (e.g., ~$550/month for 1 Gbps unlimited on top of port fee).
+## When to use circuit pricing
 
-### ExpressRoute Add-Ons
-
-| Feature | Cost |
+| Scenario | Behaviour |
 |---|---|
-| Global Reach (ER-to-ER transit) | $0.05/GB |
-| Premium Add-on (cross-geo peering) | +50-100% port fee |
-| FastPath (bypass gateway for data plane) | Included with Ultra/ErGw3AZ |
-| ExpressRoute Gateway (ErGw1Az) | ~$0.19/hr ($139/month) |
-| ExpressRoute Gateway (ErGw3Az) | ~$1.07/hr ($781/month) |
-
-```bash
-# Check ExpressRoute circuit details and usage
-az network express-route show --name <circuit-name> -g <rg> \
-  --query '{sku:sku, bandwidth:bandwidthInMbps, peeringLocation:peeringLocation}'
-
-# Check ExpressRoute circuit stats
-az network express-route stats show --name <circuit-name> -g <rg>
-
-# List available peering locations
-az network express-route list-service-providers --query '[].{Provider:name, Locations:peeringLocations}'
-```
-
-**Pricing page:** https://azure.microsoft.com/en-us/pricing/details/expressroute/
+| "What does a 1 Gbps ExpressRoute / Direct Connect / Interconnect cost?" | Run circuit-pricing workflow |
+| "VPN or ExpressRoute / Direct Connect?" | Run break-even (need monthly egress estimate + bandwidth requirement) |
+| "Cost of going from 1 Gbps to 10 Gbps?" | Run delta + check if speed upgrade requires SKU change (e.g. ExpressRoute Direct) |
+| "Total 3-year cost of a redundant dedicated circuit deployment" | Run full TCO template |
+| User asks about VPN-only pricing | Redirect: `cn_skill({ specialist: "cn_price", skill: "vpn-pricing" })` |
+| User asks for cross-cloud price comparison | Redirect: `cn_skill({ specialist: "cn_price", skill: "price-compare" })` |
+| User asks how the circuit is **designed** (not priced) | Redirect: `cn_skill({ specialist: "cn_hyb", skill: "expressroute-design" })` |
 
 ---
 
-## AWS Direct Connect Pricing
+## Reference pages (load these first)
 
-### Port-Hour Fees
-
-AWS Direct Connect is billed per port-hour:
-
-| Speed | Type | $/hr | $/month (730 hrs) |
-|---|---|---|---|
-| 1 Gbps | Dedicated | $0.30 | $219 |
-| 10 Gbps | Dedicated | $1.50 | $1,095 |
-| 100 Gbps | Dedicated | $13.70 | $10,001 |
-| 50 Mbps – 500 Mbps | Hosted Connection | $0.03 – $0.14 | $22 – $102 |
-
-### Data Transfer Out (varies by region)
-
-| Source Region | $/GB Out |
-|---|---|
-| US East (N. Virginia) | $0.02 |
-| US West (Oregon) | $0.02 |
-| Europe (Ireland) | $0.02 |
-| Asia Pacific (Tokyo) | $0.04 |
-| South America (São Paulo) | $0.06 |
-
-Data transfer **in** via Direct Connect is free.
-
-### Transit Gateway with Direct Connect
-
-| Component | Cost |
-|---|---|
-| DX Gateway | Free |
-| Transit Gateway attachment | $0.05/hr (~$36.50/month) |
-| TGW data processing | $0.02/GB |
-
-```bash
-# Check Direct Connect connections
-aws directconnect describe-connections \
-  --query 'connections[].{Id:connectionId,Bandwidth:bandwidth,State:connectionState,Location:location}'
-
-# Check virtual interfaces
-aws directconnect describe-virtual-interfaces \
-  --query 'virtualInterfaces[].{Name:virtualInterfaceName,Type:virtualInterfaceType,Vlan:vlan,State:virtualInterfaceState}'
-
-# Check data transfer costs
-aws ce get-cost-and-usage --time-period Start=2024-01-01,End=2024-02-01 \
-  --granularity MONTHLY --metrics BlendedCost \
-  --filter '{"Dimensions":{"Key":"SERVICE","Values":["AWS Direct Connect"]}}'
-```
-
-**Pricing page:** https://aws.amazon.com/directconnect/pricing/
-
----
-
-## GCP Cloud Interconnect Pricing
-
-### Dedicated Interconnect
-
-| Speed | VLAN Attachment ($/month) | Port Fee |
+| Topic | Vault page | Load with |
 |---|---|---|
-| 10 Gbps | $1,700/month per attachment | Included |
-| 100 Gbps | $17,000/month per attachment | Included |
+| Canonical port fees, data plans, add-ons, break-even tables (Azure/AWS/GCP) | [[Dedicated-Circuit-Pricing]] | `cn_vault_page({ page: "Dedicated-Circuit-Pricing" })` |
+| VPN pricing — needed for any break-even analysis | [[VPN-Gateway-Pricing]] | `cn_vault_page({ page: "VPN-Gateway-Pricing" })` |
+| Egress cost architecture (the "other" big number on a dedicated circuit bill) | [[Egress-Cost-Architecture]] | `cn_vault_page({ page: "Egress-Cost-Architecture" })` |
+| Cross-cloud price comparison (if the question is multi-cloud) | [[Cross-Cloud-Price-Comparison]] | `cn_vault_page({ page: "Cross-Cloud-Price-Comparison" })` |
+| ExpressRoute design context (gateway SKUs influence cost) | [[ExpressRoute]] | `cn_vault_page({ page: "ExpressRoute" })` |
+| Direct Connect design context | [[Direct-Connect]] | `cn_vault_page({ page: "Direct-Connect" })` |
+| Cloud Interconnect design context | [[Cloud-Interconnect]] | `cn_vault_page({ page: "Cloud-Interconnect" })` |
 
-Minimum of one 10 Gbps connection. Production SLA requires two connections in different edge availability domains.
-
-### Partner Interconnect
-
-| Speed | $/month (approx.) |
-|---|---|
-| 50 Mbps | $55 |
-| 100 Mbps | $110 |
-| 200 Mbps | $165 |
-| 500 Mbps | $275 |
-| 1 Gbps | $550 |
-| 2 Gbps | $825 |
-| 5 Gbps | $1,375 |
-| 10 Gbps | $1,700 |
-
-### Egress Discounts with Interconnect
-
-Traffic egressing through Interconnect receives discounted pricing compared to internet egress:
-
-| Monthly Volume | Interconnect Egress ($/GB) | Internet Egress Premium ($/GB) |
-|---|---|---|
-| 0 – 1 TB | $0.02 | $0.12 |
-| 1 – 10 TB | $0.02 | $0.11 |
-| 10 TB+ | $0.02 | $0.08 |
-
-```bash
-# Check Interconnect attachments
-gcloud compute interconnects attachments list --format='table(name,region,bandwidth,state)'
-
-# Check interconnect details
-gcloud compute interconnects describe <interconnect-name> \
-  --format='table(name,interconnectType,linkType,requestedLinkCount,state)'
-```
-
-**Pricing page:** https://cloud.google.com/network-connectivity/docs/interconnect/pricing
+Call only the row(s) relevant. Rows #1 and #2 are mandatory for break-even questions.
 
 ---
 
-## Break-Even Analysis: VPN vs. Dedicated Circuit
+## Required inputs — collect before quoting
 
-### Azure — VPN vs. ExpressRoute
+If any of these are missing, ask before answering:
 
-| Monthly Egress | VPN (VpnGw1AZ) | ER 50 Mbps Metered | Winner |
-|---|---|---|---|
-| 100 GB | $263 + $9 = $272 | $55 + $3 = $58 | **ER** |
-| 500 GB | $263 + $44 = $307 | $55 + $13 = $68 | **ER** |
-| 2 TB | $263 + $174 = $437 | $55 + $50 = $105 | **ER** |
-| 5 TB | $263 + $419 = $682 | $55 + $125 = $180 | **ER** |
-
-> Azure VPN gateways are more expensive per-hour than ER circuits at lower speeds. ER is often cheaper even at modest bandwidth — the break-even favors ER quickly if you need reliable bandwidth.
-
-### AWS — VPN vs. Direct Connect
-
-| Monthly Egress | S2S VPN | DX 1 Gbps Hosted ($22/mo) | Winner |
-|---|---|---|---|
-| 100 GB | $37 + $9 = $46 | $22 + $2 = $24 | **DX** |
-| 1 TB | $37 + $90 = $127 | $22 + $20 = $42 | **DX** |
-| 5 TB | $37 + $430 = $467 | $22 + $100 = $122 | **DX** |
-
-> AWS VPN is cheap per-hour but egress adds up. DX hosted connections at lower speeds can be very cost-effective even at modest volumes, especially with partner pricing.
-
-### GCP — VPN vs. Partner Interconnect
-
-| Monthly Egress | HA VPN (2 tunnels) | Partner 100 Mbps | Winner |
-|---|---|---|---|
-| 100 GB | $110 + $12 = $122 | $110 + $2 = $112 | **Comparable** |
-| 1 TB | $110 + $110 = $220 | $110 + $20 = $130 | **Interconnect** |
-| 5 TB | $110 + $440 = $550 | $110 + $100 = $210 | **Interconnect** |
+1. **Cloud(s)** — Azure / AWS / GCP / multi.
+2. **Bandwidth** — Mbps or Gbps; if the user says "fast", push back for a number.
+3. **Estimated monthly egress** (TB/month) — drives the metered-vs-unlimited decision and the break-even.
+4. **Region / peering location** — affects partner availability and egress per-GB rate.
+5. **Redundancy** — single circuit, dual circuit (different edge locations), single + VPN backup.
+6. **Direct vs. partner** — ExpressRoute Direct (10/100 Gbps), AWS Dedicated vs. Hosted (50 Mbps – 100 Gbps), GCP Dedicated vs. Partner Interconnect.
+7. **Gateway SKU on cloud side** — ExpressRoute Gateway tier (ErGw1Az / ErGw3Az / FastPath), Direct Connect Gateway + Transit Gateway attachment, GCP Cloud Router. These add real money and are commonly forgotten.
+8. **Term** — monthly / 1-year / 3-year (for TCO).
+9. **Currency / region of billing** — almost always USD unless the user is in Europe.
 
 ---
 
-## TCO Template
+## Workflow
 
-```markdown
-## 3-Year TCO: [Connection Type]
+1. **Collect inputs** above. Ask for anything missing.
+2. **Load the vault pricing page(s)** from the table above.
+3. **Quote the line items** for the user's cloud(s), citing the vault page section:
+   - Port / circuit fee (per month)
+   - Data plan / per-GB egress (or unlimited surcharge)
+   - Gateway / TGW attachment / Cloud Router
+   - Add-ons (Global Reach, Premium add-on, FastPath, etc.)
+   - Partner cross-connect / colocation MRC (call out as "outside cloud bill, ask your partner")
+4. **Compute the monthly total** showing the line-by-line breakdown.
+5. **Run break-even vs. VPN** if relevant — load `VPN-Gateway-Pricing` and compare at the user's expected egress volume.
+6. **3-year TCO** using the template in the vault page if the user is doing budget planning.
+7. **Call out what the answer excludes** — colocation, ISP backhaul, cross-connect, redundancy second circuit, NSP MRC, egress beyond the estimate.
+8. **Emit the answer** in the format below.
 
-| Cost Component | Monthly | Annual | 3-Year |
-|---|---|---|---|
-| Port/circuit fee | $X | $X | $X |
-| Data transfer (est. Y TB/mo) | $X | $X | $X |
-| Gateway instance | $X | $X | $X |
-| Redundancy (2nd circuit) | $X | $X | $X |
-| Cross-connect / colocation | $X | $X | $X |
-| Partner/provider MRC | $X | $X | $X |
-| **Total** | **$X** | **$X** | **$X** |
+---
 
-### Assumptions
-- Region: [region]
-- Monthly egress: [X] TB
-- Redundancy: [single/dual]
-- Pricing as of: [date]
-```
+## Output format
 
-Pricing is indicative — verify against current vendor pricing pages before budgeting.
+Every circuit-pricing answer should emit:
+
+1. **Inputs assumed** — list, one line each, so the user can spot wrong assumptions.
+2. **Monthly cost breakdown** — line-by-line, each row citing the vault page section it came from.
+3. **Monthly total** — bold.
+4. **3-year TCO** — if requested or the question is clearly budget-driven.
+5. **Break-even vs. VPN** — if the user hasn't explicitly chosen one, or if the answer is borderline.
+6. **What this excludes** — explicit list (always include).
+7. **Validation link** — the calculator URL from the vault page.
+8. **Footer** — `Pricing is indicative — verify against current vendor pricing pages before budgeting.` followed by `Analysis only — verify against vendor documentation before applying.`
+
+---
+
+## Common workflow mistakes (do not repeat these)
+
+These are workflow anti-patterns specific to this skill — not a substitute for the vault page's pitfall list.
+
+1. **Quoting figures from memory.** Pricing tables drift; always load the vault page and cite the row. If memory and vault disagree, vault wins.
+2. **Forgetting the gateway / TGW attachment / Cloud Router.** On a 1 Gbps Direct Connect, the TGW attachment alone is ~$36/month + $0.02/GB — often the same order of magnitude as the port fee.
+3. **Pricing the circuit without the egress.** A 1 Gbps line at $1,100/month plus 5 TB egress at $0.025/GB is $1,225/month — egress is not optional in the answer.
+4. **Skipping the partner cross-connect / NSP MRC.** Cloud bills do not include the carrier circuit. Always add a line saying "partner / NSP fees apply outside the cloud bill; ask your NSP".
+5. **Defaulting to "dual circuit" without checking.** Many designs are single-circuit + VPN backup, not 2× the port fee. Ask redundancy explicitly.
+6. **Comparing Azure ExpressRoute Local SKU to AWS Direct Connect without noting region constraint.** Local SKU is free egress only within the same region as the peering location; that's not how Direct Connect / Interconnect work.
+7. **Not running the break-even.** "ExpressRoute / DX / Interconnect costs $X" is half the answer — if the user has < 2 TB/month at < 200 Mbps, VPN is almost always cheaper; say so.
+
+**Pricing is indicative — verify against current vendor pricing pages before budgeting.**
 **Analysis only — verify against vendor documentation before applying.**
