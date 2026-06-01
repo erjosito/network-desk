@@ -134,6 +134,11 @@ async function walkMarkdown(dir, out = []) {
         if (e.isDirectory()) {
             await walkMarkdown(full, out);
         } else if (e.isFile() && e.name.endsWith(".md")) {
+            // Skip meta pages that document the vault itself — they shouldn't
+            // be retrievable as content answers (they were polluting results
+            // for vendor and troubleshooting queries that share their vocab).
+            if (e.name === "AGENTS.md") continue;
+            if (e.name === "_Index.md") continue;
             out.push(full);
         }
     }
@@ -186,7 +191,11 @@ function buildIndex(docs) {
             boost: { name: 3, aliasesText: 2.5, tagsText: 2 },
             prefix: true,
             fuzzy: 0.2,
-            combineWith: "AND",
+            // OR so natural-language queries ("how many usable IPs in a /27
+            // subnet on Azure vs AWS") aren't filtered to zero results because
+            // a single token (like "vs" or "usable") happens not to appear in
+            // any doc. BM25 still ranks docs that match more terms higher.
+            combineWith: "OR",
         },
     });
     ms.addAll(docs);
