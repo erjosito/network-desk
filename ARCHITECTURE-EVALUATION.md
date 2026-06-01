@@ -378,7 +378,7 @@ of how big the underlying registry grows.
 
 ### 3.1 What changed vs PSKB
 
-Three concrete changes (all backwards-compatible at the tool-API surface):
+Two concrete additions (both backwards-compatible at the tool-API surface):
 
 1. **Added an Obsidian-style vault** at `extensions/network-desk/vault/`
    — 164 short markdown pages organized as `Topics/` (114), `Services/` (29),
@@ -388,12 +388,35 @@ Three concrete changes (all backwards-compatible at the tool-API surface):
    [`minisearch`](https://www.npmjs.com/package/minisearch) (the only new
    runtime dep, ~100 KB). Supports specialist filter, cloud filter
    (azure / aws / gcp), and 1-hop wikilink expansion.
-3. **Specialist `SKILL.md` files now reference vault pages** rather than
-   duplicating content — the deep reference is in the vault, the SKILL.md
-   provides the workflow + guardrails + pointers.
 
 The five PSKB tools and the entire `REGISTRY` are unchanged. Existing
-calls (`cn_role`, `cn_skill`) work identically. The vault is purely additive.
+calls (`cn_role`, `cn_skill`) work identically.
+
+**The vault is purely additive — specialists were not thinned out.**
+The `specialists/` tree in CKB is **byte-for-byte identical to PSKB**
+(both: 144 files, 1 455 364 bytes, identical SHA-256 hashes), and across
+all 124 SKILL.md files there are currently **only 3 `[[wikilink]]`
+references to the vault**. This means the deep content for each topic
+exists today in two places — the canonical vault page **and** the
+specialist SKILL.md(s) that cover it. See [3.5](#35-the-trade-offs-accepted)
+for the maintenance cost and the path to resolving it.
+
+#### Why both `cn_route` and `cn_search` are kept
+
+They answer different questions:
+
+| Tool | Returns | Best for |
+|---|---|---|
+| `cn_route(query)` | specialist ID(s) by regex match | "who owns this question?" — picks the persona and workflow recipe |
+| `cn_search(query)` | ranked vault pages (BM25) | "where is this concept documented?" — finds the deep reference |
+
+`cn_route` is deterministic, zero-cost, and matches the keyword surface
+the user typed; `cn_search` adds answerability for queries that don't hit
+any regex (Tier 2 measured this as 83.7 % → 98.0 %). A future CKB
+iteration could fold routing into search (a single `cn_search` call that
+returns *both* matching specialists and matching pages) and drop
+`cn_route`; today both ship because keeping `cn_route` made the change
+zero-impact on PSKB users.
 
 ### 3.2 The hybrid architecture
 
@@ -519,7 +542,7 @@ view, backlinks, and tag navigation. The graph view is itself an architecture
 review tool: orphan pages, broken wikilinks, and under-connected clusters are
 all visible.
 
-### 3.5 The trade-offs we accepted
+### 3.5 The trade-offs accepted
 
 The vault layer is **not free**:
 
@@ -530,7 +553,26 @@ The vault layer is **not free**:
 | **+50 LOC** in `extension.mjs` (852 → 902) and +16 KB `vault-search.mjs` | Both fully tested. |
 | **+17 % wall-clock latency per prompt** (Tier 3: 104.6 s vs 89.2 s mean) | Pays for itself in recall (+14 pp answerable, +14 pp on regex-easy category). Avoidable for sessions that don't need cross-specialist search by simply not calling `cn_search`. |
 | **+169 % tool-call count per prompt** (mean 58 vs 21.6) | Driven by smaller vault pages — each call is smaller but more frequent. The model trades few big reads for many small focused reads. |
-| **Two parallel content stores** — `specialists/**/SKILL.md` AND `vault/**/*.md` | Specialist SKILL.md is now the "workflow" layer; the vault is the "reference" layer. Each has a single owner. Cross-checked by `tools/suggest-wikilinks.mjs`. |
+| **Content duplication between `specialists/**/SKILL.md` and `vault/**/*.md`** (the big one — see below) | Today: 124 SKILL.md files contain only 3 `[[wikilinks]]` to the vault → most topics are documented in two places. Edits have to be made in both layers, or one drifts. **Mitigation today:** the `tools/suggest-wikilinks.mjs` lint flags places where SKILL.md content has a canonical vault page so they can be linked rather than restated. **Resolution (planned, not done):** a Phase 4 pass to thin `SKILL.md` files to workflow + pointers, leaving the vault as the single source of truth for reference content. The two layers would then have non-overlapping roles (workflow vs reference), each with one owner. |
+
+#### Honest assessment of the duplication today
+
+After Phase 2 the vault was added on top of the upstream `specialists/`
+tree without modifying it. Tier 1 shows the two trees are byte-identical
+(both 144 files, 1 455 364 bytes, identical SHA-256s). The vault is
+*additive*: it gives `cn_search` something to index and gives Obsidian
+maintainers a graph view, but it does not yet *replace* any SKILL.md
+content. Consequently a new fact about, say, *PAN-OS HA modes on Azure*
+should be added to **two** files: `Vendors/PAN-OS.md` (the vault page)
+**and** `specialists/firewall-engineer/skills/vendor-migrate/SKILL.md`
+(the existing skill) — otherwise `cn_skill` and `cn_search` give the
+model inconsistent answers depending on which entry point the LLM picks.
+
+This is a real maintenance tax and the largest open problem with the
+current CKB design. The Phase 4 cleanup (thin specialists, leave the
+vault as canonical) is the natural next step; until then, the duplication
+should be considered a documented limitation rather than an architectural
+feature.
 
 ### 3.6 Measured comparison (the three-tier benchmark)
 
@@ -682,6 +724,16 @@ evidence collected here, the right starting point:
 The benchmark harness in `benchmarks/` is reusable: drop in a different
 domain (security desk, data desk, devops desk), regenerate the vault, and
 the same three-tier comparison runs.
+
+#### Known open work in this fork
+
+The CKB implementation as it ships today is not the fully realised form of
+Pattern F'. The most important remaining piece is the **specialist
+thinning** described in [3.5](#35-the-trade-offs-accepted): until each
+`SKILL.md` is reduced to workflow + pointers and the vault becomes the
+single source of truth for reference content, edits have to be made in
+two places. The architecture is sound and the benchmarks show the
+recall win; the maintenance ergonomics still need the Phase 4 pass.
 
 ---
 
