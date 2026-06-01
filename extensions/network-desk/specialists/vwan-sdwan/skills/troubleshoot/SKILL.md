@@ -1,251 +1,108 @@
-# vwan_troubleshoot — Virtual WAN Troubleshooting and Diagnostics
+# Skill: Virtual WAN Troubleshooting & Diagnostics (`vwan_skill_troubleshoot`)
 
-## Overview
+Structured troubleshooting for Azure Virtual WAN — effective-route inspection, connection-state verification, routing-intent conflicts, BGP diagnostics, and resolutions for the five most common failure modes (spoke-to-spoke, internet breakout, ExR propagation, VPN tunnel, NVA traffic). Owns the *triage methodology* (always start with `az network vhub get-effective-routes`; layer in Network Watcher only after route plane is verified). The CLI snippets, per-failure decision tree, and full diagnostic-tool inventory live in the vault.
 
-This skill provides structured troubleshooting procedures for Azure Virtual WAN environments, including effective route inspection, connection state verification, routing intent conflicts, BGP diagnostics, and resolution steps for the most common connectivity failures. All commands use the Azure CLI and assume the operator has Network Contributor or Reader permissions on the vWAN resource group.
+---
 
-## Checking Effective Routes on the Hub
+## Knowledge loading contract
 
-The most critical diagnostic command in vWAN is `az network vhub get-effective-routes`, which returns the programmed routes in the hub's route table including their source (BGP, static, routing intent) and next hop.
+This is a **thin specialist skill**. It owns the "effective routes first, always" triage discipline, the five-issue decision tree (spoke↔spoke / internet breakout / ExR propagation / VPN tunnel / NVA traffic), and the "BGP up ≠ traffic flowing" reminder. The exact `az network vhub get-effective-routes` / `bgpconnection list-learned-routes` / Network Watcher `test-ip-flow` CLI / per-issue resolution steps live in the vault.
 
-```bash
-# Get effective routes for the hub's default route table
-az network vhub get-effective-routes \
-  --name "hub-eastus" \
-  --resource-group "rg-networking" \
-  --resource-type "RouteTable" \
-  --resource-id "/subscriptions/{sub-id}/resourceGroups/rg-networking/providers/Microsoft.Network/virtualHubs/hub-eastus/hubRouteTables/defaultRouteTable" \
-  --output json
+Mandatory steps every time you use this skill:
 
-# Get effective routes for a specific VNet connection
-az network vhub get-effective-routes \
-  --name "hub-eastus" \
-  --resource-group "rg-networking" \
-  --resource-type "HubVirtualNetworkConnection" \
-  --resource-id "/subscriptions/{sub-id}/resourceGroups/rg-networking/providers/Microsoft.Network/virtualHubs/hub-eastus/hubVirtualNetworkConnections/conn-spoke-web" \
-  --output json
+1. Call `cn_vault_page({ page: "VWAN-Troubleshooting" })` for canonical CLI + per-issue decision tree.
+2. Cite the vault page when quoting CLI flags, BGP session-state values, or VPN connection-status semantics.
+3. For routing-intent failure paths specifically, pair: `cn_vault_page({ page: "VWAN-Routing-Intent" })`.
 
-# Get effective routes for a VPN gateway connection
-az network vhub get-effective-routes \
-  --name "hub-eastus" \
-  --resource-group "rg-networking" \
-  --resource-type "VpnConnection" \
-  --resource-id "/subscriptions/{sub-id}/resourceGroups/rg-networking/providers/Microsoft.Network/vpnGateways/vpn-gw-eastus/vpnConnections/conn-branch-newyork" \
-  --output json
-```
+If a failure mode isn't in the vault, fall back to `cn_search({ query: "<keywords>", specialist: "cn_vwan" })`.
 
-Inspect the output for:
+---
 
-- **addressPrefixes:** The destination CIDR blocks
-- **nextHops:** The next-hop resource IDs (firewall, NVA, VPN gateway, or hub router)
-- **routeOrigin:** How the route was learned — `Service`, `HubRouteTable`, `DefaultRouteTable`, or the originating connection
+## When to use troubleshoot
 
-## Connection State Verification
+| Scenario | Behaviour |
+|---|---|
+| "Spoke A can't reach spoke B" | Issue 1 decision tree from vault |
+| "Internet breakout broken after enabling routing intent" | Issue 2 — check `internetSecurity` + 0.0.0.0/0 in effective routes + firewall rule |
+| "On-prem prefixes not visible in spoke route tables" | Issue 3 — ExR circuit state + private peering + filters |
+| "VPN tunnel stuck in NotConnected / Connecting" | Issue 4 — PSK + IKE proposals + BGP ASN + branch firewall |
+| "NVA in hub isn't getting traffic" | Issue 5 — routing-intent next-hop + BGP peering state + NVA health |
+| Network Watcher IP Flow Verify / Next Hop / Connection Monitor | Quote vault Network Watcher inventory |
+| "Why is BGP up but traffic still failing?" | Pair effective-routes export with synthetic probe |
+| Designing a vWAN hub (NOT troubleshooting an existing one) | Redirect: `cn_skill({ specialist: "cn_vwan", skill: "vwan-design" })` |
+| Branch / VPN site design (NOT debugging) | Redirect: `cn_skill({ specialist: "cn_vwan", skill: "branch-connectivity" })` |
+| Routing-intent design / migration | Redirect: `cn_skill({ specialist: "cn_vwan", skill: "routing-intent" })` |
+| Secured hub firewall policy design | Redirect: `cn_skill({ specialist: "cn_vwan", skill: "secured-vhub-design" })` |
 
-```bash
-# Check VPN gateway provisioning state and connection status
-az network vpn-gateway show \
-  --name "vpn-gw-eastus" \
-  --resource-group "rg-networking" \
-  --query "{provisioningState:provisioningState,vpnConnections:connections[].{name:name,connectionStatus:connectionStatus,ingressBytesTransferred:ingressBytesTransferred,egressBytesTransferred:egressBytesTransferred}}" \
-  --output json
+---
 
-# Check ExpressRoute gateway connection status
-az network express-route gateway connection show \
-  --name "conn-er-datacenter" \
-  --resource-group "rg-networking" \
-  --gateway-name "er-gw-eastus" \
-  --query "{provisioningState:provisioningState,routingConfiguration:routingConfiguration}" \
-  --output json
+## Reference pages (load these first)
 
-# Check VNet connection status
-az network vhub connection show \
-  --name "conn-spoke-web" \
-  --resource-group "rg-networking" \
-  --vhub-name "hub-eastus" \
-  --query "{provisioningState:provisioningState,enableInternetSecurity:enableInternetSecurity,routingConfiguration:routingConfiguration}" \
-  --output json
-```
+| Topic | Vault page | Load with |
+|---|---|---|
+| Canonical vWAN troubleshooting — effective-route CLI, connection state, routing-intent conflicts, BGP diagnostics, 5-issue decision tree, Network Watcher inventory | [[VWAN-Troubleshooting]] | `cn_vault_page({ page: "VWAN-Troubleshooting" })` |
+| Routing intent (paired for intent-related failures) | [[VWAN-Routing-Intent]] | `cn_vault_page({ page: "VWAN-Routing-Intent" })` |
+| Virtual WAN (paired for topology questions surfaced during triage) | [[Virtual-WAN]] | `cn_vault_page({ page: "Virtual-WAN" })` |
 
-## Routing Intent Conflicts and Resolution
+Row #1 is mandatory.
 
-Common routing intent conflicts:
+---
 
-1. **Conflict with existing static routes:** Routing intent overrides static routes in the default route table. If custom static routes exist, they may be removed or ignored after enabling routing intent. **Resolution:** Remove conflicting static routes before enabling routing intent. Use routing intent as the sole routing mechanism.
+## Required inputs — collect before answering
 
-2. **Multiple next-hop resources:** Internet and private traffic policies must use the same next-hop type (both Azure Firewall or both NVA, but not a mix in the same policy). **Resolution:** If you need different security stacks for internet vs private traffic, consider using a single NVA that handles both, or chain via BGP.
+1. **Reported symptom** — exact wording (helps map to one of the 5 issues).
+2. **Affected resource(s)** — which spoke / branch / hub / connection.
+3. **Recent changes** — routing intent toggled? new connection? firewall rule update? NVA upgrade?
+4. **Effective-routes export available?** — if not, that's step 1.
+5. **Connection provisioning states** — already known or to be checked?
+6. **BGP / VPN tunnel state** if known.
+7. **Time window** — when did it last work? aligns with change history.
+8. **Authorisation** — operator must have Network Contributor / Reader to run the CLI.
 
-3. **VNet connection `internetSecurity` mismatch:** If routing intent is enabled but specific VNet connections have `internetSecurity=false`, those spokes will not receive the default route. **Resolution:** Update the VNet connection:
+---
 
-```bash
-az network vhub connection update \
-  --name "conn-spoke-web" \
-  --resource-group "rg-networking" \
-  --vhub-name "hub-eastus" \
-  --internet-security true
-```
+## Workflow
 
-## BGP Learned Routes from NVA
+1. **Collect inputs** above.
+2. **Load `VWAN-Troubleshooting`** (and `VWAN-Routing-Intent` if intent changes are in play).
+3. **Always start with effective routes** — `az network vhub get-effective-routes` on the affected hub or specific connection. This is non-negotiable; it eliminates half the failure space immediately.
+4. **Verify connection state** — `Succeeded` provisioning state on the connection; non-`Idle/Active` BGP session; `Connected` VPN status. Most issues surface here.
+5. **Map symptom → issue** using the 5-issue decision tree from the vault page.
+6. **For each candidate root cause, run the resolution step** — never skip the validation CLI; "looks right" is not a verified state.
+7. **If BGP is up but traffic still fails** — run Network Watcher `test-ip-flow` to validate NSG decisions; run Connection Monitor for end-to-end probe + latency.
+8. **For NVA issues** — separately verify the NVA's own health (IP forwarding, interface state, BGP session) in addition to the vWAN-side BGP connection.
+9. **Emit** the diagnosis + the exact remediation CLI/portal action + how to verify the fix.
+10. **Recommend ongoing monitoring** for the failure mode — Connection Monitor for connectivity, Azure Monitor metrics for VPN gateway throughput, Azure Firewall logs for east-west drops.
 
-To inspect BGP routes learned from an NVA or spoke-based BGP peer:
+---
 
-```bash
-# List BGP connections on the hub
-az network vhub bgpconnection list \
-  --resource-group "rg-networking" \
-  --vhub-name "hub-eastus" \
-  --output table
+## Output format
 
-# Show learned routes from a specific BGP connection
-az network vhub bgpconnection list-learned-routes \
-  --name "bgp-to-spoke-nva" \
-  --resource-group "rg-networking" \
-  --vhub-name "hub-eastus" \
-  --output json
+Every troubleshoot answer should emit:
 
-# Show advertised routes to a specific BGP peer
-az network vhub bgpconnection list-advertised-routes \
-  --name "bgp-to-spoke-nva" \
-  --resource-group "rg-networking" \
-  --vhub-name "hub-eastus" \
-  --output json
-```
+1. **Diagnosis summary** — one line; which of the 5 issues this matches.
+2. **What I'd check first** — the effective-routes / connection-state CLI sequence.
+3. **Likely root cause** — narrowed list, ordered by probability.
+4. **Resolution steps** — the exact CLI / portal action + the verification step that confirms the fix.
+5. **Why this won't recur** — the monitoring or policy guard to put in place.
+6. **CLI snippets** — quote the vault page; don't invent flags.
+7. **Pointer to design skills** if the fix surfaces a design gap.
+8. **What this excludes** — design (vwan-design), policy (routing-intent), branch config (branch-connectivity).
+9. **Footer** — `Analysis only — verify against vendor documentation before applying.`
 
-Verify that:
+---
 
-- The NVA's ASN is not 65520 (reserved for the hub router)
-- Expected prefixes appear in learned routes with correct next-hop IPs
-- The BGP session state shows `Connected` (not `Idle` or `Active`)
+## Common workflow mistakes (do not repeat these)
 
-## Common Issues and Troubleshooting Steps
-
-### Issue 1: Spoke Cannot Reach Spoke
-
-**Symptoms:** VMs in spoke-A cannot ping or connect to VMs in spoke-B, both connected to the same hub.
-
-**Troubleshooting steps:**
-
-1. Verify both VNet connections are in `Succeeded` provisioning state
-2. Check effective routes on both VNet connections — confirm each spoke's prefix appears in the other's routes
-3. If routing intent (private traffic policy) is enabled, verify Azure Firewall has a network rule allowing traffic between the spoke ranges
-4. Check NSGs on source and destination subnets for deny rules
-5. Verify there are no conflicting UDRs on spoke subnets overriding hub-injected routes
-
-```bash
-# Verify spoke-A effective routes include spoke-B prefix
-az network vhub get-effective-routes \
-  --name "hub-eastus" \
-  --resource-group "rg-networking" \
-  --resource-type "HubVirtualNetworkConnection" \
-  --resource-id "/subscriptions/{sub-id}/resourceGroups/rg-networking/providers/Microsoft.Network/virtualHubs/hub-eastus/hubVirtualNetworkConnections/conn-spoke-a"
-```
-
-### Issue 2: Internet Breakout Not Working
-
-**Symptoms:** VMs in spoke VNets cannot reach the internet despite routing intent internet traffic policy being enabled.
-
-**Troubleshooting steps:**
-
-1. Confirm routing intent is enabled and the internet traffic policy has the correct next-hop (Azure Firewall or NVA)
-2. Verify the VNet connection has `internetSecurity=true`
-3. Check effective routes on the spoke — 0.0.0.0/0 should point to the firewall/NVA
-4. Verify Azure Firewall application rules or network rules allow outbound internet access
-5. Check Azure Firewall diagnostic logs for denied traffic
-
-```bash
-az network vhub routing-intent show \
-  --name "routing-intent-eastus" \
-  --resource-group "rg-networking" \
-  --vhub "hub-eastus" \
-  --query "routingPolicies[?destinations[0]=='Internet']"
-```
-
-### Issue 3: ExpressRoute Routes Not Propagating
-
-**Symptoms:** On-premises prefixes learned via ExpressRoute do not appear in spoke VNet effective routes.
-
-**Troubleshooting steps:**
-
-1. Verify the ExpressRoute circuit is in `Provisioned` state with the provider
-2. Confirm private peering is configured and BGP sessions are established
-3. Check the ExpressRoute gateway connection state in the hub
-4. Verify route filters are not blocking expected prefixes
-5. If routing intent private policy is active, confirm that on-premises prefixes are not being overridden by RFC1918 supernets
-
-```bash
-az network express-route show \
-  --name "er-circuit-datacenter" \
-  --resource-group "rg-er" \
-  --query "{circuitProvisioningState:circuitProvisioningState,serviceProviderProvisioningState:serviceProviderProvisioningState,peerings:peerings[].{name:name,state:state,peerASN:peerASN}}" \
-  --output json
-```
-
-### Issue 4: VPN Tunnel Not Establishing
-
-**Symptoms:** S2S VPN connection shows `NotConnected` or `Connecting` status indefinitely.
-
-**Troubleshooting steps:**
-
-1. Verify the VPN site public IP is correct and reachable
-2. Confirm pre-shared key matches on both ends
-3. Check IKE/IPsec proposals — hub defaults may not match branch CPE configuration
-4. Verify BGP ASN on the VPN site matches the branch router's configured ASN
-5. Check for NAT or firewall rules blocking UDP 500/4500 on the branch side
-
-```bash
-az network vpn-gateway connection show \
-  --name "conn-branch-newyork" \
-  --resource-group "rg-networking" \
-  --gateway-name "vpn-gw-eastus" \
-  --query "{connectionStatus:connectionStatus,sharedKey:sharedKey,enableBgp:enableBgp,ipsecPolicies:ipsecPolicies}"
-```
-
-### Issue 5: NVA Not Receiving Traffic
-
-**Symptoms:** Traffic between spokes or from branches bypasses the NVA even though it should be the next hop.
-
-**Troubleshooting steps:**
-
-1. Verify routing intent is configured with the NVA as the next hop (not Azure Firewall)
-2. Check the NVA resource ID in the routing intent policy matches the deployed NVA
-3. Confirm BGP peering between the NVA and hub router is in `Connected` state
-4. Verify the NVA is advertising routes and the hub is learning them
-5. Check NVA health — ensure the appliance is forwarding traffic (IP forwarding enabled, interfaces up)
-
-```bash
-az network virtual-appliance show \
-  --name "nva-fortinet-eastus" \
-  --resource-group "rg-networking" \
-  --query "{provisioningState:provisioningState,virtualApplianceAsn:virtualApplianceAsn,virtualApplianceNics:virtualApplianceNics}" \
-  --output json
-```
-
-## Diagnostic Tools
-
-### Network Watcher
-
-- **IP Flow Verify:** Test if a packet is allowed or denied by NSG rules between source and destination
-- **Next Hop:** Determine the next hop for a packet from a spoke VM — validates that the hub-injected route is effective at the VM level
-- **Connection Troubleshoot:** End-to-end connectivity test including latency and packet loss
-
-```bash
-az network watcher test-ip-flow \
-  --direction Outbound \
-  --local "10.1.0.4:*" \
-  --remote "10.2.0.4:443" \
-  --protocol TCP \
-  --vm "/subscriptions/{sub-id}/resourceGroups/rg-spokes/providers/Microsoft.Compute/virtualMachines/vm-spoke-a" \
-  --output json
-```
-
-### Connection Monitor
-
-Configure continuous monitoring of branch-to-spoke and spoke-to-spoke connectivity. Connection Monitor uses the Network Watcher agent extension on VMs and supports TCP, ICMP, and HTTP test protocols. Alerts can be triggered on latency thresholds or connectivity loss.
-
-## Reference
-
-- vWAN troubleshooting: https://learn.microsoft.com/en-us/azure/virtual-wan/virtual-wan-troubleshoot
-- Effective routes: https://learn.microsoft.com/en-us/azure/virtual-wan/effective-routes-virtual-hub
-- Network Watcher: https://learn.microsoft.com/en-us/azure/network-watcher/network-watcher-overview
+1. **Skipping `az network vhub get-effective-routes`.** It is the single most useful diagnostic. Without it you're guessing.
+2. **Trusting "BGP up" as proof traffic flows.** BGP can be up while data plane drops everything. Pair with synthetic probe.
+3. **Touching firewall rules before validating the route plane.** If the route doesn't reach the firewall, no rule change will help. Routes first, rules second.
+4. **Forgetting `internetSecurity` on the connection.** "Routing intent is enabled but my spoke still goes out via Azure default" almost always means `internetSecurity=false` on that connection.
+5. **Assuming the NVA's BGP session implies a healthy data plane.** Verify IP forwarding + interface state + NVA-internal route table separately.
+6. **Quoting BGP timers / ASN limits from memory.** Hub router uses AS 65520; do not configure NVAs with that ASN. Cite the vault page.
+7. **Running `test-ip-flow` without the correct source/destination semantics.** It tests NSGs only — not effective routes, not firewall rules. Use Connection Monitor for end-to-end.
+8. **Treating "Issue 4 VPN not establishing" as Azure-side only.** Branch CPE IKE proposals / MTU / NAT-T traversal account for most VPN failures. Always validate both ends.
+9. **No remediation verification step.** "I removed the static route" without re-exporting effective routes isn't a verified fix.
+10. **Closing a ticket without a monitor.** The same misconfig will recur. Add a Connection Monitor + alert before closing.
 
 **Analysis only — verify against vendor documentation before applying.**

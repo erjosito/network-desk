@@ -1,128 +1,109 @@
-# vwan_routing_intent — Routing Intent and Routing Policies
+# Skill: Routing Intent & Routing Policies (`vwan_skill_routing_intent`)
 
-## Overview
+Design Azure Virtual WAN routing intent (declarative steering of internet + private traffic through Azure Firewall or NVA in the secured hub). Owns the policy-selection methodology (internet-only / private-only / both / neither), the multi-hub double-inspection trade-off, and the migration discipline (existing custom route tables → routing intent). Per-cloud CLI (`az network vhub routing-intent` create/show/update/delete), exact `internetSecurity` flag behaviour, and the per-spoke route-injection model live in the vault.
 
-Routing intent is a mechanism in Azure Virtual WAN that simplifies how traffic is steered through a security solution (Azure Firewall or a supported NVA) deployed in a secured virtual hub. Instead of manually configuring static routes, custom route tables, and UDRs on spoke VNets, routing intent uses declarative policies to automatically program the required routes across all connected resources.
+---
 
-Routing intent supports two independent policy types that can be enabled separately or together:
+## Knowledge loading contract
 
-- **Internet Traffic Policy:** Routes 0.0.0.0/0 (default route) through the specified next-hop resource (Azure Firewall or NVA) for internet-bound traffic inspection.
-- **Private Traffic Policy:** Routes private traffic between connected VNets, branches, VPN sites, and ExpressRoute circuits through the specified next-hop resource for east-west and hybrid inspection. Microsoft defines this by connected private destinations, not only RFC1918 aggregates; verify the current model: https://learn.microsoft.com/en-us/azure/virtual-wan/how-to-routing-policies.
+This is a **thin specialist skill**. It owns the policy decision (when to enable internet, private, or both), the multi-hub double-inspection caveat, the firewall-capacity sizing reminder, and the route-validation discipline (always export effective routes before + after enabling intent). The CLI examples, route-injection model, exact `internetSecurity` flag mechanics, and `PrivateTraffic` destination semantics live in the vault.
 
-## How Routing Intent Changes Effective Routes
+Mandatory steps every time you use this skill:
 
-When routing intent is enabled, the hub automatically injects routes into the effective route tables of all connected VNets, VPN connections, and ExpressRoute connections:
+1. Call `cn_vault_page({ page: "VWAN-Routing-Intent" })` for canonical CLI / route-injection / `internetSecurity` mechanics / `PrivateTraffic` destination semantics / pitfalls.
+2. Cite the vault page when stating CLI flags, default-route propagation behaviour, or per-cloud limits.
 
-### Internet Traffic Policy Enabled
+If a scenario / NVA vendor isn't covered, fall back to `cn_search({ query: "<keywords>", specialist: "cn_vwan" })`.
 
-- All connected spoke VNets receive 0.0.0.0/0 with next hop = Azure Firewall or NVA in the hub
-- Spoke VNets no longer break out to the internet directly; all internet traffic is forced through the hub security stack
-- The hub advertises 0.0.0.0/0 to VPN and ExpressRoute connected branches (configurable)
+---
 
-### Private Traffic Policy Enabled
+## When to use routing-intent
 
-- Connected spoke, branch, VPN, and ExpressRoute private destinations are steered to Azure Firewall or the selected NVA
-- Spoke-to-spoke traffic that previously routed directly through the hub router now transits through the firewall or NVA
-- Branch-to-spoke, branch-to-branch, and hybrid private traffic are also routed through the security stack
-- Effective routes are generated from the hub's connected and learned private prefixes; confirm behavior with `az network vhub get-effective-routes` before and after enabling the policy
+| Scenario | Behaviour |
+|---|---|
+| "Steer internet egress through Azure Firewall in the secured hub" | Enable Internet Traffic Policy with the firewall as next hop |
+| "Inspect spoke-to-spoke / branch-to-spoke / hybrid private traffic" | Enable Private Traffic Policy |
+| "Zero-trust at the vWAN hub" | Enable both policies; warn on firewall capacity + cost |
+| "Why isn't 0.0.0.0/0 reaching my spoke?" | Check `internetSecurity=true` on the connection |
+| Multi-hub design — should inspect twice? | Surface double-inspection latency + cost; consider custom route tables for inter-hub flows |
+| Migrating from custom route tables + static routes | Migration window + effective-routes validation discipline |
+| Custom route tables / static UDR / inter-hub direct flows | Redirect: `cn_skill({ specialist: "cn_vwan", skill: "vwan-design" })` |
+| NVA-in-hub selection or sizing | Redirect: `cn_skill({ specialist: "cn_vwan", skill: "vwan-design" })` |
+| Secured hub design + firewall policy in vWAN context | Redirect: `cn_skill({ specialist: "cn_vwan", skill: "secured-vhub-design" })` |
+| Effective-routes / connection-state troubleshooting | Redirect: `cn_skill({ specialist: "cn_vwan", skill: "troubleshoot" })` |
+| Branch connectivity / VPN site config | Redirect: `cn_skill({ specialist: "cn_vwan", skill: "branch-connectivity" })` |
+| Firewall capacity / SKU choice | Redirect: `cn_skill({ specialist: "cn_fw", skill: "config-gen" })` and `cn_skill({ specialist: "cn_ncap", skill: "gateway-sizing" })` |
 
-### Both Policies Enabled
+---
 
-When both internet and private traffic policies are enabled simultaneously, all traffic — internet-bound, spoke-to-spoke, branch-to-spoke, and branch-to-branch — is inspected by the designated security resource. This is the recommended configuration for zero-trust network architectures.
+## Reference pages (load these first)
 
-## Inter-Hub Routing with Routing Intent
+| Topic | Vault page | Load with |
+|---|---|---|
+| Canonical routing-intent — policy types, route injection, `internetSecurity` flag, `PrivateTraffic` semantics, inter-hub double inspection, CLI, pitfalls | [[VWAN-Routing-Intent]] | `cn_vault_page({ page: "VWAN-Routing-Intent" })` |
+| Virtual WAN topology (paired when designing the surrounding hub) | [[Virtual-WAN]] | `cn_vault_page({ page: "Virtual-WAN" })` |
+| Troubleshooting (paired when validating effective routes before/after) | [[VWAN-Troubleshooting]] | `cn_vault_page({ page: "VWAN-Troubleshooting" })` |
 
-In multi-hub deployments where routing intent is enabled on both hubs:
+Row #1 is mandatory.
 
-- Traffic between spokes connected to different hubs is inspected by the firewall/NVA in **both** hubs (double inspection — source hub egress and destination hub ingress)
-- The hub router exchanges connected and learned private prefixes between hubs, ensuring that inter-hub private traffic is also steered through the security stack
-- Each hub independently enforces its own routing intent policies; there is no cross-hub policy inheritance
+---
 
-**Important:** Double firewall inspection in multi-hub scenarios can introduce latency and increase firewall processing costs. Consider this when designing multi-hub topologies with routing intent.
+## Required inputs — collect before answering
 
-## Implications for Spoke-to-Spoke Traffic
+1. **Policy intent** — internet-only / private-only / both / neither + zero-trust posture.
+2. **Next-hop choice** — Azure Firewall (recommend default) or supported NVA.
+3. **Number of hubs** — single or multi; if multi, accept double-inspection or not.
+4. **Existing static / custom route tables** — will be overridden by intent; migration window needed.
+5. **Non-RFC1918 private address space** — CGNAT, partner, public-owned private-use; validate that effective routes still steer correctly.
+6. **Hybrid path** — ExpressRoute / VPN; consistent prefix advertisement from on-prem to avoid asymmetric flows.
+7. **Firewall capacity** — sustained + peak; sized to absorb all east-west + north-south.
 
-Without routing intent, spoke-to-spoke traffic within the same hub routes directly through the hub router without inspection. With private traffic policy enabled:
+---
 
-- All spoke-to-spoke traffic is hair-pinned through the Azure Firewall or NVA
-- Azure Firewall network rules and application rules apply to east-west flows
-- Firewall logs capture all spoke-to-spoke traffic for auditing and compliance
-- Throughput between spokes is constrained by the firewall's capacity (up to 30+ Gbps for Azure Firewall Premium)
+## Workflow
 
-## Default Route Injection (0.0.0.0/0)
+1. **Collect inputs** above.
+2. **Load `VWAN-Routing-Intent`**.
+3. **Pick the policy** — internet-only is uncommon; private-only when internet egress is local at spokes; both for zero-trust.
+4. **Validate firewall capacity** — combined throughput of spoke-to-spoke + branch-to-spoke + internet must fit (≤30 Gbps Azure Firewall Premium). If not, redirect to `cn_ncap` for sizing.
+5. **Plan migration** — before enabling, export effective routes with `az network vhub get-effective-routes`; remove conflicting static routes; pick a maintenance window.
+6. **Verify `internetSecurity=true`** on every spoke that needs the default route; surface the per-spoke opt-out pattern when some spokes should keep local internet egress.
+7. **For non-RFC1918 private address space** — explicitly validate effective routes; do not assume RFC1918-only steering.
+8. **For multi-hub** — surface the double-inspection cost (latency + Azure Firewall data-processed charges) and offer the custom-route-table alternative for inter-hub inspection.
+9. **For ExpressRoute coexistence** — ensure on-prem advertises consistent prefixes; warn on more-specific on-prem routes bypassing intent.
+10. **Plan post-cutover validation** — re-export effective routes, check firewall logs for the expected flows, run synthetic spoke-to-spoke probes.
+11. **Emit** in the format below.
 
-When the internet traffic policy is enabled:
+---
 
-- The 0.0.0.0/0 route is automatically injected into all connected VNet route tables
-- No manual UDR configuration is required on spoke subnets
-- VNet connections must have the `internetSecurity` flag set to `true` (also called "Propagate Default Route") to receive the 0.0.0.0/0 route
-- If `internetSecurity` is set to `false` on a VNet connection, that specific spoke will **not** receive the default route and will use its own internet path
+## Output format
 
-## Private Traffic Destinations
+Every routing-intent answer should emit:
 
-The private traffic policy is not limited to the three RFC1918 ranges. Treat `PrivateTraffic` as the set of connected and learned private destinations for the vWAN hub, including VNet address spaces, branch prefixes, VPN sites, and ExpressRoute-advertised prefixes. If your environment uses non-RFC1918 ranges such as CGNAT or partner-owned private space, validate the generated effective routes instead of assuming static RFC1918-only behavior.
+1. **Inputs assumed** — one line each.
+2. **Policy choice** — internet / private / both + rationale.
+3. **Next-hop** — Azure Firewall or NVA + resource ID pattern.
+4. **`internetSecurity` plan** — per-spoke; flag opt-outs.
+5. **Firewall capacity check** — required vs. SKU max; redirect to `cn_ncap` if undersized.
+6. **Migration plan** — maintenance window + pre-cutover route export + static-route removal + post-cutover validation.
+7. **Multi-hub stance** — single hub or accept double inspection / use custom route tables for inter-hub.
+8. **Non-RFC1918 validation step** if applicable.
+9. **CLI pointer** — the exact `az network vhub routing-intent create/update` snippet from the vault.
+10. **What this excludes** — firewall rule design / NVA vendor selection / VPN site config / spoke peering.
+11. **Footer** — `Analysis only — verify against vendor documentation before applying.`
 
-Before and after enabling routing intent, export hub effective routes and firewall logs to confirm that each intended private prefix is steered through the security resource.
+---
 
-## CLI Commands
+## Common workflow mistakes (do not repeat these)
 
-### Enable Routing Intent with Both Policies
-
-```bash
-az network vhub routing-intent create \
-  --name "routing-intent-eastus" \
-  --resource-group "rg-networking" \
-  --vhub "hub-eastus" \
-  --routing-policies "[{name:InternetTraffic,destinations:[Internet],nextHop:/subscriptions/{sub-id}/resourceGroups/rg-networking/providers/Microsoft.Network/azureFirewalls/fw-hub-eastus},{name:PrivateTrafficPolicy,destinations:[PrivateTraffic],nextHop:/subscriptions/{sub-id}/resourceGroups/rg-networking/providers/Microsoft.Network/azureFirewalls/fw-hub-eastus}]"
-```
-
-### Show Current Routing Intent Configuration
-
-```bash
-az network vhub routing-intent show \
-  --name "routing-intent-eastus" \
-  --resource-group "rg-networking" \
-  --vhub "hub-eastus" \
-  --output json
-```
-
-### Update Routing Intent (Change Next Hop to NVA)
-
-```bash
-az network vhub routing-intent update \
-  --name "routing-intent-eastus" \
-  --resource-group "rg-networking" \
-  --vhub "hub-eastus" \
-  --routing-policies "[{name:InternetTraffic,destinations:[Internet],nextHop:/subscriptions/{sub-id}/resourceGroups/rg-networking/providers/Microsoft.Network/networkVirtualAppliances/nva-hub-eastus},{name:PrivateTrafficPolicy,destinations:[PrivateTraffic],nextHop:/subscriptions/{sub-id}/resourceGroups/rg-networking/providers/Microsoft.Network/networkVirtualAppliances/nva-hub-eastus}]"
-```
-
-### Delete Routing Intent
-
-```bash
-az network vhub routing-intent delete \
-  --name "routing-intent-eastus" \
-  --resource-group "rg-networking" \
-  --vhub "hub-eastus" \
-  --yes
-```
-
-## Common Pitfalls and Best Practices
-
-1. **Forgetting `internetSecurity` on VNet connections:** If a spoke VNet connection has `internetSecurity` set to `false`, it will not receive the 0.0.0.0/0 default route even when routing intent is enabled. Always verify this flag on all VNet connections.
-
-2. **Non-RFC1918 address space:** Do not assume behavior from address class alone. Validate that CGNAT, partner, or public-owned private-use prefixes appear in the hub effective routes and are steered through the intended security resource.
-
-3. **Asymmetric routing with ExpressRoute:** When private traffic policy is enabled, return traffic from on-premises may bypass the firewall if ExpressRoute routes are more specific than the policy-generated private routes. Ensure consistent route advertisement from on-premises.
-
-4. **Firewall capacity planning:** Enabling routing intent forces all traffic through the firewall. Size Azure Firewall or NVA capacity to handle the combined throughput of all spoke-to-spoke, branch-to-spoke, and internet traffic.
-
-5. **Migration from custom route tables:** When enabling routing intent on an existing hub with custom route tables and static routes, routing intent takes precedence and may override existing configurations. Plan a maintenance window and validate effective routes after enabling.
-
-6. **Inter-hub double inspection:** In multi-hub deployments, traffic between hubs is inspected twice. If this is undesirable, consider using custom route tables instead of routing intent for inter-hub flows.
-
-## Reference
-
-- Routing intent overview: https://learn.microsoft.com/en-us/azure/virtual-wan/how-to-routing-policies
-- Virtual WAN routing: https://learn.microsoft.com/en-us/azure/virtual-wan/about-virtual-hub-routing
+1. **Enabling intent on a hub with custom static routes still present.** Intent overrides; the static routes are removed/ignored, often silently breaking traffic paths. Always export + remove first.
+2. **Forgetting `internetSecurity=true`.** Spokes silently keep their original internet path; the firewall log doesn't show the flow and you assume "everything is going through the firewall". Validate per-spoke.
+3. **Sizing the firewall for pre-intent throughput.** After intent, the firewall sees *all* east-west + north-south. Re-size against the new combined load.
+4. **Promising RFC1918-only steering.** `PrivateTraffic` is "connected and learned private destinations", not a hard-coded RFC1918 trio. CGNAT / partner / public-owned private-use must be validated against effective routes.
+5. **Multi-hub design with intent on both hubs and no double-inspection awareness.** Traffic between hubs is inspected twice → latency + cost spike. Surface the trade-off and offer the custom-route-table inter-hub alternative.
+6. **Mixing next-hop types within a single policy.** Internet and Private must use the same next-hop resource type. Use one NVA that handles both, or chain via BGP.
+7. **Skipping post-cutover validation.** Effective routes look right via CLI, but a missing firewall rule silently drops east-west. Pair CLI validation with synthetic probes + firewall log inspection.
+8. **Asymmetric returns on ExpressRoute.** When on-prem advertises more specific prefixes than the hub's policy-generated private routes, return traffic bypasses the firewall. Standardise prefix lengths.
+9. **No rollback plan.** Intent is a single resource — but the routing change ripples to every spoke. Keep the pre-cutover effective-routes export so you can compare on rollback.
 
 **Analysis only — verify against vendor documentation before applying.**
