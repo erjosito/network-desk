@@ -10,13 +10,14 @@
 // report-builder
 
 import { joinSession } from "@github/copilot-sdk/extension";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname, join, sep, relative } from "node:path";
 import { search as vaultSearch, formatResults as formatSearch } from "./lib/vault-search.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SPECIALISTS = join(HERE, "specialists");
+const VAULT_ROOT = join(HERE, "vault");
 
 // ── Update check ───────────────────────────────────────────────────────
 // Lightweight, async, throttled check against the GitHub repo for a newer
@@ -79,6 +80,84 @@ async function checkForUpdate(session) {
     } catch {
         // never crash the extension because of an update check
     }
+}
+
+// ── Vault page loader (used by cn_vault_page) ──────────────────────────
+// Lazily builds a slug → absolute-path map the first time cn_vault_page is
+// called. The vault is immutable per session so the map is cached for the
+// lifetime of the extension load.
+
+let vaultSlugMapPromise = null;
+
+async function buildVaultSlugMap() {
+    const map = new Map(); // slug -> [absolute paths]
+    async function walk(dir) {
+        let entries;
+        try { entries = await readdir(dir, { withFileTypes: true }); } catch { return; }
+        for (const e of entries) {
+            if (e.name.startsWith(".")) continue; // .obsidian/
+            const full = join(dir, e.name);
+            if (e.isDirectory()) {
+                await walk(full);
+            } else if (e.isFile() && e.name.endsWith(".md")) {
+                const slug = e.name.slice(0, -3);
+                if (!map.has(slug)) map.set(slug, []);
+                map.get(slug).push(full);
+            }
+        }
+    }
+    await walk(VAULT_ROOT);
+    return map;
+}
+
+function vaultSlugMap() {
+    if (!vaultSlugMapPromise) vaultSlugMapPromise = buildVaultSlugMap();
+    return vaultSlugMapPromise;
+}
+
+// Resolve a user-supplied `page` argument to an absolute file path under VAULT_ROOT.
+// Accepts:
+//   - slug only:              "Private-Link-Service"
+//   - slug with .md:          "Private-Link-Service.md"
+//   - relative path:          "Services/Azure/Private-Link-Service.md"
+//   - relative without .md:   "Services/Azure/Private-Link-Service"
+//   - with leading vault/:    "vault/Services/Azure/Private-Link-Service.md"
+// Returns:
+//   - string (absolute path) on success
+//   - { ambiguous: [...rel paths] } when a slug matches multiple files
+//   - null on no match or path-traversal attempt
+async function resolveVaultPath(input) {
+    if (!input || typeof input !== "string") return null;
+    const cleaned = input
+        .replace(/\\/g, "/")
+        .replace(/^vault\//i, "")
+        .replace(/\.md$/i, "")
+        .replace(/^\/+/, "");
+    if (!cleaned) return null;
+
+    // Strategy 1: looks like a relative path → try it directly under vault.
+    if (cleaned.includes("/")) {
+        const candidate = join(VAULT_ROOT, cleaned + ".md");
+        // Path safety: must stay strictly inside VAULT_ROOT.
+        const rel = relative(VAULT_ROOT, candidate);
+        if (!rel || rel.startsWith("..") || rel.startsWith(sep + "..")) return null;
+        try {
+            await readFile(candidate, "utf8");
+            return candidate;
+        } catch { /* fall through to slug lookup */ }
+    }
+
+    // Strategy 2: slug lookup.
+    const slug = cleaned.split("/").pop();
+    const map = await vaultSlugMap();
+    const matches = map.get(slug);
+    if (!matches || matches.length === 0) return null;
+    if (matches.length === 1) return matches[0];
+    return {
+        ambiguous: matches
+            .map((p) => relative(VAULT_ROOT, p).replace(/\\/g, "/"))
+            .sort(),
+    };
 }
 
 // ── File loaders ───────────────────────────────────────────────────────
@@ -676,7 +755,8 @@ const tools = [
             "BM25-style search over the cloud networking knowledge vault (~170 pages: Services × Topics × Patterns × Vendors). " +
             "Returns ranked page summaries with snippets and optional 1-hop wikilink expansion. " +
             "Use when you don't yet know which specialist's skill covers a topic, when you want broad context across specialists, " +
-            "or to look up vendor-specific guidance. Complements `cn_skill` (which loads one specific page).",
+            "or to look up vendor-specific guidance. Complements `cn_skill` (which loads one specific page). " +
+            "After identifying the page you need, call `cn_vault_page` to retrieve its full markdown body.",
         parameters: {
             type: "object",
             properties: {
@@ -717,6 +797,47 @@ const tools = [
                 expandLinks: args?.expand_links === true,
             });
             return formatSearch(result);
+        },
+    },
+    {
+        name: "cn_vault_page",
+        description:
+            "Load the FULL markdown body of one vault page (Service / Topic / Pattern / Vendor). " +
+            "Use this after `cn_search` identifies the page you need — `cn_search` only returns short snippets, " +
+            "this tool returns the complete page. Also used by thin specialist skills that reference a vault page by name. " +
+            "Accepts either a slug (filename without `.md`, e.g. `Private-Link-Service`) or a relative path " +
+            "(e.g. `Services/Azure/Private-Link-Service.md`).",
+        parameters: {
+            type: "object",
+            properties: {
+                page: {
+                    type: "string",
+                    description: "Vault page slug or relative path under `vault/`. Examples: `Private-Link-Service`, `Services/Azure/Private-Link-Service.md`, `Vendors/PAN-OS`. The `.md` extension and a leading `vault/` are tolerated.",
+                },
+            },
+            required: ["page"],
+        },
+        skipPermission: true,
+        handler: async (args) => {
+            const resolved = await resolveVaultPath(args?.page);
+            if (!resolved) {
+                return {
+                    textResultForLlm:
+                        `No vault page found for "${args?.page}". ` +
+                        `Call \`cn_search\` to find candidate pages, then retry \`cn_vault_page\` with the slug or path from the search results.`,
+                    resultType: "failure",
+                };
+            }
+            if (typeof resolved === "object" && resolved.ambiguous) {
+                return {
+                    textResultForLlm:
+                        `Ambiguous slug "${args?.page}" — matches multiple pages:\n` +
+                        resolved.ambiguous.map((p) => `  - ${p}`).join("\n") +
+                        `\nRetry with the full relative path (e.g. \`${resolved.ambiguous[0]}\`).`,
+                    resultType: "failure",
+                };
+            }
+            return loadFile(resolved);
         },
     },
 ];
@@ -763,10 +884,11 @@ async function validateRegistry(session) {
 const MENTION_RE = /(^|[^\w])@?network[\s_-]?desk\b/i;
 
 const TOOL_USAGE_NOTE =
-    "You MUST use ONLY these network-desk tools: `cn_route`, `cn_role`, `cn_orchestrate`, `cn_skill`, `cn_search`, `cn_capabilities`. " +
+    "You MUST use ONLY these network-desk tools: `cn_route`, `cn_role`, `cn_orchestrate`, `cn_skill`, `cn_search`, `cn_vault_page`, `cn_capabilities`. " +
     "You MUST NOT read, open, list, or search the specialist files under `specialists/**` or the vault under `vault/**` directly with any file/view/glob/grep/shell tool. " +
-    "Always load specialist content via the registered `cn_role`, `cn_orchestrate`, `cn_skill`, and `cn_search` tools — never by reading the `.md` files yourself. " +
+    "Always load specialist content via the registered `cn_role`, `cn_orchestrate`, `cn_skill`, `cn_search`, and `cn_vault_page` tools — never by reading the `.md` files yourself. " +
     "Names like `cn_vnet_role` or `vnet_skill_address_planner` are NOT registered tools; select the specialist and skill via arguments, e.g. `cn_skill({ specialist: \"cn_vnet\", skill: \"address-planner\" })`. " +
+    "When `cn_search` returns a page snippet that you need in full, call `cn_vault_page({ page: \"<slug-or-path>\" })` — `cn_search` returns only short snippets. " +
     "Respond to the user in natural language — do not list or expose internal tool names.";
 
 // ── Hook state ─────────────────────────────────────────────────────────
@@ -801,7 +923,8 @@ const PRESENCE_NOTE =
     `It bundles ${PREFIXES.length} network-desk specialists: ${SPECIALIST_INLINE}. ` +
     "Discovery tools available right now: `cn_capabilities` (full specialist + skill map), `cn_route` (pick the right specialist for a query), " +
     "`cn_role` (load a specialist's role definition — call this FIRST before answering), `cn_orchestrate` (step-by-step workflow + skill catalog), " +
-    "`cn_skill` (deep guidance for a specific skill), `cn_search` (BM25 search across the knowledge vault — use when you don't know which specialist owns a topic, or to look up vendor-specific guidance). " +
+    "`cn_skill` (deep guidance for a specific skill), `cn_search` (BM25 search across the knowledge vault — use when you don't know which specialist owns a topic, or to look up vendor-specific guidance), " +
+    "`cn_vault_page` (load one vault page in full — call AFTER `cn_search` returns a candidate, since `cn_search` only returns snippets). " +
     "When the user mentions VNets/VPCs, subnets/CIDR/IP planning, firewalls/NSGs/rule audits, load balancers, DNS, Private Link/private endpoints, " +
     "hybrid connectivity (VPN/ExpressRoute/Direct Connect/Interconnect), network security, connectivity troubleshooting/packet capture, " +
     "Virtual WAN/SD-WAN, network monitoring, multi-cloud networking, networking pricing/cost, IaC (Bicep/Terraform/Ansible) for networking, " +
@@ -809,7 +932,7 @@ const PRESENCE_NOTE =
     "'@network-desk' / 'this extension' / 'what can you do' in a networking context — you MUST call `cn_route` (or `cn_capabilities`) FIRST, " +
     "then the matched specialist's `cn_role`, before answering. " +
     "Do NOT answer networking questions from prior/general knowledge, and do NOT read the specialist files under `specialists/**` or the vault under `vault/**` directly — " +
-    "load ALL specialist content via `cn_role` / `cn_orchestrate` / `cn_skill` / `cn_search`. " +
+    "load ALL specialist content via `cn_role` / `cn_orchestrate` / `cn_skill` / `cn_search` / `cn_vault_page`. " +
     "Never claim network-desk is unavailable: it is loaded. " +
     "Network Desk is analysis-only: it never applies changes, modifies infrastructure, or runs commands against live environments. " +
     "RESPONSE FOOTER (REQUIRED): at the end of EVERY assistant response that touches cloud networking — any turn where you called a `cn_*` tool, " +

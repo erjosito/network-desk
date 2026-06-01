@@ -374,7 +374,7 @@ export function formatResults(r) {
         lines.push("");
         if (meta.length) lines.push(`_${meta.join(" · ")}_`);
         lines.push("");
-        lines.push(`Load full page: \`cn_skill\` or read \`extensions/network-desk/vault/${x.path}\`.`);
+        lines.push(`Load full page: \`cn_vault_page({ page: "${x.path.replace(/\.md$/, "")}" })\`.`);
         lines.push("");
     }
 
