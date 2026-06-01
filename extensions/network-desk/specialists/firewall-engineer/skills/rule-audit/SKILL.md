@@ -1,309 +1,121 @@
-# Skill: Firewall Rule Audit
+# Skill: Firewall Rule Audit (`fw_skill_rule_audit`)
 
-## Purpose
-
-Perform comprehensive firewall rule-base audits across all 14 supported platforms. Identify security risks, operational inefficiencies, and compliance gaps in existing rule sets. Produce a risk-rated findings table with actionable remediation recommendations.
+Audit deployed firewall rule sets across all 14 supported platforms to surface security risk, operational debt, and compliance gaps. Owns the *audit-categories framework* (overly permissive rules, unused rules, shadowed rules, duplicate rules, no-logging rules, no-description rules, expired/temporary-without-expiry rules, any-service rules, broad-source rules, broad-destination rules), the *hit-count-driven prioritisation* (rule with 0 hits in 90d = orphan candidate; rule with millions of hits = re-evaluate for IDS impact), the *risk-summary template* (Critical / High / Medium / Low + impact + remediation), the *audit-cadence mandate* (at least quarterly + on major change + before compliance attestation), the *export-as-structured-data discipline* (JSON / CSV from the firewall API for diff-able + scriptable audits), and the *follow-the-PR-trail mandate* (every remediation goes through the same IaC + PR workflow, never portal). Per-vendor rule export + hit-count retrieval commands, audit-category checklists, risk summary template, and the procedure live in the vault.
 
 ---
 
-## Audit Categories
+## Knowledge loading contract
 
-Every rule audit checks for the following categories:
+This is a **thin specialist skill**. It owns the *audit-categories framework*, the *hit-count-driven prioritisation*, the *risk-summary template*, the *audit-cadence* mandate, the *export-as-structured-data* discipline, and the *PR-driven remediation* rule. Per-vendor rule export commands (PAN-OS API + show-running-config-security, FortiGate REST + diagnose firewall iprope, Check Point cpquery + mgmt_cli, ASA show access-list, SRX get-firewall-policies, Azure FW Resource Graph + diagnostic logs, AWS NFW list-rule-groups + log queries, GCP firewall-rules describe + insights, iptables/nftables list + counters), hit-count retrieval CLI, audit-category checklists, risk summary template, and the procedure live in the vault.
 
-| Category | Description | Risk Level |
-|----------|-------------|------------|
-| **Any/Any Allow** | Rules permitting all sources to all destinations on all services | Critical |
-| **Overly Broad Source/Dest** | Rules using excessively wide CIDR ranges (e.g., /8, /16) or "any" on one axis | High |
-| **Shadow Rules** | Rules that can never match because a broader rule above already handles the traffic | High |
-| **Unused Rules** | Rules with zero hit count over a significant observation period (30+ days) | Medium |
-| **Redundant Rules** | Multiple rules that achieve the same effect — consolidation candidates | Medium |
-| **Expired Time-Based Rules** | Rules with schedule objects whose valid dates have passed | Medium |
-| **Missing Logging** | Allow rules without logging enabled (compliance gap) | Medium |
-| **Disabled Rules** | Rules in disabled state — review for removal or re-enablement | Info |
-| **Documentation Gaps** | Rules without descriptions or comments | Info |
+Mandatory steps every time you use this skill:
+
+1. Call `cn_vault_page({ page: "Firewall-Rule-Audit" })` for audit categories, per-vendor rule export and hit-count CLI, audit output format, risk summary template, and procedure.
+2. For deeper log-driven analysis (top denied, geo anomalies, port scans), redirect to `log-analysis`.
+3. For *hardening* the firewall mgmt + data plane (not the rules themselves), redirect to `hardening-check`.
+
+If a vendor isn't covered, fall back to `cn_search({ query: "<keywords>", specialist: "cn_fw" })`.
 
 ---
 
-## Per-Vendor Rule Export and Hit Count Retrieval
+## When to use rule-audit
 
-### Azure Firewall
-
-```bash
-# Export rule collections via CLI
-az network firewall policy rule-collection-group list \
-  --policy-name <policy> --resource-group <rg> -o json
-
-# Hit counts via Azure Monitor / Log Analytics (KQL)
-AzureDiagnostics
-| where Category == "AzureFirewallNetworkRule" or Category == "AzureFirewallApplicationRule"
-| summarize HitCount=count() by RuleName=msg_s
-| order by HitCount asc
-
-# Structured logs (resource-specific tables — preferred)
-AZFWNetworkRule
-| summarize HitCount=count() by Rule
-| order by HitCount asc
-```
-
-### AWS Network Firewall
-
-```bash
-# List rule groups
-aws network-firewall list-rule-groups --type STATEFUL
-aws network-firewall describe-rule-group --rule-group-arn <arn>
-
-# Hit counts via CloudWatch Metrics
-# Metric: DroppedPackets, PassedPackets per rule group
-aws cloudwatch get-metric-statistics \
-  --namespace AWS/NetworkFirewall \
-  --metric-name PassedPackets \
-  --dimensions Name=FirewallName,Value=<name> \
-  --start-time <30-days-ago> --end-time <now> \
-  --period 2592000 --statistics Sum
-```
-
-### GCP Cloud Firewall
-
-```bash
-# List firewall rules
-gcloud compute firewall-rules list --format=json
-
-# Firewall rule hit counts via Firewall Insights
-# Enable Firewall Rules Logging first:
-gcloud compute firewall-rules update <rule-name> --enable-logging
-
-# Query logs in Cloud Logging
-gcloud logging read 'resource.type="gce_subnetwork" AND jsonPayload.rule_details.reference:*' \
-  --format=json --limit=1000
-```
-
-### Palo Alto Networks (PAN-OS)
-
-```bash
-# Show running security policy
-> show running security-policy
-
-# Rule hit counts
-> show rule-use rule-base security type used
-> show rule-use rule-base security type unused
-
-# Detailed rule usage
-> show running rule-use rule-base security json
-
-# Export via API
-curl -k "https://<firewall>/api/?type=config&action=show&xpath=/config/devices/entry/vsys/entry/rulebase/security" \
-  -H "X-PAN-KEY: <api-key>"
-```
-
-### Fortinet FortiGate (FortiOS)
-
-```bash
-# List firewall policies
-# config firewall policy
-FGT# show firewall policy
-
-# Hit counts
-FGT# diagnose firewall iprope list
-
-# Per-policy hit counts (FortiOS 7.x)
-FGT# get firewall policy <policy-id> | grep -i "bytes\|packets\|hit"
-
-# Export via REST API
-curl -k "https://<fortigate>/api/v2/cmdb/firewall/policy" \
-  -H "Authorization: Bearer <token>"
-```
-
-### Check Point (R81+)
-
-```bash
-# Export rulebase via mgmt_cli
-mgmt_cli show access-rulebase name "Network" details-level full -f json
-
-# Hit counts
-mgmt_cli show access-rulebase name "Network" use-object-dictionary true \
-  hits-settings.from-date "2024-01-01" -f json
-
-# SmartConsole: Policy > Access Control > hit count column (enable if hidden)
-# cpstat fw -f policy for real-time policy stats
-```
-
-### Cisco ASA / Firepower (FTD)
-
-```bash
-# ASA: Show access-lists with hit counts
-ASA# show access-list
-# Output includes hitcnt=<N> per ACE
-
-# Clear hit counts to start fresh observation
-ASA# clear access-list <name> counters
-
-# FTD via FMC REST API
-GET /api/fmc_config/v1/domain/{domainUUID}/policy/accesspolicies/{policyId}/accessrules
-
-# Packet tracer to simulate flow
-ASA# packet-tracer input <iface> tcp <src> <sport> <dst> <dport>
-```
-
-### Juniper SRX
-
-```bash
-# Show security policies with hit counts
-> show security policies hit-count
-
-# Detailed policy listing
-> show security policies detail
-
-# Export config
-> show configuration security policies | display json
-
-# Unused policies (zero hit count)
-> show security policies hit-count | match " 0$"
-```
-
-### Zscaler (ZIA)
-
-```bash
-# ZIA API: List firewall filtering rules
-GET /api/v1/webApplicationRules
-
-# ZIA API: List firewall rules
-GET /api/v1/firewallRules
-
-# Hit counts available in ZIA Admin Portal > Analytics > Firewall Insights
-# NSS feed to SIEM for detailed per-rule analysis
-```
-
-### Sophos XG / XGS
-
-```bash
-# CLI: Show firewall rules
-console> show firewall-rule all
-
-# REST API: List firewall rules
-GET /webconsole/APIController?reqxml=
-<Request>
-  <Login><Username>admin</Username><Password>pass</Password></Login>
-  <Get><FirewallRule></FirewallRule></Get>
-</Request>
-
-# Log Viewer in web GUI for hit counts per rule
-```
-
-### OPNsense
-
-```bash
-# REST API: List filter rules
-curl -u "<key>:<secret>" \
-  "https://<opnsense>/api/firewall/filter/searchRule"
-
-# Show loaded ruleset via pfctl
-pfctl -sr          # show rules
-pfctl -vsr         # verbose with hit counts (evaluations, packets, bytes)
-pfctl -ss          # show state table
-
-# Export config.xml for offline analysis
-curl -u "<key>:<secret>" \
-  "https://<opnsense>/api/core/backup/download/this"
-```
-
-### pfSense
-
-```bash
-# Show loaded rules with hit counts
-pfctl -vsr
-
-# Show state table
-pfctl -ss
-
-# Export config via GUI: Diagnostics > Backup & Restore
-# Or via xmlrpc / config.xml directly
-
-# Per-rule counters visible in GUI: Firewall > Rules > hit count column
-# easyrule utility for quick rule inspection context
-```
-
-### VyOS
-
-```bash
-# Show firewall rulesets
-$ show firewall
-
-# Show firewall statistics (hit counts)
-$ show firewall name <ruleset-name> statistics
-
-# Show specific rule details
-$ show firewall name <ruleset-name> rule <n>
-
-# Export configuration
-$ show configuration commands | grep firewall
-```
-
-### iptables / nftables
-
-```bash
-# iptables: List all rules with hit counts
-iptables -L -v -n --line-numbers
-iptables -L FORWARD -v -n --line-numbers
-
-# NAT rules
-iptables -t nat -L -v -n --line-numbers
-
-# Zero counters to start observation
-iptables -Z
-
-# nftables: List all rules with counters
-nft list ruleset
-nft list chain inet filter forward
-
-# Export for offline analysis
-iptables-save > fw-export.txt
-nft list ruleset > nft-export.txt
-```
+| Scenario | Behaviour |
+|---|---|
+| "Quarterly firewall audit for compliance" | Apply categories + per-vendor export + hit-count + risk-rank + remediation plan |
+| "Find unused rules in our PAN-OS" | Export rules + hit counts; rules with 0 hits in N days = orphan candidates |
+| "Are any rules shadowed?" | Vendor analyser (PAN-OS expedition / Check Point SmartOptimize / FortiGate policy lookup) + manual cross-check |
+| "We have rules with any/any source — find them" | Run the broad-source audit category from vault |
+| "Reduce rule count before vendor migration" | Audit + dedupe + consolidate; ties to `vendor-migrate` |
+| Hardening mgmt-plane (MFA / source IP / encrypted protocols) | Redirect: `cn_skill({ specialist: "cn_fw", skill: "hardening-check" })` |
+| Log hunting (anomalies, top talkers, brute-force) | Redirect: `cn_skill({ specialist: "cn_fw", skill: "log-analysis" })` |
+| Generating fixed rule snippets from audit findings | Redirect: `cn_skill({ specialist: "cn_fw", skill: "config-gen" })` |
+| Testing the cleaned-up rule base | Redirect: `cn_skill({ specialist: "cn_fw", skill: "policy-test" })` |
+| Migrating to another vendor after cleanup | Redirect: `cn_skill({ specialist: "cn_fw", skill: "vendor-migrate" })` |
 
 ---
 
-## Output Format
+## Reference pages (load these first)
 
-Present findings in the following table format:
+| Topic | Vault page | Load with |
+|---|---|---|
+| Canonical firewall rule-audit reference — audit categories (overly permissive, unused, shadowed, duplicate, no-logging, no-description, expired, any-service, broad-source, broad-destination), per-vendor rule export + hit-count retrieval (PAN-OS, FortiGate, Check Point, ASA, SRX, Azure FW, AWS NFW, GCP, iptables/nftables, Sophos, OPNsense, pfSense, VyOS, Zscaler), output format, risk summary template, procedure | [[Firewall-Rule-Audit]] | `cn_vault_page({ page: "Firewall-Rule-Audit" })` |
 
-| Rule # | Name/ID | Source | Destination | Service | Action | Hit Count | Risk | Finding | Recommendation |
-|--------|---------|-------|-------------|---------|--------|-----------|------|---------|----------------|
-| 5 | Legacy-Any-Allow | any | any | any | Allow | 45,231 | **Critical** | Unrestricted allow rule | Decompose into specific rules by traffic analysis, then disable |
-| 12 | Old-Vendor-Access | 10.0.0.0/8 | 192.168.1.0/24 | TCP/22,443 | Allow | 0 | **Medium** | Unused for 90 days | Disable with monitoring; remove after 30-day hold |
-| 23 | Web-DMZ-Alt | 10.1.0.0/16 | DMZ_Servers | TCP/443 | Allow | 1,203 | **High** | Shadowed by rule 20 | Merge into rule 20 or re-order |
-| 47 | Temp-Migration | 10.5.0.0/16 | DB_Servers | TCP/1433 | Allow | 312 | **Medium** | Schedule expired 2024-01-15 | Remove — expired temporary rule |
+Mandatory.
 
 ---
 
-## Risk Summary Template
+## Required inputs — collect before answering
 
-```
-=== FIREWALL RULE AUDIT SUMMARY ===
-Platform:       [vendor / version]
-Rule Count:     [total]
-Audit Period:   [start] to [end]
-
-Critical:  [N] findings  — Immediate action required
-High:      [N] findings  — Address within 7 days
-Medium:    [N] findings  — Address within 30 days
-Info:      [N] findings  — Best-practice improvements
-
-Top Recommendations:
-1. [Most critical finding and action]
-2. [Second most critical]
-3. [Third]
-```
+1. **Vendor + version**.
+2. **Scope** — single firewall / pair / panorama / multi-cloud / multi-vendor.
+3. **Audit window** — 30 / 60 / 90 days for hit counts.
+4. **Compliance trigger** — PCI / SOC2 / ISO / quarterly / pre-migration.
+5. **Output format expected** — markdown report / CSV / JSON / dashboard.
+6. **Existing PR + IaC workflow** for remediation.
+7. **Tolerance for false positives** — 0-hit rule might be a low-frequency-but-needed rule (DR failover, quarterly batch).
+8. **Stakeholders** — security, network ops, app teams; per-app-team review of "their" rules before deletion.
 
 ---
 
-## Procedure
+## Workflow
 
-1. **Export** the current rule set and hit counts using the vendor-specific commands above.
-2. **Normalize** rules into the common table format (Rule #, Source, Dest, Service, Action, Hit Count).
-3. **Analyze** each rule against the audit categories.
-4. **Score** each finding using the risk levels defined above.
-5. **Recommend** specific remediations — be precise (e.g., "merge rule 23 into rule 20" not "clean up rules").
-6. **Report** using the output format and risk summary template.
+1. **Collect inputs** above.
+2. **Load `Firewall-Rule-Audit`**.
+3. **Export rules** as structured data from vault — JSON or CSV per vendor; one row per rule with name, src, dst, service, action, hit count, last hit, log, description, owner, ticket.
+4. **Run each audit category** from vault:
+   - Overly permissive (any/any/allow)
+   - Unused (0 hits in audit window)
+   - Shadowed (higher-priority allow masks lower-priority specific rule)
+   - Duplicate (identical except in name)
+   - No-logging
+   - No-description
+   - Expired (date in description or tag passed)
+   - Broad-source (`/0` or wildly large CIDR)
+   - Broad-destination
+   - Any-service (no port restriction)
+5. **Risk-rank findings** — Critical (any/any/allow + no log + no description) / High (broad-source + no log) / Medium (no log OR no description) / Low (duplicate).
+6. **For unused rules** — confirm with rule owner (app team) before recommending deletion; flag rules with seasonality (DR failover, quarterly batch) to NOT delete based on 90-day window.
+7. **For shadowed rules** — propose reorder + delete shadowed; never just delete (the design intent might require the specific rule).
+8. **Produce remediation plan** — IaC + PR with the change, NOT portal edits.
+9. **Document evidence** for compliance — exported rule set + audit categories run + risk ranking + remediation plan = audit deliverable.
+10. **Plan next audit cycle** — at least quarterly + after major change + before compliance attestation.
+11. **Surface anti-patterns** — deleting 0-hit rules without owner confirmation, portal remediation, no evidence kept for compliance, audit window <30 days.
+12. **Emit** in the output format below.
 
 ---
+
+## Output format
+
+Every rule-audit answer should emit:
+
+1. **Inputs assumed** — vendor, scope, audit window, compliance trigger.
+2. **Export commands** citing vault per vendor.
+3. **Per-category findings** — overly permissive / unused / shadowed / duplicate / no-log / no-desc / expired / broad-src / broad-dst / any-service, with rule names + counts.
+4. **Risk-ranked list** — Critical / High / Medium / Low with impact + recommended remediation per rule.
+5. **Owner-confirmation list** — rules pending app-team review before deletion.
+6. **Remediation plan** — PR-driven IaC changes, not portal edits.
+7. **Evidence package** for compliance — exported ruleset + categorisation + risk-rank.
+8. **Next audit date.**
+9. **Anti-pattern check** — confirm none of the workflow mistakes below apply.
+10. **What this excludes** — hardening (`hardening-check`), log hunting (`log-analysis`), policy design (`policy-design`), config gen for remediation (`config-gen`), policy testing (`policy-test`).
+11. **Footer** — `Analysis only — verify against vendor documentation before applying.`
+
+---
+
+## Common workflow mistakes (do not repeat these)
+
+1. **Deleting 0-hit rules without owner confirmation.** That rule may be DR failover / quarterly batch / seasonality.
+2. **Audit window < 30 days.** Misses weekly / monthly traffic patterns; false-positive orphans.
+3. **Portal remediation instead of PR.** Drift between IaC and reality; next audit shows the same finding plus new ones.
+4. **No evidence kept** for compliance. Auditor asks "show me your last audit" → "I deleted it" → finding.
+5. **Audit-by-screenshot.** Not diff-able, not scriptable, not repeatable. Always structured export.
+6. **No app-team review of "their" rules** before deletion. Production outage when DR fails over.
+7. **Shadowed rule deleted without reorder.** Original design intent lost.
+8. **Treating broad-source / `/0` as automatic Critical** without considering legitimate cases (CDN edges, partner subnets). Risk-rank with context.
+9. **No audit cadence.** Rules accumulate debt indefinitely; one-off audit is meaningless.
+10. **No cross-vendor consistency** for organisations with mixed vendors. Different categories applied = inconsistent risk picture.
+11. **Auditing rules but not hit-count metadata.** Hit counts are the operational signal; without them only structural findings.
+12. **No correlation with `log-analysis`** for highest-hit and lowest-hit rules. Audit findings without log context are surface-level.
+
 **Analysis only — verify against vendor documentation before applying.**

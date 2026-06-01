@@ -1,216 +1,123 @@
-# Skill: Hardening Checklist
+# Skill: Firewall Hardening Check (`fw_skill_hardening_check`)
 
-## Purpose
-
-Assess firewall configurations against security hardening best practices. Produce a checklist of findings with CIS Benchmark references where available, covering both management plane and data plane hardening across all 14 supported platforms.
+Audit and harden firewall management-plane + data-plane configuration across all 14 supported platforms. Owns the *separate-management-and-data-plane* mandate (mgmt access must not traverse the protected network), the *mandatory-mgmt-access-controls* (MFA, RBAC, allow-listed source IPs, no default credentials, no default ports), the *encrypted-protocols-only* rule (TLS / SSH / IKEv2 — never Telnet / SNMPv1/v2c / clear HTTP), the *least-privilege-RBAC* mandate (no global admin for daily ops), the *audit-log-to-immutable-store* mandate (separate SIEM, retention per compliance), the *signature-up-to-date-with-auto-update* rule (IDS/IPS / threat / URL DB), the *implicit-deny-at-end + no-any/any/allow* policy hygiene, and the *factory-reset-defaults-changed* baseline check (default community strings, default admin, default certificate). Per-vendor hardening specifics, CIS / NIST / vendor benchmark IDs, and the checklist output format live in the vault.
 
 ---
 
-## Universal Hardening Items
+## Knowledge loading contract
 
-These apply to **every** firewall platform regardless of vendor:
+This is a **thin specialist skill**. It owns the *mgmt-vs-data-plane-separation*, the *MFA-+-RBAC-+-source-IP-restriction* on mgmt access, the *encrypted-protocols-only* rule, the *least-privilege-RBAC* mandate, the *immutable-audit-log* mandate, the *auto-update-signatures* rule, the *no-any/any/allow* + *implicit-deny-at-end* hygiene, and the *factory-defaults-changed* baseline. Per-vendor hardening checklists, CIS / NIST mappings, and the audit-report output template live in the vault.
 
-### Management Plane
+Mandatory steps every time you use this skill:
 
-| # | Check | Description | CIS Reference |
-|---|-------|-------------|---------------|
-| M1 | **Restrict management access** | Management interfaces (SSH, HTTPS, API) accessible only from dedicated management zone/subnet | CIS general: 1.x |
-| M2 | **Enforce strong authentication** | Require MFA for admin access; use RADIUS/TACACS+/SAML/LDAP integration — no local-only accounts in production | CIS general: 1.x |
-| M3 | **Minimum password complexity** | Enforce password length ≥14 characters, complexity requirements, and account lockout after failed attempts | — |
-| M4 | **Role-based access control** | Implement RBAC with least-privilege admin roles (read-only, policy-admin, superadmin) | — |
-| M5 | **Disable unused management protocols** | Disable HTTP (use HTTPS only), Telnet (use SSH only), SNMPv1/v2 (use v3 or disable) | CIS general: 2.x |
-| M6 | **NTP synchronization** | Configure authenticated NTP from trusted sources; accurate timestamps are critical for log correlation | — |
-| M7 | **Secure syslog/logging** | Forward logs to external SIEM over TLS; local log storage as backup only | — |
-| M8 | **Firmware/OS patching** | Run a supported, patched firmware version; subscribe to vendor security advisories | — |
-| M9 | **Configuration backups** | Automate configuration backups; store encrypted copies off-device | — |
-| M10 | **Banner/MOTD** | Display legal warning banner on management interfaces | — |
+1. Call `cn_vault_page({ page: "Firewall-Hardening" })` for universal hardening items (management plane + data plane) + per-vendor hardening specifics + checklist output format.
+2. For ongoing audit of rules in production (hit counts, unused, shadowed), redirect to `rule-audit`.
+3. For policy *design* (zone taxonomy, transition matrix), redirect to `policy-design`.
 
-### Data Plane
-
-| # | Check | Description |
-|---|-------|-------------|
-| D1 | **Default deny** | Last rule in every policy/chain is an explicit deny-all with logging |
-| D2 | **No any/any allow** | No rules permitting all traffic between zones without restriction |
-| D3 | **Anti-spoofing** | Enable RPF (reverse path forwarding) or equivalent on all interfaces |
-| D4 | **Fragment protection** | Drop or reassemble fragmented packets that could bypass inspection |
-| D5 | **ICMP rate limiting** | Allow necessary ICMP types (echo-reply, unreachable, TTL exceeded) but rate-limit |
-| D6 | **Bogon filtering** | Block RFC 1918, RFC 5737, RFC 6598 on external interfaces (unless NAT applies) |
-| D7 | **SYN flood protection** | Enable SYN cookies or SYN proxy on internet-facing interfaces |
-| D8 | **Session timeout tuning** | Set appropriate TCP/UDP/ICMP session timeouts — not too long (resource exhaustion) or too short (breaking legitimate flows) |
+If a vendor / control isn't covered, fall back to `cn_search({ query: "<keywords>", specialist: "cn_fw" })`.
 
 ---
 
-## Per-Vendor Hardening Specifics
+## When to use hardening-check
 
-### Azure Firewall
-- Enable **Threat Intelligence** in "Alert and deny" mode (Standard/Premium).
-- Enable **IDPS** in "Alert and deny" mode (Premium).
-- Enable **TLS Inspection** for outbound traffic (Premium) — requires CA certificate.
-- Use **Structured Logs** (resource-specific tables) over legacy `AzureDiagnostics`.
-- Configure **Diagnostic Settings** to send logs to Log Analytics workspace.
-- Use **Azure Policy** to enforce Firewall Policy compliance at scale.
-- Ref: [CIS Microsoft Azure Foundations Benchmark](https://www.cisecurity.org/benchmark/azure).
-
-### AWS Network Firewall
-- Enable **alert and flow logging** to S3 / CloudWatch Logs.
-- Use **managed rule groups** (AWS-managed threat signatures) alongside custom rules.
-- Enable **strict rule ordering** for stateful rule groups to ensure predictable evaluation.
-- Restrict firewall endpoint subnet routing — only route inspected traffic through firewall subnets.
-- Ref: [AWS Network Firewall Best Practices](https://docs.aws.amazon.com/network-firewall/latest/developerguide/best-practices.html).
-
-### GCP Cloud Firewall
-- Use **service account-based targeting** instead of network tags (more secure, less spoofable).
-- Enable **Firewall Rules Logging** on all rules.
-- Implement **hierarchical firewall policies** at the organization/folder level for baseline rules.
-- Use **Firewall Insights** to identify overly permissive rules and shadowed rules.
-- Set VPC-level default to **deny all ingress, allow all egress** (and tighten egress).
-- Ref: [CIS Google Cloud Platform Benchmark](https://www.cisecurity.org/benchmark/google_cloud_computing_platform).
-
-### Palo Alto Networks (PAN-OS)
-- Enable **Security Profiles** on all allow rules (AV, Anti-Spyware, Vulnerability Protection, URL Filtering, WildFire).
-- Configure **Zone Protection Profiles** for flood protection, packet-based attacks, and reconnaissance.
-- Enable **User-ID** only on trusted zones — never on untrust.
-- Restrict management access via **Permitted IP Addresses** on the management interface.
-- Disable **unused GlobalProtect portals/gateways**.
-- Enable **log forwarding profiles** on all rules — forward to Panorama/syslog/SIEM.
-- Ref: [CIS Palo Alto Networks Firewall Benchmark](https://www.cisecurity.org/benchmark/palo_alto_networks).
-
-### Fortinet FortiGate (FortiOS)
-- Enable **UTM profiles** (AV, IPS, Web Filter, App Control) on all allowed traffic policies.
-- Set `set admin-sport` to a non-default HTTPS port for management.
-- Disable `admin-telnet` and `admin-http`.
-- Enable **two-factor authentication** for admin accounts (`config system admin` → `set two-factor`).
-- Configure **trusted hosts** for admin accounts to restrict management source IPs.
-- Enable `set strong-crypto enable` under `config system global`.
-- Disable **auto-install** and **USB auto-install** for firmware/config.
-- Ref: [CIS Fortinet FortiGate Benchmark](https://www.cisecurity.org/benchmark/fortinet).
-
-### Check Point (R81+)
-- Enable **HTTPS Inspection** blade for encrypted traffic visibility.
-- Enable **Anti-Bot**, **Anti-Virus**, **IPS**, and **Threat Emulation** blades.
-- Configure **Implicit Cleanup Rule** to log (not just drop silently).
-- Restrict SmartConsole access via **GUI Clients** object.
-- Disable **cpridstop** — use SIC for secure communication only.
-- Enable **Multi-Factor Authentication** for SmartConsole login.
-- Ref: [CIS Check Point Firewall Benchmark](https://www.cisecurity.org/benchmark/check_point_firewall).
-
-### Cisco ASA / FTD
-- Set `no asdm history enable` if ASDM is not used.
-- Enable `threat-detection statistics access-list` for ACL hit monitoring.
-- Set `service-policy global_policy global` with inspections for critical protocols.
-- Enable **LINA** and **Snort** logging on FTD.
-- Disable **unused interfaces** — `shutdown` state.
-- Configure `ssh stricthostkeycheck` and limit SSH access via `ssh <ip> <mask> <iface>`.
-- Ref: [CIS Cisco Firewall Benchmark](https://www.cisecurity.org/benchmark/cisco).
-
-### Juniper SRX
-- Enable **screen** profiles for flood protection, port scanning detection, and IP spoofing.
-- Configure `set security zones security-zone <zone> screen <profile>`.
-- Disable `set system services telnet` and `set system services finger`.
-- Enable `set system login retry-options` for brute-force protection.
-- Use `set security log mode stream` and forward to external SIEM.
-- Ref: [CIS Juniper Benchmark](https://www.cisecurity.org/benchmark/juniper).
-
-### Zscaler (ZIA / ZPA)
-- Enable **SSL Inspection** for all allowed web traffic categories.
-- Configure **DLP policies** for sensitive data egress prevention.
-- Enable **Cloud Sandbox** (Advanced Cloud Sandbox) for zero-day detection.
-- Restrict admin access with **IP-based SAML assertions**.
-- Review **default allow rules** — Zscaler ships with permissive defaults.
-
-### Sophos XG / XGS
-- Enable **Heartbeat** (Synchronized Security) to integrate with Sophos endpoint agents.
-- Set **web admin port** to non-default; disable HTTP access.
-- Enable **IPS** and **Application Control** on firewall rules.
-- Configure **device access** to restrict management protocols per zone.
-- Enable **ATP** (Advanced Threat Protection) for C&C callback detection.
-
-### OPNsense
-- **Disable the default anti-lockout rule** after configuring a proper management access rule (System > Settings > Administration > uncheck anti-lockout).
-- **Harden the web GUI**: change default port, bind to management interface only, enforce HTTPS with a valid certificate.
-- **SSH hardening**: disable password auth (`PasswordAuthentication no`), use key-based auth only, restrict to management interface via System > Settings > Administration.
-- Enable **syslog forwarding** over TLS to external SIEM (System > Settings > Logging > Remote).
-- Enable **bogon/RFC1918 blocking** on WAN interface (Interfaces > WAN > Block private/bogon networks).
-- Disable **unused plugins and services** (VPN servers, DNS resolvers if not needed).
-- Configure **rate limiting** via `max-src-conn` and `max-src-conn-rate` on rules.
-
-### pfSense
-- **Disable the default anti-lockout rule** (System > Advanced > Admin Access > uncheck anti-lockout) after creating an explicit management rule.
-- **Harden web GUI**: bind to LAN/management interface only, use HTTPS with a trusted certificate, change default port.
-- **SSH hardening**: disable password authentication, use SSH keys, restrict to management subnet via firewall rules.
-- Disable **unused services** (UPnP, mDNS, IGMP Proxy if not needed).
-- Enable **bogon and RFC1918 blocking** on WAN (Interfaces > WAN > Block private/bogon networks).
-- Configure **pfBlockerNG** for IP reputation and DNS blocklists.
-- Disable **DNS Resolver** on WAN if not providing external DNS.
-
-### VyOS
-- **Restrict console access**: configure `set system login user <admin>` with strong password and SSH key authentication.
-- **Disable unused services**: `delete service telnet`, `delete service dns forwarding` (if not needed), `delete service https` (if managing via SSH only).
-- **SSH hardening**: `set service ssh port <non-default>`, `set service ssh disable-password-authentication`.
-- **Default DROP policy**: `set firewall name <name> default-action drop` for all rulesets.
-- **Rate limiting**: use `set firewall name <name> rule <n> recent count <N> time <seconds>` for SYN flood protection.
-- **Connection tracking**: `set system conntrack timeout tcp established 7200` — tune timeouts.
-- **Syslog**: `set system syslog host <server> facility all level info` — forward to SIEM.
-- **NTP**: `set system ntp server <server>` — use authenticated NTP.
-
-### iptables / nftables
-- **Default DROP policy** on all chains:
-  ```bash
-  iptables -P INPUT DROP
-  iptables -P FORWARD DROP
-  iptables -P OUTPUT DROP   # or ACCEPT if egress filtering is handled differently
-  ```
-- **Rate limiting** for SSH and management:
-  ```bash
-  iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW \
-    -m recent --set --name SSH
-  iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW \
-    -m recent --update --seconds 60 --hitcount 4 --name SSH -j DROP
-  ```
-- **Connection tracking** — allow established/related early in chains:
-  ```bash
-  iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-  iptables -A FORWARD -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-  ```
-- **Drop invalid packets**:
-  ```bash
-  iptables -A INPUT -m conntrack --ctstate INVALID -j DROP
-  ```
-- **Anti-spoofing via RPF**: enable `rp_filter` in sysctl:
-  ```bash
-  sysctl -w net.ipv4.conf.all.rp_filter=1
-  ```
-- **Persist rules**: use `iptables-persistent` or `nft list ruleset > /etc/nftables.conf` with systemd unit.
+| Scenario | Behaviour |
+|---|---|
+| "Audit our firewall against CIS / NIST" | Apply universal + per-vendor checklist from vault → score → remediation plan |
+| "Production firewall mgmt accessible from any IP" | Universal: mgmt-source-IP-restriction missing |
+| "We still use SNMPv2c" | Universal: encrypted-protocols-only — replace with SNMPv3 |
+| "What's the minimum hardening for a new PAN-OS deployment?" | Apply universal + PAN-OS specifics from vault |
+| "Audit cloud-native firewall (Azure FW / AWS NFW / GCP Cloud FW)" | Different scope — service-managed; focus on RBAC + diagnostic settings + policy hygiene |
+| Rule-set audit (orphans, shadows, hit counts) | Redirect: `cn_skill({ specialist: "cn_fw", skill: "rule-audit" })` |
+| Generate hardened config from scratch | Redirect: `cn_skill({ specialist: "cn_fw", skill: "config-gen" })` |
+| Policy design (zones, transition matrix) | Redirect: `cn_skill({ specialist: "cn_fw", skill: "policy-design" })` |
+| HA hardening specifics (HA1/HA2, fence, preempt) | Redirect: `cn_skill({ specialist: "cn_fw", skill: "ha-design" })` |
 
 ---
 
-## Checklist Output Format
+## Reference pages (load these first)
 
-```
-=== FIREWALL HARDENING ASSESSMENT ===
-Platform:     [vendor / version]
-Date:         [assessment date]
+| Topic | Vault page | Load with |
+|---|---|---|
+| Canonical firewall-hardening reference — universal hardening items (management plane: MFA, RBAC, source IP restriction, no default credentials, encrypted protocols, audit logging; data plane: deny-by-default, no-any/any/allow, implicit-deny-at-end, signature auto-update, zone hygiene), per-vendor hardening specifics (PAN-OS, FortiGate, Check Point, Cisco ASA, SRX, Azure FW, AWS NFW, GCP Cloud FW, Sophos, OPNsense, pfSense, VyOS, iptables, Zscaler), checklist output format | [[Firewall-Hardening]] | `cn_vault_page({ page: "Firewall-Hardening" })` |
 
-MANAGEMENT PLANE
-  [✓] M1 — Management access restricted to 10.0.0.0/24
-  [✗] M2 — MFA not enabled for admin accounts
-  [✓] M3 — Password policy meets complexity requirements
-  ...
-
-DATA PLANE
-  [✓] D1 — Default deny rule present with logging
-  [✗] D2 — Rule 14 has any/any allow (Critical)
-  [✓] D3 — Anti-spoofing (RPF) enabled on all interfaces
-  ...
-
-VENDOR-SPECIFIC
-  [✗] VS1 — Zone Protection Profile not applied to untrust zone
-  [✓] VS2 — Security profiles attached to all allow rules
-  ...
-
-Score: 18/25 checks passed (72%)
-Critical Gaps: 2 (M2, D2)
-```
+Mandatory.
 
 ---
+
+## Required inputs — collect before answering
+
+1. **Vendor + version**.
+2. **Deployment model** — cloud-native managed / NVA in cloud / on-prem appliance.
+3. **Mgmt access channel** — direct IP / jumphost / PAM / cloud portal / API.
+4. **Compliance target** — CIS / NIST 800-53 / PCI-DSS / ISO 27001 / SOC2.
+5. **Existing IdP** for SSO + MFA (Entra ID / Okta / AWS IAM IdC / GCP IAM).
+6. **Existing SIEM** for audit-log destination.
+7. **Operational team scope** — who needs admin vs read-only vs operator.
+8. **Existing baseline** — has this firewall ever been hardened before? Output is delta if so, full checklist if not.
+
+---
+
+## Workflow
+
+1. **Collect inputs** above.
+2. **Load `Firewall-Hardening`**.
+3. **Apply the universal mgmt-plane checklist**:
+   - MFA on every admin account
+   - RBAC with least privilege (no daily-driver global admin)
+   - Source-IP restriction on mgmt interface (jumphost / PAM CIDR)
+   - No default credentials / no default community / no default cert
+   - Encrypted protocols only (TLS 1.2+, SSH, SNMPv3, IKEv2)
+   - Audit log to immutable SIEM with retention per compliance
+   - Mgmt interface NOT in data-plane subnet
+4. **Apply the universal data-plane checklist**:
+   - Deny-by-default + implicit deny at end
+   - No any/any/allow rules
+   - All rules have descriptions
+   - Logging enabled on all rules
+   - IDS/IPS + URL + threat DB auto-update enabled
+   - Signature subscription valid + not expired
+   - Zone hygiene (no rule spans more zones than required)
+5. **Apply per-vendor specifics** from vault (PAN-OS panorama posture, FortiGate `set strong-crypto enable`, Check Point Identity Awareness, ASA fixup, etc.).
+6. **Score per CIS / NIST control mapping** from vault.
+7. **Produce remediation plan** — fix critical (mgmt-plane exposure, default creds) first, then high (no MFA / no audit log), then medium (data-plane hygiene), then low (cosmetic).
+8. **For cloud-native firewalls** — scope shifts: RBAC on policy / diagnostic settings / firewall policy versioning / no-any-allow / log destination.
+9. **Surface anti-patterns** — mgmt accessible from data plane, no MFA, default credentials, SNMPv2c, expired threat DB, audit log to same firewall's local store, daily ops with global admin, no break-glass account.
+10. **Plan re-audit cadence** — at least quarterly + after every major version upgrade.
+11. **Emit** in the output format below.
+
+---
+
+## Output format
+
+Every hardening-check answer should emit:
+
+1. **Inputs assumed** — vendor + version, deployment model, compliance target.
+2. **Universal mgmt-plane checklist** — pass / fail per item with remediation command if fail.
+3. **Universal data-plane checklist** — pass / fail per item with remediation.
+4. **Per-vendor specifics checklist** — citing vault.
+5. **Cloud-native scope adjustments** if Azure FW / AWS NFW / GCP Cloud FW.
+6. **Compliance mapping** — CIS / NIST control IDs covered.
+7. **Risk-ranked remediation plan** — critical / high / medium / low.
+8. **Re-audit cadence + ownership.**
+9. **Anti-pattern check** — confirm none of the workflow mistakes below apply.
+10. **What this excludes** — rule-set audit (`rule-audit`), policy design (`policy-design`), HA design (`ha-design`), troubleshooting (`troubleshoot`).
+11. **Footer** — `Analysis only — verify against vendor documentation before applying.`
+
+---
+
+## Common workflow mistakes (do not repeat these)
+
+1. **Mgmt interface in a data-plane subnet.** Internet-facing or lateral attacker reaches mgmt = total compromise.
+2. **No MFA on admin accounts.** Phished password = full compromise.
+3. **Daily-driver admin = global admin.** Mistake or compromise has blast radius of everything.
+4. **No source-IP restriction on mgmt.** Mgmt API reachable from anywhere = ransomware in.
+5. **Default credentials / default community strings / default cert.** Trivial to exploit.
+6. **SNMPv1/v2c, Telnet, clear HTTP enabled.** Credentials in cleartext on the wire.
+7. **Audit log local-only.** Attacker wipes it after compromise; SOC blind.
+8. **Audit log not in immutable SIEM** with WORM retention.
+9. **Expired signature subscription.** IDS / URL / threat DB stops updating; new attacks miss.
+10. **No break-glass account** stored in PAM. MFA service outage locks ops out of firewall.
+11. **No periodic re-audit.** Hardening drifts within months.
+12. **Recommending hardening for Azure FW / AWS NFW / GCP Cloud FW using NVA checklist.** Wrong scope — service-managed; check RBAC + diagnostic settings + policy hygiene instead.
+
 **Analysis only — verify against vendor documentation before applying.**

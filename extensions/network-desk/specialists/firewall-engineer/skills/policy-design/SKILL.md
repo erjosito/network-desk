@@ -1,176 +1,116 @@
-# Skill: Firewall Policy Design
+# Skill: Firewall Policy Design (`fw_skill_policy_design`)
 
-## Purpose
-
-Design zone-based firewall policy architectures from requirements. Produce structured policy sets with explicit allow rules, default deny, application-aware inspection, NAT design, and logging strategy — tailored to the target vendor platform.
+Design enterprise firewall policy architecture across all 14 supported platforms. Owns the *deny-by-default core principle*, the *zone-based design discipline* (every interface in exactly one zone; every rule is a zone-transition allow with explicit src + dst + service; implicit deny at end), the *zone-transition policy matrix template* (rows = source zone, cols = destination zone, cells = what's allowed), the *L3/L4-vs-L7-policy decision* (L3/L4 fast + cheap; L7 only where needed — TLS inspection, content control, user-aware), the *per-rule-logging-mandate*, the *change-control + IaC-mandatory* discipline, the *no-temporary-allow-without-expiry-date* rule, the *no-shadow-rule-by-priority-misorder* check, and the *audit-trail-via-PR-review* requirement. Zone taxonomy library, per-vendor zone-mapping (PAN-OS / FortiGate / Check Point / ASA / SRX / Azure FW / AWS NFW / GCP / open-source), transition matrix template, logging / alerting strategy, and design deliverables checklist live in the vault.
 
 ---
 
-## Core Design Principles
+## Knowledge loading contract
 
-1. **Default Deny** — Every zone transition that is not explicitly permitted is denied. The last rule in every policy set is an explicit deny-all with logging enabled.
-2. **Least Privilege** — Rules specify the narrowest source, destination, and service possible. No `any/any` unless there is a documented, risk-accepted justification.
-3. **Zone-Based Architecture** — Traffic policy is defined by zone transitions (from-zone → to-zone), not by interface. Zones abstract the underlying topology.
-4. **Application Awareness** — Where the platform supports it (PAN-OS App-ID, FortiGate App Control, Check Point App Control, SRX AppSecure), prefer application-level policies over port-based rules.
-5. **Logging by Default** — All allow rules log at session-end (or equivalent). Deny rules log at session-start. Management zone traffic may log at a reduced level to avoid noise.
+This is a **thin specialist skill**. It owns the *deny-by-default* principle, the *zone-based design* discipline, the *transition-matrix-first* workflow, the *L3/L4-vs-L7* decision, the *log-every-rule* mandate, the *IaC-mandatory + PR-driven* change control, the *expiry-date-on-temporary-allows*, and the *no-shadow-rule* check. Zone taxonomy, per-vendor zone-mapping, matrix template, and deliverables list live in the vault.
 
----
+Mandatory steps every time you use this skill:
 
-## Zone Taxonomy
+1. Call `cn_vault_page({ page: "Firewall-Policy-Design" })` for core design principles, zone taxonomy library, transition matrix template, L3/L4 vs L7 policy guidance, per-vendor zone mapping, logging + alerting strategy, design deliverables.
+2. For *generating* the actual config snippets after design is finalised, redirect to `config-gen`.
+3. For *testing* the policy before deploying, redirect to `policy-test`.
 
-| Zone | Purpose | Typical Assets | Trust Level |
-|------|---------|----------------|-------------|
-| **Trust** (Inside/LAN) | Internal corporate network | Workstations, internal servers, printers | High |
-| **Untrust** (Outside/WAN) | Internet, external networks | External endpoints, SaaS, CDNs | None |
-| **DMZ** | Publicly accessible services | Web servers, reverse proxies, mail relays | Low |
-| **Management** | Device management plane | Firewall GUI/SSH, SNMP, syslog collectors | Highest (restricted) |
-| **Guest** | Untrusted internal users | BYOD, visitor Wi-Fi | None (treated as untrust) |
-| **Database** | Data tier | Database servers, data warehouses | High (isolated) |
-| **Application** | Application tier | App servers, middleware, API gateways | Medium-High |
+If a vendor / pattern isn't covered, fall back to `cn_search({ query: "<keywords>", specialist: "cn_fw" })`.
 
 ---
 
-## Zone-Transition Policy Matrix Template
+## When to use policy-design
 
-| From \ To | Untrust | DMZ | Trust | Database | Application | Management |
-|-----------|---------|-----|-------|----------|-------------|------------|
-| **Untrust** | — | Allow (HTTPS, SMTP) | Deny | Deny | Deny | Deny |
-| **DMZ** | Allow (outbound updates) | — | Deny | Allow (DB port) | Allow (API port) | Deny |
-| **Trust** | Allow (web, DNS, VPN) | Allow (management) | — | Allow (DB port) | Allow (app ports) | Allow (SSH, HTTPS) |
-| **Database** | Deny | Deny | Allow (responses) | — | Deny | Deny |
-| **Application** | Allow (API calls) | Deny | Allow (responses) | Allow (DB queries) | — | Deny |
-| **Management** | Deny | Allow (monitoring) | Allow (monitoring) | Allow (monitoring) | Allow (monitoring) | — |
-
-Each cell represents a policy — expand into specific rules with source/destination objects, services, and application IDs.
-
----
-
-## L3/L4 vs L7 Policy Guidance
-
-| Layer | Use When | Vendor Features |
-|-------|----------|-----------------|
-| **L3/L4** (IP, port) | Simple allow/deny by network and port; legacy apps; high-throughput paths where DPI is not needed | All platforms support L3/L4 |
-| **L7** (Application) | Distinguishing apps on the same port (e.g., YouTube vs Google Drive on 443); granular SaaS control; threat inspection | PAN-OS App-ID, FortiGate App Control, Check Point App Control, SRX AppSecure, Zscaler app-aware policies, Sophos application rules |
-| **Hybrid** | L7 where supported, L3/L4 as fallback for platforms without application awareness | OPNsense (Zenarmor plugin), pfSense (Snort/Suricata for IDS but not inline app policy), VyOS (L3/L4 only), iptables/nftables (L3/L4 only, use L7 proxies for app control) |
+| Scenario | Behaviour |
+|---|---|
+| "Design firewall policy for our new VNet/VPC" | Define zones → fill transition matrix → pick L3/L4 vs L7 per transition → output design doc |
+| "We have rules but no zone discipline" | Reverse-engineer zones from existing rules → propose taxonomy → migrate |
+| "When should we use L7?" | Apply L3/L4-fast / L7-where-content-matters decision; cite vault |
+| "Multi-vendor — same zone taxonomy" | Use canonical taxonomy from vault; per-vendor mapping table |
+| "Cloud-native firewall — same approach?" | Yes for the zone+matrix model; vendor-specific naming differs (cite vault) |
+| Generating rule snippets from the design | Redirect: `cn_skill({ specialist: "cn_fw", skill: "config-gen" })` |
+| Testing the policy pre-deploy | Redirect: `cn_skill({ specialist: "cn_fw", skill: "policy-test" })` |
+| Auditing existing rules | Redirect: `cn_skill({ specialist: "cn_fw", skill: "rule-audit" })` |
+| Hardening management plane | Redirect: `cn_skill({ specialist: "cn_fw", skill: "hardening-check" })` |
+| WAF L7 policy (HTTP/S only) | Redirect: `cn_skill({ specialist: "cn_nsec", skill: "waf-policy-design" })` |
+| Pricing comparison across firewall products | Redirect: `cn_skill({ specialist: "cn_price", skill: "firewall-pricing" })` |
 
 ---
 
-## Per-Vendor Zone Mapping
+## Reference pages (load these first)
 
-### Azure Firewall
-- Zones map to Azure VNet subnets or IP Groups.
-- Rule Collection Groups act as zone-transition containers (priority-ordered).
-- Use Application Rule Collections for L7 (FQDN, HTTP/S) and Network Rule Collections for L3/L4.
+| Topic | Vault page | Load with |
+|---|---|---|
+| Canonical firewall-policy-design reference — core principles (deny-by-default, zone-based, least privilege, log everything, explicit deny last, fail-closed, IaC), zone taxonomy library, transition matrix template, L3/L4 vs L7 guidance, per-vendor zone mapping (PAN-OS / FortiGate / Check Point / ASA / SRX / Azure FW / AWS NFW / GCP / open-source), logging + alerting strategy, design deliverables | [[Firewall-Policy-Design]] | `cn_vault_page({ page: "Firewall-Policy-Design" })` |
 
-### AWS Network Firewall
-- Zones map to VPC subnets; route table entries steer traffic through firewall endpoints.
-- Stateful rule groups define zone-transition policies.
-- Domain-based filtering available via stateful rules with HTTP host header inspection.
-
-### GCP Cloud Firewall
-- Zones map to VPC networks or target tags / service accounts.
-- Priority-based rules; lower number = higher priority.
-- Hierarchical firewall policies for organization-wide zone policy.
-
-### Palo Alto Networks (PAN-OS)
-- Native zone-based architecture: `set network zone <name>`.
-- Policies: `set rulebase security rules <name> from <zone> to <zone>`.
-- App-ID replaces port-based rules for supported applications.
-
-### Fortinet FortiGate
-- Zones created via `config system zone`; interfaces assigned to zones.
-- Policy: `config firewall policy` with `srcintf` / `dstintf` referencing zones.
-- Application control profile attached to policies for L7 inspection.
-
-### Check Point
-- Zones defined as network objects (networks, groups) in SmartConsole.
-- Security Policy layers: Access Control → Threat Prevention → HTTPS Inspection.
-- App Control blade for L7 application awareness.
-
-### Cisco ASA / FTD
-- ASA: security levels per interface (0=untrust, 100=trust); nameif assigns zone names.
-- FTD: security zones defined in FMC; policies reference zone pairs.
-- ACLs bound to interfaces via `access-group`.
-
-### Juniper SRX
-- Native zone model: `set security zones security-zone <name> interfaces <iface>`.
-- Policies: `set security policies from-zone <src> to-zone <dst> policy <name>`.
-- AppSecure for application identification.
-
-### Zscaler
-- Zones defined as locations / sub-locations (ZIA) or app segments (ZPA).
-- Firewall filtering rules apply to internet-bound traffic (ZIA).
-- ZPA policies define access per application — no traditional zone model.
-
-### Sophos XG / XGS
-- Zones are interface groupings (LAN, WAN, DMZ, VPN, Wi-Fi, custom).
-- Firewall rules reference source/destination zones.
-- Application control and IPS profiles attach to rules.
-
-### OPNsense
-- No native zone object — zones are represented by interface groupings and aliases.
-- Rules are per-interface (floating rules for cross-interface policy).
-- Zone-policy model achieved via: interface rules + floating rules for inter-zone control.
-- Zenarmor plugin adds application-layer visibility and policy.
-
-### pfSense
-- Similar to OPNsense — zones map to interfaces (LAN, WAN, OPT1, OPT2, etc.).
-- Rules are per-interface, processed top-down, first-match wins.
-- Floating rules for cross-interface policies.
-- Application-layer filtering via Snort/Suricata packages (IDS/IPS mode, not inline app policy).
-
-### VyOS
-- Zone-policy model: `set zone-policy zone <name> interface <iface>`.
-- Firewall rulesets assigned to zone transitions: `set zone-policy zone <name> from <zone> firewall name <ruleset>`.
-- Default action per zone: `set zone-policy zone <name> default-action drop`.
-- L3/L4 only — no native application awareness.
-
-### iptables / nftables
-- Zones map to interfaces or interface groups.
-- Chain design:
-  - `INPUT` — traffic to the firewall itself (management zone).
-  - `FORWARD` — traffic passing through the firewall (inter-zone).
-  - `OUTPUT` — traffic from the firewall itself.
-- Custom chains for per-zone-pair policies: e.g., `TRUST_TO_DMZ`, `DMZ_TO_DB`.
-- nftables equivalent: named chains within the `inet filter` table.
-
-```bash
-# iptables zone-chain example
-iptables -N TRUST_TO_DMZ
-iptables -A FORWARD -i eth1 -o eth2 -j TRUST_TO_DMZ
-iptables -A TRUST_TO_DMZ -p tcp --dport 443 -j ACCEPT
-iptables -A TRUST_TO_DMZ -j DROP
-
-# nftables equivalent
-nft add chain inet filter trust_to_dmz
-nft add rule inet filter forward iifname "eth1" oifname "eth2" jump trust_to_dmz
-nft add rule inet filter trust_to_dmz tcp dport 443 accept
-nft add rule inet filter trust_to_dmz drop
-```
+Mandatory.
 
 ---
 
-## Logging and Alerting Strategy
+## Required inputs — collect before answering
 
-| Zone Transition | Log Level | Alert |
-|-----------------|-----------|-------|
-| Untrust → Any | All denied, all allowed (session-end) | Alert on any allowed (new rule match) |
-| Any → Management | All (every packet) | Alert on any non-whitelisted access |
-| DMZ → Database | All allowed and denied | Alert on denied (potential compromise) |
-| Trust → Untrust | Session-end logging | Alert on unusual volume or destinations |
-| Intra-zone (same zone) | Denied only | Alert on repeated denies (lateral movement) |
+1. **Vendor + cloud + scope** — one firewall, pair, hub-spoke, multi-region, multi-cloud.
+2. **Workloads + trust zones** in scope — DMZ, internal app tiers, mgmt, shared services, partner, on-prem-via-VPN, internet.
+3. **Compliance** — PCI-DSS scope boundary, HIPAA, SOC2.
+4. **L7 inspection requirement** — TLS inspection, content / URL filtering, user-aware policy, application identification.
+5. **Logging destination + retention** — SIEM, retention period per compliance.
+6. **Existing rule base** if any — for reverse-engineering / migration.
+7. **IaC stack** — Bicep / Terraform / CloudFormation / Ansible.
+8. **Change-control process** — PR-driven, CAB review cadence.
+
+---
+
+## Workflow
+
+1. **Collect inputs** above.
+2. **Load `Firewall-Policy-Design`**.
+3. **Define zones** from the vault taxonomy (Internet, DMZ, App, Data, Mgmt, Shared, Partner, OnPrem, etc.) — one interface = one zone.
+4. **Build the transition matrix** — rows = source zone, cols = destination zone, cells = "deny" (default), "allow + service list", or "L7 inspect + service list".
+5. **Decide L3/L4 vs L7 per transition** — L3/L4 for east-west between trusted tiers; L7 (App-ID / URL / TLS inspection) for internet egress, DMZ ingress, partner traffic.
+6. **Document service / port / protocol** for every allow cell.
+7. **Plan logging per rule** — session for allow, packet for deny — destination SIEM.
+8. **Plan alerting** — deny spikes, allow-rule hit-count drops (rule may have become orphan), L7 high-severity threat hits.
+9. **Map zones per vendor** from vault — PAN-OS zone, FortiGate interface alias, Check Point zone tag, ASA security level, SRX zone, Azure FW Application/Network/NAT collection, AWS NFW stateful/stateless rule group, GCP target tag, iptables chain.
+10. **Plan change control** — IaC repo, PR template, CAB review threshold, emergency-change path with auto-expiry.
+11. **Add temporary-allow expiry** — every break-glass rule has a calendar reminder + auto-disable date.
+12. **Run the no-shadow-rule check** — rule priorities don't have a higher-priority more-general allow / deny that masks a more-specific rule below.
+13. **Output deliverables** from vault: zone diagram, transition matrix, per-rule justification, IaC stub, runbook for adding / changing rules.
+14. **Surface anti-patterns** — any/any/allow, missing description, no expiry on break-glass, mgmt rules in data-plane policy, no SIEM logging, shadow rules, mixed zone semantics across vendors.
+15. **Emit** in the output format below.
 
 ---
 
-## Design Deliverables
+## Output format
 
-1. **Zone diagram** — visual representation of zones and allowed transitions.
-2. **Zone-transition matrix** — table of from/to zone with allowed services.
-3. **Object definitions** — address objects/groups, service objects/groups, application groups.
-4. **Rule set** — ordered list of rules per zone transition.
-5. **NAT rules** — source NAT, destination NAT, and NAT exemptions.
-6. **Logging policy** — per-rule logging configuration and log forwarding destinations.
-7. **Vendor-specific config** — ready-to-review configuration in the target vendor's syntax.
+Every policy-design answer should emit:
+
+1. **Inputs assumed** — vendor, cloud, scope, compliance, L7 requirement.
+2. **Zone definitions** — name + interface mapping per vendor.
+3. **Transition matrix** — full table or initial subset, cells = deny / allow+service / L7+service.
+4. **L3/L4-vs-L7 decision per transition** with rationale.
+5. **Per-rule logging + alerting plan.**
+6. **Per-vendor zone mapping table** citing vault.
+7. **IaC + PR-driven change control** — repo location, PR template, CAB threshold, break-glass path with auto-expiry.
+8. **Shadow-rule check** — confirm no higher-priority rule shadows lower-priority specific rules.
+9. **Anti-pattern check** — confirm none of the workflow mistakes below apply.
+10. **Deliverables** — zone diagram, transition matrix, per-rule justification, IaC stub, runbook.
+11. **What this excludes** — config generation (`config-gen`), policy testing (`policy-test`), rule audit (`rule-audit`), hardening (`hardening-check`), WAF (`nsec/waf-policy-design`).
+12. **Footer** — `Analysis only — verify against vendor documentation before applying.`
 
 ---
+
+## Common workflow mistakes (do not repeat these)
+
+1. **Designing rules without zones.** Rule base becomes a spaghetti list; audits impossible.
+2. **Any/any/allow** rules. Defeats the whole policy. Always specific src + dst + service.
+3. **No implicit deny at end.** Some platforms default to permit; explicit deny rule required.
+4. **L7 inspection on every transition.** Expensive and unnecessary east-west; reserve L7 for ingress / egress / partner.
+5. **L3/L4 only for internet egress.** Missing URL / threat / user-aware = blind to content-based exfil / phishing.
+6. **No expiry on break-glass rules.** "Temporary" rules become permanent within weeks.
+7. **No description on rules.** Within months no one knows why a rule exists; rules age into orphans.
+8. **No SIEM ingestion of logs.** Audit + SOC blind.
+9. **Shadow rules** — broad allow at priority 100, specific deny at priority 200 — never fires.
+10. **Mgmt rules in data-plane policy.** Mgmt-plane access should be in a separate policy / interface.
+11. **No IaC + PR review.** Drift between docs and reality; audit nightmare.
+12. **Inconsistent zone names across vendors** in a mixed environment. Audits + migrations break.
+
 **Analysis only — verify against vendor documentation before applying.**

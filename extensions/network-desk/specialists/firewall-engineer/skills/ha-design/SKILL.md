@@ -1,225 +1,114 @@
-# Skill: High-Availability Design
+# Skill: Firewall HA Design (`fw_skill_ha_design`)
 
-## Purpose
-
-Design and recommend high-availability (HA) architectures for firewall deployments across all 14 supported platforms. Cover HA modes, session synchronization, configuration synchronization, heartbeat design, and cloud-specific HA patterns.
+Design firewall high-availability topologies across cloud-native services (Azure Firewall, AWS Network Firewall, GCP Cloud Firewall — built-in HA) and NVA / on-prem deployments (PAN-OS, FortiGate, Check Point, Cisco ASA, Juniper SRX, Sophos XG, OPNsense / pfSense, VyOS). Owns the *HA-mode decision* (active/passive vs active/active vs active/active with session sync), the *session-sync mandate* (without it, failover drops every established connection), the *config-sync direction discipline* (one primary; don't let both ends drift independently), the *dedicated-heartbeat-network rule* (heartbeat must not share the data plane — split-brain risk), the *heartbeat-timer trade-off* (aggressive = fast failover + false positives; conservative = slow failover + stability), the *floating-IP / EIP failover pattern* in cloud (the cloud-equivalent of VRRP/HSRP), and the *split-brain prevention* (preempt off in active/passive, fence on heartbeat loss for active/active). Cloud-native managed firewalls inherit HA; for NVA deployments, all the items above are mandatory.
 
 ---
 
-## HA Modes by Vendor
+## Knowledge loading contract
 
-| Vendor | Active/Passive | Active/Active | Clustering | Notes |
-|--------|:-:|:-:|:-:|-------|
-| **Azure Firewall** | — | ✓ (built-in) | — | Managed service; HA built into the platform via availability zones |
-| **AWS Network Firewall** | — | ✓ (built-in) | — | Managed service; multi-AZ endpoint deployment |
-| **GCP Cloud Firewall** | — | ✓ (built-in) | — | Managed service; globally distributed |
-| **Palo Alto PAN-OS** | ✓ | ✓ | ✓ (PA-7000) | Active/passive or active/active with floating IP and session sync |
-| **FortiGate** | ✓ | ✓ | ✓ (FGCP/FGSP) | FGCP (config+session sync) or FGSP (session-only sync for active/active) |
-| **Check Point** | ✓ | ✓ (ClusterXL) | ✓ (VSX) | ClusterXL with Load Sharing or HA; Maestro for hyperscale |
-| **Cisco ASA/FTD** | ✓ | ✓ | ✓ (FTD multi-instance) | ASA failover (active/standby or active/active for multi-context); FTD HA via FMC |
-| **Juniper SRX** | ✓ | ✓ | ✓ (chassis cluster) | Chassis cluster with redundancy groups; `reth` interfaces |
-| **Zscaler** | — | ✓ (built-in) | — | Cloud-native; resilience via Zscaler cloud fabric |
-| **Sophos XG/XGS** | ✓ | — | ✓ (HA cluster) | Active/passive with dedicated HA link |
-| **OPNsense** | ✓ (CARP) | — | — | CARP for VIP failover, pfsync for state sync |
-| **pfSense** | ✓ (CARP) | — | — | CARP for VIP failover, pfsync for state sync, xmlrpc for config sync |
-| **VyOS** | ✓ (VRRP) | — | — | VRRP for gateway failover; conntrack-sync for state sync |
-| **iptables/nftables** | ✓ (keepalived/VRRP) | — | — | keepalived for VRRP + conntrackd for state sync |
+This is a **thin specialist skill**. It owns the *HA-mode decision*, the *session-sync-or-failover-drops-everything* rule, the *config-sync-one-primary* discipline, the *dedicated-heartbeat-network* mandate, the *heartbeat-timer trade-off*, the *floating-IP-or-EIP-failover-in-cloud* pattern, and the *preempt-off + fence-on-heartbeat-loss* split-brain prevention. Per-vendor HA modes, session-sync protocols, config-sync mechanisms, cloud-specific HA patterns (UDR + Standard LB / Gateway LB / NLB), and the design checklist live in the vault.
+
+Mandatory steps every time you use this skill:
+
+1. Call `cn_vault_page({ page: "Firewall-HA-Design" })` for per-vendor HA modes (PAN-OS A/P + A/A, FortiGate FGCP / FGSP, Check Point ClusterXL, ASA failover, SRX chassis cluster, Sophos XG HA, OPNsense/pfSense CARP, VyOS VRRP / Conntrackd), session and config sync protocols, heartbeat network design, cloud-specific failover patterns (Azure UDR + Standard LB, AWS Gateway LB / NLB, GCP ILB), open-source HA, and the design checklist.
+2. For cloud-native firewalls (Azure FW / AWS NFW / GCP Cloud FW), HA is managed by the service — confirm regional design but skip NVA-specific decisions.
+3. For HA-specific config generation, redirect to `config-gen` after the design is finalised.
+
+If a vendor / pattern isn't covered, fall back to `cn_search({ query: "<keywords>", specialist: "cn_fw" })`.
 
 ---
 
-## Session and Config Synchronization
+## When to use ha-design
 
-### Session Sync
-Session synchronization replicates the connection/state table between HA peers so that active sessions survive a failover without requiring re-establishment.
-
-| Vendor | Session Sync Mechanism | Key Config |
-|--------|----------------------|------------|
-| PAN-OS | HA2 link (dedicated interface) | `set deviceconfig high-availability interface ha2` |
-| FortiGate (FGCP) | Session sync over HA heartbeat link | `config system ha` → `set session-pickup enable` |
-| FortiGate (FGSP) | TCP session sync over dedicated link | `config system standalone-cluster` |
-| Check Point | State sync (CCP protocol) over sync interface | ClusterXL sync interface in cluster object |
-| ASA | LAN-based failover link (stateful) | `failover link <name> <iface>` + `failover interface ip` |
-| SRX | Chassis cluster fabric (fab0/fab1) and control link (em0) | `set chassis cluster` |
-| OPNsense | pfsync over dedicated interface | System > HA > State Synchronization > Synchronize Interface |
-| pfSense | pfsync over dedicated interface | System > HA > State Synchronization Settings |
-| VyOS | conntrack-sync | `set service conntrack-sync interface <iface>` |
-| iptables | conntrackd (userspace daemon) | `/etc/conntrackd/conntrackd.conf` — multicast or unicast sync |
-
-### Config Sync
-Configuration synchronization ensures both peers have identical policy and settings.
-
-| Vendor | Config Sync Method |
-|--------|-------------------|
-| PAN-OS | HA1 link — automatic config sync; primary pushes config to secondary |
-| FortiGate | HA heartbeat — config sync is automatic in FGCP mode |
-| Check Point | SmartConsole installs policy to all cluster members simultaneously |
-| ASA | Standby replicates running-config from active unit |
-| SRX | Chassis cluster — RE0 (primary) syncs config to RE1 |
-| OPNsense | XMLRPC sync from master to backup (System > HA > Settings) |
-| pfSense | XMLRPC sync from primary to secondary (System > HA > Settings) |
-| VyOS | Manual — no native config sync; use automation (Ansible/scripts) |
-| iptables | Manual — use `iptables-save`/`iptables-restore` with rsync or config management |
+| Scenario | Behaviour |
+|---|---|
+| "Design HA for our PAN-OS pair in Azure" | A/P with floating IP via Azure Standard LB + UDR + HA1/HA2 dedicated subnets |
+| "Should we go active/active or active/passive?" | Apply A/P-vs-A/A-vs-A/A-with-sync decision table |
+| "Heartbeat keeps flapping" | Apply dedicated-heartbeat + heartbeat-timer trade-off |
+| "We failed over and lost every connection" | Session sync missing or misconfigured |
+| "Config drifted between HA pair" | Apply config-sync-one-primary discipline; reset secondary |
+| "FortiGate FGCP vs FGSP — which?" | FGCP for cluster-of-2; FGSP when you need to scale beyond 2 (cite vault) |
+| "Cloud-native HA — what's covered?" | Azure FW / AWS NFW / GCP Cloud FW: zone-redundant; you only design regional placement |
+| Generating HA config | Redirect: `cn_skill({ specialist: "cn_fw", skill: "config-gen" })` after design finalised |
+| Hardening the HA pair | Redirect: `cn_skill({ specialist: "cn_fw", skill: "hardening-check" })` |
+| HA migration / vendor swap | Redirect: `cn_skill({ specialist: "cn_fw", skill: "vendor-migrate" })` |
 
 ---
 
-## Heartbeat Network Design
+## Reference pages (load these first)
 
-### Dedicated HA Interface Recommendations
-- **Minimum**: one dedicated heartbeat link (direct cable or dedicated VLAN).
-- **Recommended**: two heartbeat links for redundancy (management + dedicated HA VLAN).
-- **Never** route heartbeat traffic through production data interfaces.
-- Use a dedicated, non-routable subnet (e.g., 169.254.x.x link-local or a /30 private subnet).
+| Topic | Vault page | Load with |
+|---|---|---|
+| Canonical firewall-HA reference — per-vendor HA modes (PAN-OS, FortiGate FGCP/FGSP, Check Point ClusterXL, ASA failover, SRX chassis cluster, Sophos XG, CARP, VRRP+Conntrackd), session-sync (HA2, FGSP, sync_master, stateful failover), config-sync (HA1, FortiManager push, mgmt CMA, write standby auto), heartbeat network design + dedicated interfaces + timer recommendations, cloud-specific patterns (Azure UDR+SLB, AWS GWLB/NLB, GCP ILB), open-source HA (CARP, VRRP+Conntrackd), design checklist | [[Firewall-HA-Design]] | `cn_vault_page({ page: "Firewall-HA-Design" })` |
 
-### Heartbeat Timers
-| Setting | Typical Value | Purpose |
-|---------|---------------|---------|
-| Hello interval | 1 second | Frequency of heartbeat probes |
-| Dead/hold time | 3–6 seconds | Time before declaring peer dead |
-| Preemption delay | 300 seconds | Wait time before primary reclaims after recovery |
-
-> **Split-brain prevention**: Always use at least two independent heartbeat paths. Configure a management interface as a secondary heartbeat. Some vendors support a "monitor" interface that must be up for the node to remain active — use to detect upstream/downstream link failures.
+Mandatory for any NVA HA design.
 
 ---
 
-## Cloud-Specific HA Patterns
+## Required inputs — collect before answering
 
-### Azure — Load Balancer + NVA
-```
-Internet → Azure LB (Standard, HA ports rule) → NVA-1 (active)
-                                               → NVA-2 (standby or active)
-           Internal LB (HA ports) ← NVA-1 / NVA-2 ← spoke VNets (via UDR)
-```
-- Use **Azure Standard Load Balancer** with HA ports rule (protocol=all, port=0) for transparent traffic steering.
-- **Health probes** determine which NVA receives traffic; failed probe removes NVA from pool.
-- **UDRs** in spoke subnets point to the internal LB frontend IP as next hop.
-- Azure Firewall has HA built-in — no LB pattern needed.
-
-### AWS — Gateway Load Balancer (GWLB)
-```
-VPC Route Table → GWLB Endpoint → GWLB → NVA-1 (target group)
-                                        → NVA-2 (target group)
-```
-- **GWLB** distributes traffic to multiple NVA instances in a target group using GENEVE encapsulation.
-- Cross-AZ deployment for resilience; health checks remove unhealthy targets.
-- **Transit Gateway** integration for centralized inspection.
-- AWS Network Firewall is managed — HA is built-in with multi-AZ endpoints.
-
-### GCP — Internal Load Balancer + NVA
-```
-VPC Routes → Internal TCP/UDP LB → NVA-1 (instance group)
-                                  → NVA-2 (instance group)
-```
-- Use **Internal TCP/UDP Load Balancer** as next-hop for routes.
-- Health checks determine active NVA.
-- GCP Cloud Firewall is managed — no HA pattern needed.
-
-### Floating IP / EIP Failover (Any Cloud)
-- Assign an **Elastic IP** (AWS) or **Secondary IP** (Azure, GCP) to the active NVA.
-- On failover, a script or API call moves the floating IP to the standby NVA.
-- Slower than LB-based failover (API call latency: 10–30 seconds vs probe-based: 5–15 seconds).
+1. **Cloud / on-prem placement** — if cloud-native firewall service, HA is built-in; if NVA, design required.
+2. **Vendor + version**.
+3. **Throughput target** — drives A/P (one box does it) vs A/A (load-balanced).
+4. **RTO** — drives heartbeat timer + session sync requirement.
+5. **Stateful workload presence** — long-lived TCP / VPN tunnels require session sync.
+6. **Subnet / interface availability** — dedicated HA1 (config) + HA2 (session) subnets in cloud.
+7. **Cloud LB type available** — Azure Standard LB / AWS GWLB or NLB / GCP ILB.
+8. **Operational maturity** — A/A demands stronger tooling than A/P.
 
 ---
 
-## Open-Source HA Patterns
+## Workflow
 
-### OPNsense CARP
-```bash
-# Master node: System > High Availability > Settings
-# - Synchronize Interface: em2 (dedicated HA link)
-# - pfsync Synchronize Peer IP: 10.0.99.2
-# - XMLRPC Sync: enable, target 10.0.99.2
-# - Synchronize: Rules, Aliases, NAT, Virtual IPs, Users, DHCP
-
-# Create CARP VIPs: Interfaces > Virtual IPs > Add
-# Type: CARP, Interface: LAN, Address: 10.1.1.1/24
-# VHID: 1, Advbase: 1, Advskew: 0 (master=0, backup=100)
-```
-
-### pfSense CARP / pfsync
-```bash
-# Primary node: System > High Availability
-# State Synchronization Settings:
-#   Synchronize States: checked
-#   Synchronize Interface: SYNC (dedicated HA interface)
-#   pfsync Synchronize Peer IP: 10.0.99.2
-
-# XMLRPC Sync:
-#   Synchronize Config to IP: 10.0.99.2
-#   Remote System Username: admin
-#   Remote System Password: <password>
-#   Select: Toggle All (sync firewall rules, NAT, aliases, etc.)
-
-# Create CARP VIPs on both WAN and LAN:
-#   Firewall > Virtual IPs > Add
-#   Type: CARP, Interface: WAN, Address: <public-VIP>
-#   VHID: 1, Advertising Frequency: Base=1, Skew=0 (primary)
-```
-
-### VyOS VRRP
-```bash
-# Configure VRRP on primary
-set high-availability vrrp group LAN-GW interface eth1
-set high-availability vrrp group LAN-GW vrid 10
-set high-availability vrrp group LAN-GW virtual-address 10.1.1.1/24
-set high-availability vrrp group LAN-GW priority 200
-set high-availability vrrp group LAN-GW preempt true
-set high-availability vrrp group LAN-GW preempt-delay 300
-
-# Conntrack sync for session state
-set service conntrack-sync accept-protocol tcp,udp,icmp
-set service conntrack-sync interface eth2    # dedicated sync interface
-set service conntrack-sync mcast-group 225.0.0.50
-set service conntrack-sync disable-external-cache
-
-commit
-save
-```
-
-### iptables + keepalived + conntrackd
-```bash
-# keepalived.conf on primary
-vrrp_instance VI_1 {
-    state MASTER
-    interface eth0
-    virtual_router_id 51
-    priority 200
-    advert_int 1
-    authentication {
-        auth_type PASS
-        auth_pass <secret>
-    }
-    virtual_ipaddress {
-        10.1.1.1/24
-    }
-}
-
-# conntrackd.conf — sync state over dedicated interface
-Sync {
-    Mode FTFW {
-        DisableExternalCache On
-    }
-    Multicast {
-        IPv4_address 225.0.0.50
-        Group 3780
-        IPv4_interface 10.0.99.1   # dedicated sync IP
-        Interface eth2             # dedicated sync interface
-    }
-}
-```
+1. **Collect inputs** above.
+2. **Load `Firewall-HA-Design`**.
+3. **For cloud-native firewall (Azure FW / AWS NFW / GCP Cloud FW)** — HA is service-managed. Design regional zone placement; stop here.
+4. **For NVAs** — pick HA mode per vendor (A/P default; A/A when throughput justifies; A/A with session sync only with full operational backing).
+5. **Plan dedicated HA subnets** — HA1 (control plane / config sync) and HA2 (data plane / session sync) MUST be separate from data subnets.
+6. **Pick heartbeat timers** — vendor default for production stability; aggressive only with mature monitoring + dampening.
+7. **Wire cloud failover pattern** — Azure: Standard LB front-end + UDR pointed at SLB / NVA primary; on failover, UDR or floating IP moves. AWS: Gateway LB or NLB-front + EIP failover via Lambda / scripts. GCP: Internal LB front-end + Cloud Router BGP failover or floating IP via API.
+8. **Enable session sync** — without it every failover drops every connection.
+9. **Enable config sync** with one-primary discipline — secondary must NEVER be edited.
+10. **Set preempt OFF** (avoid flap loops) — let ops manually fail back during a maintenance window.
+11. **Fence on heartbeat loss** in active/active — prevents split-brain.
+12. **Surface anti-patterns** — shared heartbeat + data plane, no session sync, both nodes editable, aggressive timers without dampening, preempt on, A/A without LB.
+13. **Wire HA-specific monitoring** — heartbeat state, sync state, failover events, time-to-converge metric.
+14. **Emit** in the output format below.
 
 ---
 
-## Design Checklist
+## Output format
 
-1. [ ] HA mode selected (active/passive, active/active, clustering) with justification.
-2. [ ] Dedicated heartbeat/HA interfaces provisioned (minimum two paths).
-3. [ ] Session synchronization configured and verified (stateful failover).
-4. [ ] Configuration synchronization enabled (or automated via config management).
-5. [ ] Health probes configured (cloud deployments) or heartbeat timers tuned.
-6. [ ] Split-brain prevention addressed (dual heartbeat, monitoring interfaces).
-7. [ ] Preemption policy decided (preempt on recovery or manual failback).
-8. [ ] Failover tested end-to-end with traffic flowing during failover event.
-9. [ ] Rollback/recovery procedure documented for HA configuration changes.
+Every HA-design answer should emit:
+
+1. **Inputs assumed** — cloud / on-prem, vendor + version, throughput target, RTO, stateful workload.
+2. **HA mode chosen** + rationale (A/P / A/A / A/A+sync).
+3. **Subnet plan** — HA1 + HA2 dedicated + data subnets per cloud.
+4. **Heartbeat timer + dampening config.**
+5. **Cloud failover pattern** — LB type + UDR / EIP / floating IP mechanism citing vault.
+6. **Session sync configuration** — protocol / port / link.
+7. **Config sync direction + discipline** — primary owner + secondary read-only.
+8. **Preempt setting + fence behaviour.**
+9. **Monitoring plan** — heartbeat state, sync state, failover counter, time-to-converge.
+10. **Anti-pattern check** — confirm none of the workflow mistakes below apply.
+11. **What this excludes** — rule config (`config-gen`), hardening (`hardening-check`), troubleshooting after failover (`troubleshoot`).
+12. **Footer** — `Analysis only — verify against vendor documentation before applying.`
 
 ---
+
+## Common workflow mistakes (do not repeat these)
+
+1. **Heartbeat sharing data-plane subnet.** Data outage = heartbeat loss = unnecessary failover.
+2. **No session sync.** Every failover drops every active TCP session. Loud user-visible event.
+3. **Editing the secondary node.** Config drift; on failover the rule set changes; production outage.
+4. **Aggressive heartbeat timers without dampening.** Flap loops kill availability worse than slow failover.
+5. **Preempt on.** Primary recovers mid-traffic, fails back, drops sessions; flap risk.
+6. **Active/active without LB.** No traffic distribution = active/idle.
+7. **No fence on heartbeat loss in A/A.** Split-brain; both write the same EIP / floating IP; outage.
+8. **No commit-confirm + rollback timer on HA config push.** Bad push locks both nodes out.
+9. **Recommending NVA HA for a cloud where a managed firewall service would do.** Pay for ops you don't need.
+10. **No HA-specific monitoring** — failover events, time-to-converge, sync state. SREs see only the symptom, not the cause.
+11. **No periodic failover drill.** First production failover finds the bug.
+12. **No documented runbook for asymmetric routing post-failover** — Azure UDR / AWS routes / GCP routes may not converge fast enough; document the manual nudge.
+
 **Analysis only — verify against vendor documentation before applying.**

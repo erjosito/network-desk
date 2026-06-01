@@ -1,449 +1,109 @@
-# Skill: Configuration Generation
+# Skill: Firewall Configuration Generation (`fw_skill_config_gen`)
 
-## Purpose
-
-Generate vendor-specific firewall configuration snippets from a policy intent description. Given a high-level requirement (e.g., "allow web servers in DMZ to reach DB servers on port 3306"), produce ready-to-review configuration for any of the 14 supported platforms.
+Generate vendor-specific firewall configuration snippets from a high-level policy intent, across all 14 supported platforms (Azure Firewall, AWS Network Firewall, GCP Cloud Firewall, PAN-OS, FortiGate, Check Point, Cisco ASA, Juniper SRX, Zscaler ZIA, Sophos XG/XGS, OPNsense, pfSense, VyOS, iptables/nftables). Owns the *intent-to-config translation discipline* — always **named objects** (never inline IPs), always **comments / descriptions**, always **logging** (session for allow, packet for deny), always **rollback commands** alongside add commands, always **dry-run / test-policy-match** before apply, always **atomic commit with auto-rollback timer** where supported (Junos / VyOS / PAN-OS). Per-vendor templates for the canonical "DMZ web → DB MySQL TCP/3306" policy intent live in the vault.
 
 ---
 
-## Input Requirements
+## Knowledge loading contract
 
-Before generating configuration, gather:
+This is a **thin specialist skill**. It owns the *named-objects-not-IPs* rule, the *log-always* rule (allow=session, deny=packet), the *include-rollback-commands* rule, the *dry-run-before-apply* rule, the *atomic-commit-with-confirm* preference on vendors that support it, and the *input-checklist-before-generating* discipline. Per-vendor templates (Bicep / CloudFormation / gcloud / PAN-OS set / FortiOS / mgmt_cli / ASA / SRX / ZIA / Sophos / OPNsense REST / pfSense / VyOS / iptables / nftables) live in the vault.
 
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| **Source zone** | Origin zone of the traffic | DMZ |
-| **Source address** | IP/CIDR, FQDN, or address object | 10.1.2.0/24 or `DMZ_WebServers` |
-| **Destination zone** | Target zone of the traffic | Database |
-| **Destination address** | IP/CIDR, FQDN, or address object | 10.1.3.0/24 or `DB_Servers` |
-| **Service/Port** | Protocol and port(s) | TCP/3306 |
-| **Action** | allow / deny / drop / reject | allow |
-| **Logging** | Enable session logging | yes |
-| **Description** | Human-readable rule description | Allow DMZ web servers to MySQL |
+Mandatory steps every time you use this skill:
+
+1. Call `cn_vault_page({ page: "Firewall-Config-Generation" })` for input requirements + per-vendor configuration templates for all 14 platforms + best-practices.
+2. For policy *design* (zones, transition matrix, L3/L4 vs L7) before generating config, redirect to `policy-design`.
+3. For *testing* the generated config before deploy, redirect to `policy-test`.
+
+If a vendor isn't covered, fall back to `cn_search({ query: "<keywords>", specialist: "cn_fw" })`.
 
 ---
 
-## Vendor-Specific Configuration Templates
+## When to use config-gen
 
-All examples implement the same policy intent:
-> **Allow web servers in DMZ (10.1.2.0/24) to reach database servers (10.1.3.0/24) on TCP port 3306, with logging enabled.**
+| Scenario | Behaviour |
+|---|---|
+| "Generate the Azure Firewall rule for DMZ → DB on 3306" | Collect inputs → cite Bicep + CLI from vault → emit + rollback + log |
+| "Translate this PAN-OS rule to FortiGate" | Cite both templates from vault; flag named-object name preservation |
+| "I need iptables / nftables for east-west DMZ → DB" | Cite vault templates; flag chain ordering + default-drop |
+| "OPNsense REST call for this rule" | Cite vault; include alias creation + apply step |
+| Designing the *policy* (zone taxonomy, transition matrix) before config | Redirect: `cn_skill({ specialist: "cn_fw", skill: "policy-design" })` |
+| Testing generated rules before deploy | Redirect: `cn_skill({ specialist: "cn_fw", skill: "policy-test" })` |
+| Hardening the firewall management plane | Redirect: `cn_skill({ specialist: "cn_fw", skill: "hardening-check" })` |
+| Migrating from one vendor to another | Redirect: `cn_skill({ specialist: "cn_fw", skill: "vendor-migrate" })` |
+| Auditing existing rules / hit counts | Redirect: `cn_skill({ specialist: "cn_fw", skill: "rule-audit" })` |
 
 ---
 
-### 1. Azure Firewall (Bicep)
+## Reference pages (load these first)
 
-```bicep
-// Network Rule Collection within a Firewall Policy
-resource ruleCollectionGroup 'Microsoft.Network/firewallPolicies/ruleCollectionGroups@2023-09-01' = {
-  name: 'DMZ-to-Database'
-  parent: firewallPolicy
-  properties: {
-    priority: 300
-    ruleCollections: [
-      {
-        ruleCollectionType: 'FirewallPolicyFilterRuleCollection'
-        name: 'Allow-DMZ-to-DB'
-        priority: 310
-        action: {
-          type: 'Allow'
-        }
-        rules: [
-          {
-            ruleType: 'NetworkRule'
-            name: 'Allow-WebServers-MySQL'
-            description: 'Allow DMZ web servers to MySQL'
-            sourceAddresses: [ '10.1.2.0/24' ]
-            destinationAddresses: [ '10.1.3.0/24' ]
-            destinationPorts: [ '3306' ]
-            ipProtocols: [ 'TCP' ]
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+| Topic | Vault page | Load with |
+|---|---|---|
+| Canonical config-generation reference — input requirements, 14 per-vendor templates (Azure FW Bicep+CLI, AWS NFW CFN+CLI, GCP gcloud, PAN-OS set, FortiOS, mgmt_cli, ASA, SRX, ZIA, Sophos, OPNsense REST, pfSense, VyOS, iptables, nftables), best practices | [[Firewall-Config-Generation]] | `cn_vault_page({ page: "Firewall-Config-Generation" })` |
 
-```bash
-# Azure CLI equivalent
-az network firewall policy rule-collection-group collection add-filter-collection \
-  --policy-name myFirewallPolicy \
-  --resource-group myRG \
-  --rule-collection-group-name DMZ-to-Database \
-  --name Allow-DMZ-to-DB \
-  --collection-priority 310 \
-  --action Allow \
-  --rule-name Allow-WebServers-MySQL \
-  --rule-type NetworkRule \
-  --source-addresses "10.1.2.0/24" \
-  --destination-addresses "10.1.3.0/24" \
-  --destination-ports 3306 \
-  --ip-protocols TCP
-```
-
-### 2. AWS Network Firewall (CloudFormation)
-
-```yaml
-# Stateful rule group
-AWSTemplateFormatVersion: '2010-09-09'
-Resources:
-  DMZtoDBRuleGroup:
-    Type: AWS::NetworkFirewall::RuleGroup
-    Properties:
-      RuleGroupName: dmz-to-db-rules
-      Type: STATEFUL
-      Capacity: 10
-      RuleGroup:
-        RulesSource:
-          StatefulRules:
-            - Action: PASS
-              Header:
-                Protocol: TCP
-                Source: "10.1.2.0/24"
-                SourcePort: ANY
-                Destination: "10.1.3.0/24"
-                DestinationPort: "3306"
-                Direction: FORWARD
-              RuleOptions:
-                - Keyword: "sid"
-                  Settings: ["1000001"]
-                - Keyword: "msg"
-                  Settings: ['"Allow DMZ web servers to MySQL"']
-```
-
-```bash
-# AWS CLI equivalent
-aws network-firewall create-rule-group \
-  --rule-group-name dmz-to-db-rules \
-  --type STATEFUL \
-  --capacity 10 \
-  --rule-group '{
-    "RulesSource": {
-      "StatefulRules": [{
-        "Action": "PASS",
-        "Header": {
-          "Protocol": "TCP",
-          "Source": "10.1.2.0/24",
-          "SourcePort": "ANY",
-          "Destination": "10.1.3.0/24",
-          "DestinationPort": "3306",
-          "Direction": "FORWARD"
-        },
-        "RuleOptions": [
-          {"Keyword": "sid", "Settings": ["1000001"]}
-        ]
-      }]
-    }
-  }'
-```
-
-### 3. GCP Cloud Firewall (gcloud)
-
-```bash
-# VPC firewall rule
-gcloud compute firewall-rules create allow-dmz-to-db-mysql \
-  --network=my-vpc \
-  --priority=1000 \
-  --direction=INGRESS \
-  --action=ALLOW \
-  --rules=tcp:3306 \
-  --source-ranges=10.1.2.0/24 \
-  --destination-ranges=10.1.3.0/24 \
-  --target-tags=db-servers \
-  --enable-logging \
-  --description="Allow DMZ web servers to MySQL"
-```
-
-### 4. Palo Alto Networks (PAN-OS set commands)
-
-```
-# Address objects
-set address DMZ_WebServers ip-netmask 10.1.2.0/24
-set address DB_Servers ip-netmask 10.1.3.0/24
-
-# Service object
-set service MySQL protocol tcp port 3306
-
-# Security policy rule
-set rulebase security rules "Allow-DMZ-to-DB-MySQL" from DMZ to Database source DMZ_WebServers destination DB_Servers application mysql service MySQL action allow log-end yes profile-setting group default-security-profiles
-set rulebase security rules "Allow-DMZ-to-DB-MySQL" description "Allow DMZ web servers to MySQL"
-
-# Commit
-commit
-```
-
-### 5. Fortinet FortiGate (FortiOS CLI)
-
-```
-# Address objects
-config firewall address
-    edit "DMZ_WebServers"
-        set subnet 10.1.2.0 255.255.255.0
-    next
-    edit "DB_Servers"
-        set subnet 10.1.3.0 255.255.255.0
-    next
-end
-
-# Service object
-config firewall service custom
-    edit "MySQL"
-        set protocol TCP/UDP/SCTP
-        set tcp-portrange 3306
-    next
-end
-
-# Firewall policy
-config firewall policy
-    edit 0
-        set name "Allow-DMZ-to-DB-MySQL"
-        set srcintf "dmz"
-        set dstintf "database"
-        set srcaddr "DMZ_WebServers"
-        set dstaddr "DB_Servers"
-        set service "MySQL"
-        set action accept
-        set logtraffic all
-        set comments "Allow DMZ web servers to MySQL"
-    next
-end
-```
-
-### 6. Check Point (mgmt_cli)
-
-```bash
-# Create host/network objects
-mgmt_cli add network name "DMZ_WebServers" subnet "10.1.2.0" mask-length 24
-mgmt_cli add network name "DB_Servers" subnet "10.1.3.0" mask-length 24
-
-# Create service
-mgmt_cli add service-tcp name "MySQL" port 3306
-
-# Add access rule
-mgmt_cli add access-rule layer "Network" \
-  position top \
-  name "Allow-DMZ-to-DB-MySQL" \
-  source "DMZ_WebServers" \
-  destination "DB_Servers" \
-  service "MySQL" \
-  action "Accept" \
-  track "Log" \
-  comments "Allow DMZ web servers to MySQL"
-
-# Publish and install
-mgmt_cli publish
-mgmt_cli install-policy policy-package "Standard"
-```
-
-### 7. Cisco ASA (CLI)
-
-```
-! Address objects
-object network DMZ_WebServers
- subnet 10.1.2.0 255.255.255.0
-object network DB_Servers
- subnet 10.1.3.0 255.255.255.0
-
-! Service object
-object service MySQL
- service tcp destination eq 3306
-
-! Access list
-access-list DMZ_to_DB_ACL extended permit tcp object DMZ_WebServers object DB_Servers object MySQL log
-
-! Apply to interface
-access-group DMZ_to_DB_ACL in interface dmz
-```
-
-### 8. Juniper SRX (set commands)
-
-```
-# Address book entries
-set security zones security-zone DMZ address-book address DMZ_WebServers 10.1.2.0/24
-set security zones security-zone Database address-book address DB_Servers 10.1.3.0/24
-
-# Application (or use junos-mysql if predefined)
-set applications application MySQL protocol tcp destination-port 3306
-
-# Security policy
-set security policies from-zone DMZ to-zone Database policy Allow-DMZ-to-DB-MySQL match source-address DMZ_WebServers destination-address DB_Servers application MySQL
-set security policies from-zone DMZ to-zone Database policy Allow-DMZ-to-DB-MySQL then permit
-set security policies from-zone DMZ to-zone Database policy Allow-DMZ-to-DB-MySQL then log session-close
-
-# Commit
-commit
-```
-
-### 9. Zscaler (ZIA Firewall Filtering Rule)
-
-ZIA firewall policy object names, fields, and API resource paths change over time. Prefer the ZIA Admin Portal or the current Zscaler API documentation instead of copying brittle endpoint examples; verify current `firewallFilteringRules` object names and required fields in the official firewall policy docs before generating automation.
-
-**Policy intent mapping:**
-- Rule name/description: `Allow-DMZ-to-DB-MySQL` / `Allow DMZ web servers to MySQL`
-- Action/state: allow, enabled
-- Source: DMZ web server IP group or location group
-- Destination: `10.1.3.0/24` or approved destination object
-- Application/service: MySQL / TCP destination port 3306
-- Logging: full session logging if supported by the current tenant and license
-
-> Note: Zscaler ZIA is primarily for internet-bound traffic. For internal east-west traffic like DMZ-to-DB, consider ZPA, Zscaler Cloud Connector, or a local firewall. Verify current API paths and fields in the official ZIA firewall policy documentation: https://help.zscaler.com/zia/firewall-policies
-
-### 10. Sophos XG / XGS (CLI)
-
-```
-# Via device console
-set firewall rule add
-  name "Allow-DMZ-to-DB-MySQL"
-  position top
-  srczone DMZ
-  dstzone Database
-  src_net "10.1.2.0/255.255.255.0"
-  dst_net "10.1.3.0/255.255.255.0"
-  service "MySQL (TCP 3306)"
-  action accept
-  log enable
-```
-
-```json
-// REST API equivalent
-// POST /webconsole/APIController
-{
-  "reqxml": "<Request><Set operation='add'><FirewallRule><Name>Allow-DMZ-to-DB-MySQL</Name><SourceZones><Zone>DMZ</Zone></SourceZones><DestinationZones><Zone>Database</Zone></DestinationZones><SourceNetworks><Network>10.1.2.0/24</Network></SourceNetworks><DestinationNetworks><Network>10.1.3.0/24</Network></DestinationNetworks><Services><Service>MySQL</Service></Services><Action>Accept</Action><LogTraffic>Enable</LogTraffic></FirewallRule></Set></Request>"
-}
-```
-
-### 11. OPNsense (REST API)
-
-```bash
-# Create alias for source
-curl -X POST -u "<key>:<secret>" \
-  "https://<opnsense>/api/firewall/alias/addItem" \
-  -d '{"alias":{"name":"DMZ_WebServers","type":"network","content":"10.1.2.0/24","description":"DMZ web server subnet"}}'
-
-# Create alias for destination
-curl -X POST -u "<key>:<secret>" \
-  "https://<opnsense>/api/firewall/alias/addItem" \
-  -d '{"alias":{"name":"DB_Servers","type":"network","content":"10.1.3.0/24","description":"Database server subnet"}}'
-
-# Create firewall filter rule
-curl -X POST -u "<key>:<secret>" \
-  "https://<opnsense>/api/firewall/filter/addRule" \
-  -d '{"rule":{"enabled":"1","action":"pass","interface":"dmz","direction":"in","ipprotocol":"inet","protocol":"TCP","source_net":"DMZ_WebServers","destination_net":"DB_Servers","destination_port":"3306","description":"Allow DMZ web servers to MySQL","log":"1"}}'
-
-# Apply changes
-curl -X POST -u "<key>:<secret>" \
-  "https://<opnsense>/api/firewall/filter/apply"
-```
-
-### 12. pfSense (easyrule / config.xml)
-
-```bash
-# Quick rule via easyrule
-easyrule pass dmz tcp 10.1.2.0/24 10.1.3.0/24 3306
-
-# config.xml rule structure (for reference)
-# Add to <filter> section:
-```
-
-```xml
-<rule>
-  <type>pass</type>
-  <interface>opt1</interface> <!-- DMZ interface -->
-  <ipprotocol>inet</ipprotocol>
-  <protocol>tcp</protocol>
-  <source>
-    <address>10.1.2.0/24</address>
-  </source>
-  <destination>
-    <address>10.1.3.0/24</address>
-    <port>3306</port>
-  </destination>
-  <descr>Allow DMZ web servers to MySQL</descr>
-  <log/>
-</rule>
-```
-
-```bash
-# After config.xml edit, reload filter rules
-pfctl -f /tmp/rules.debug   # or via GUI: apply changes
-/etc/rc.filter_configure
-```
-
-### 13. VyOS (set commands)
-
-VyOS firewall syntax differs between 1.3 LTS (legacy `set firewall name` / `set zone-policy zone`) and newer 1.4/1.5 nftables-backed trains. For 1.4/1.5, prefer the `set firewall ipv4 name ...` rule-set form and current zone firewall syntax; verify the exact commands in the official zone-based firewall documentation before applying: https://docs.vyos.io/en/latest/configuration/firewall/zone.html
-
-```bash
-# VyOS 1.4/1.5-style IPv4 firewall rule-set template — verify current syntax for your release.
-set firewall ipv4 name DMZ-to-DB default-action drop
-
-# Allow MySQL rule
-set firewall ipv4 name DMZ-to-DB rule 10 action accept
-set firewall ipv4 name DMZ-to-DB rule 10 description "Allow DMZ web servers to MySQL"
-set firewall ipv4 name DMZ-to-DB rule 10 source address 10.1.2.0/24
-set firewall ipv4 name DMZ-to-DB rule 10 destination address 10.1.3.0/24
-set firewall ipv4 name DMZ-to-DB rule 10 destination port 3306
-set firewall ipv4 name DMZ-to-DB rule 10 protocol tcp
-set firewall ipv4 name DMZ-to-DB rule 10 log enable
-
-# Attach the rule-set to the DMZ → DATABASE zone transition using the current zone syntax for your release.
-# Example form to verify in docs before use:
-set firewall zone DATABASE from DMZ firewall name DMZ-to-DB
-
-# Apply
-commit
-save
-```
-
-> For VyOS 1.3 LTS, the older `set firewall name ...` and `set zone-policy zone ...` examples may still apply. Always match examples to the running VyOS release.
-
-### 14. iptables / nftables
-
-```bash
-# iptables
-# Create custom chain for zone transition
-iptables -N DMZ_TO_DB
-iptables -A FORWARD -i eth1 -o eth2 -j DMZ_TO_DB   # eth1=DMZ, eth2=DB
-
-# Allow MySQL with logging
-iptables -A DMZ_TO_DB -s 10.1.2.0/24 -d 10.1.3.0/24 -p tcp --dport 3306 \
-  -m state --state NEW,ESTABLISHED -j LOG --log-prefix "[DMZ-to-DB-MySQL] "
-iptables -A DMZ_TO_DB -s 10.1.2.0/24 -d 10.1.3.0/24 -p tcp --dport 3306 \
-  -m state --state NEW,ESTABLISHED -j ACCEPT
-
-# Default deny for chain
-iptables -A DMZ_TO_DB -j DROP
-
-# Save
-iptables-save > /etc/iptables/rules.v4
-```
-
-```bash
-# nftables equivalent
-nft add table inet filter
-nft add chain inet filter dmz_to_db '{ type filter hook forward priority 0; }'
-
-nft add rule inet filter forward iifname "eth1" oifname "eth2" jump dmz_to_db
-
-nft add rule inet filter dmz_to_db ip saddr 10.1.2.0/24 ip daddr 10.1.3.0/24 \
-  tcp dport 3306 ct state new,established log prefix \"[DMZ-to-DB-MySQL] \" accept
-
-nft add rule inet filter dmz_to_db drop
-
-# Save
-nft list ruleset > /etc/nftables.conf
-```
+Mandatory.
 
 ---
 
-## Best Practices for Generated Config
+## Required inputs — collect before generating
 
-1. **Always include comments/descriptions** — every rule must have a human-readable description.
-2. **Use named objects** — avoid hard-coded IPs in rules; define address and service objects.
-3. **Log all rules** — enable session logging for allow rules and packet logging for deny rules.
-4. **Include rollback commands** — provide the delete/remove commands alongside the add commands.
-5. **Validate before applying** — recommend dry-run or test-policy-match tools per vendor.
-6. **Commit atomically** — on platforms that support it (Junos, VyOS, PAN-OS), use commit/confirm with auto-rollback timers.
+1. **Source zone** + **source address** (named object preferred, IP/CIDR/FQDN otherwise).
+2. **Destination zone** + **destination address**.
+3. **Service / port** (protocol + port range).
+4. **Action** (allow / deny / drop / reject).
+5. **Logging** preference (session for allow, packet for deny, none).
+6. **Description** (human-readable rule purpose).
+7. **Target vendor + version** (vendor-specific syntax varies by major version, especially VyOS 1.3 vs 1.4/1.5, PAN-OS 10 vs 11, FortiOS 6 vs 7).
+8. **Insertion point** — top / bottom / specific priority.
 
 ---
+
+## Workflow
+
+1. **Collect inputs** above.
+2. **Load `Firewall-Config-Generation`**.
+3. **Apply named-object discipline** — never inline IPs in rules; define address and service objects first.
+4. **Emit the config snippet** from vault for the target vendor + version.
+5. **Emit the rollback command** alongside the add command.
+6. **Enable logging** explicitly per vendor (session for allow, packet for deny).
+7. **Include the dry-run / test-policy-match** command for the vendor — Azure Firewall test, PAN-OS test-policy-match, FortiGate policy lookup, AWS NFW test, Juniper test policy, ASA packet-tracer, OPNsense apply with rollback timer.
+8. **Use commit/confirm + auto-rollback timer** where supported (Junos `commit confirmed 10`, PAN-OS `commit-confirmed`, VyOS `commit confirm 10`).
+9. **For Zscaler ZIA** — recommend ZIA Admin Portal or current API docs over copy-pasted brittle endpoints (ZIA fields evolve frequently); flag ZIA is internet-bound, not east-west — recommend ZPA / local FW for DMZ→DB.
+10. **For multi-vendor environments** — keep object names IDENTICAL across vendors so audits/migrations are deterministic.
+11. **Surface anti-patterns** — inline IPs, no description, no logging, no rollback command, applying without dry-run, no commit-confirm on supported vendors.
+12. **Emit** in the output format below.
+
+---
+
+## Output format
+
+Every config-gen answer should emit:
+
+1. **Inputs assumed** — vendor + version, src/dst zones + addresses, service, action, logging, insertion point.
+2. **Object definitions** — address objects + service objects, named consistently.
+3. **Rule snippet** — the actual config citing vault for the vendor.
+4. **Rollback snippet** — delete/remove commands for the same rule.
+5. **Validation command** — vendor-specific dry-run / test-policy-match / packet-tracer.
+6. **Commit strategy** — commit-confirm with auto-rollback timer if supported.
+7. **Logging confirmation** — session for allow, packet for deny enabled in snippet.
+8. **Anti-pattern check** — confirm none of the workflow mistakes below apply.
+9. **What this excludes** — policy design (`policy-design`), policy testing pre-deploy (`policy-test`), hardening (`hardening-check`).
+10. **Footer** — `Analysis only — verify against vendor documentation before applying.`
+
+---
+
+## Common workflow mistakes (do not repeat these)
+
+1. **Inline IPs / CIDRs in rules.** Future audit + change becomes a regex-replace nightmare. Always named objects.
+2. **No description / comment.** SOC can't tell why a rule exists; rules age into orphans.
+3. **No logging.** Hit-count audit (`rule-audit`) and SOC hunting both fail.
+4. **Allow rules without session logging.** Lose flow visibility for any allowed traffic.
+5. **Deny rules without packet logging.** Lose attack-pattern visibility.
+6. **No rollback command.** Day-of-incident, rollback is a guess.
+7. **Apply without dry-run / test-policy-match.** Misordered rules silently shadow each other.
+8. **No commit-confirm with auto-rollback timer** on vendors that support it. Locked out of management plane = truck roll.
+9. **Vendor-version mismatch** — VyOS 1.3 `set firewall name` vs 1.4/1.5 `set firewall ipv4 name`; confirm the target version before generating.
+10. **Inconsistent object names across vendors** in mixed environments. Audits / migrations explode in complexity.
+11. **Recommending Zscaler ZIA for east-west DMZ → DB.** ZIA is internet-bound; use ZPA / local FW for east-west.
+12. **No "any/any" guard.** Forgetting that the implicit-deny-at-end depends on the platform — some default to allow.
+
 **Analysis only — verify against vendor documentation before applying.**

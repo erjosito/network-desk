@@ -1,349 +1,117 @@
-# Skill: Firewall Troubleshooting
+# Skill: Firewall Troubleshooting (`fw_skill_troubleshoot`)
 
-## Purpose
-
-Systematically diagnose and resolve firewall connectivity issues across all 14 supported platforms. Follow a structured packet-flow methodology to isolate whether the problem is in policy, NAT, routing, or the network path itself.
+Diagnose firewall-related connectivity, performance, and policy issues across all 14 supported platforms. Owns the *systematic-methodology discipline* (define the failure → reproduce → identify path → check policy → check NAT → check session table → check counters / drops → check HA / sync state → check logs → fix → verify), the *5-tuple-first rule* (every troubleshoot starts with src IP, src port, dst IP, dst port, protocol), the *follow-the-packet trace* (use vendor packet-tracer / show-session / debug-flow to see actual evaluation), the *log-correlation-window discipline* (look at logs ±5 min from the reported failure timestamp, in the firewall's TZ), the *NAT-pre-vs-post awareness* (rules evaluated against original or translated 5-tuple depending on vendor), the *HA-state-check mandate* (failover or sync issues masquerade as policy bugs), the *don't-blindly-edit-prod rule* (root-cause first; rule changes go through `policy-test` + `policy-design`), and the *escalation-cutoff* (after 30 min vendor TAC; capture supportsave / tech-support file). Per-vendor diagnostic commands, common-issues catalogue, troubleshooting methodology, and procedure live in the vault.
 
 ---
 
-## Troubleshooting Methodology
+## Knowledge loading contract
 
-Follow these steps in order — do not skip ahead:
+This is a **thin specialist skill**. It owns the *systematic methodology*, the *5-tuple-first* rule, the *follow-the-packet* trace discipline, the *log-correlation-window* rule (±5 min, firewall TZ), the *NAT-pre-vs-post* awareness, the *HA-state-check* mandate, the *don't-edit-prod-without-root-cause* rule, and the *escalation-cutoff* discipline. Per-vendor diagnostic commands (PAN-OS test-security-policy-match / show-session / debug flow basic, FortiGate diagnose sniffer / diagnose debug flow / policy lookup, Check Point fw monitor / fw ctl chain / fw ctl pstat, ASA packet-tracer / capture, SRX flow filter / packet-tracing, Azure FW logs + Connection Troubleshoot, AWS NFW logs + Reachability Analyzer, GCP Cloud FW logs + Connectivity Tests, iptables -nvL + counters, Sophos / OPNsense / pfSense / VyOS / Zscaler), common-issues catalogue, methodology checklist, and procedure live in the vault.
 
-```
-1. IDENTIFY SYMPTOMS
-   └─ What is failing? (connection timeout, reset, ICMP unreachable, partial connectivity)
-   └─ Is it new traffic or existing sessions breaking?
-   └─ When did it start? (correlate with change windows)
+Mandatory steps every time you use this skill:
 
-2. CHECK PACKET FLOW (Does the packet reach the firewall?)
-   └─ Packet capture on ingress interface
-   └─ Verify source routing / ARP resolution
+1. Call `cn_vault_page({ page: "Firewall-Troubleshooting" })` for the methodology, per-vendor diagnostic commands, common-issues catalogue, and procedure.
+2. For *hunting* patterns in firewall logs (top denied, geo, brute-force), redirect to `log-analysis`.
+3. For *changing* the policy after root cause is found, redirect to `policy-design` (re-design) or `config-gen` (specific rule) + `policy-test`.
 
-3. VERIFY POLICY (Is the traffic permitted by a rule?)
-   └─ Identify which rule matches (or if default deny hits)
-   └─ Check for shadow rules intercepting the traffic
-
-4. CHECK NAT (Is NAT translating correctly?)
-   └─ Source NAT — verify post-NAT source IP
-   └─ Destination NAT — verify pre-NAT vs post-NAT destination
-   └─ NAT hairpin / loopback scenarios
-
-5. VERIFY ROUTING (Is the return path correct?)
-   └─ Check routing table on the firewall
-   └─ Asymmetric routing — return traffic via a different path?
-
-6. INSPECT SESSION TABLE (Is a session established?)
-   └─ Session present? State? Timeout?
-   └─ TCP state issues (SYN_SENT, half-open, etc.)
-
-7. CHECK MTU / FRAGMENTATION
-   └─ MSS clamping, PMTUD, tunnel overhead
-
-8. VERIFY APPLICATION LAYER
-   └─ L7 inspection blocking? (App-ID, IPS, URL filter, SSL inspection)
-```
+If a vendor / failure mode isn't covered, fall back to `cn_search({ query: "<keywords>", specialist: "cn_fw" })`.
 
 ---
 
-## Per-Vendor Diagnostic Commands
-
-### Azure Firewall
-
-```bash
-# Check if traffic is being processed (Log Analytics / KQL)
-AZFWNetworkRule
-| where SourceIp == "10.1.2.5" and DestinationIp == "10.1.3.10"
-| project TimeGenerated, Action, Rule, Protocol, DestinationPort
-
-# Check DNAT rule hits
-AZFWNatRule
-| where DestinationIp == "<public-ip>"
-| project TimeGenerated, SourceIp, TranslatedIp, TranslatedPort, Action
-
-# Verify effective routes in spoke subnet (is UDR pointing to firewall?)
-az network nic show-effective-route-table \
-  --resource-group <rg> --name <nic-name> -o table
-
-# Azure Firewall diagnostic logs
-az monitor diagnostic-settings list --resource <firewall-resource-id>
-```
-
-### AWS Network Firewall
-
-```bash
-# Check flow logs (if enabled)
-# CloudWatch Logs Insights:
-fields @timestamp, event.src_ip, event.dest_ip, event.dest_port, event.event_type
-| filter event.src_ip = "10.1.2.5" AND event.dest_ip = "10.1.3.10"
-| sort @timestamp desc
-
-# Verify route tables point to firewall endpoint
-aws ec2 describe-route-tables --route-table-id <rtb-id>
-
-# Check firewall endpoint status
-aws network-firewall describe-firewall --firewall-name <name> \
-  --query 'FirewallStatus.SyncStates'
-```
-
-### GCP Cloud Firewall
-
-```bash
-# Check firewall rule evaluation
-gcloud compute firewall-rules list --filter="name~allow" --format=table
-
-# Connectivity test (simulates packet flow)
-gcloud network-management connectivity-tests create test-dmz-to-db \
-  --source-instance=projects/<proj>/zones/<zone>/instances/<src-vm> \
-  --destination-instance=projects/<proj>/zones/<zone>/instances/<dst-vm> \
-  --protocol=TCP --destination-port=3306
-
-# VPC flow logs
-gcloud logging read 'resource.type="gce_subnetwork" AND jsonPayload.connection.src_ip="10.1.2.5"' \
-  --limit=20
-```
-
-### Palo Alto Networks (PAN-OS)
-
-```bash
-# Test security policy match
-> test security-policy-match source 10.1.2.5 destination 10.1.3.10 protocol 6 destination-port 3306 from DMZ to Database
-
-# Packet capture (on dataplane)
-> debug dataplane packet-diag set filter match source 10.1.2.5 destination 10.1.3.10
-> debug dataplane packet-diag set capture stage receive file rx.pcap
-> debug dataplane packet-diag set capture stage transmit file tx.pcap
-> debug dataplane packet-diag set capture on
-
-# Session table
-> show session all filter source 10.1.2.5 destination 10.1.3.10
-
-# Global counters (check for drops)
-> show counter global filter severity drop delta yes
-```
-
-### Fortinet FortiGate
-
-```bash
-# Policy lookup
-FGT# diagnose firewall iprope lookup <src-ip> <dst-ip> <proto> <dport>
-
-# Sniffer (packet capture)
-FGT# diagnose sniffer packet any "host 10.1.2.5 and host 10.1.3.10" 4 0 l
-
-# Session table
-FGT# diagnose sys session list | grep "10.1.2.5"
-
-# Debug flow (shows policy evaluation in real-time)
-FGT# diagnose debug flow filter addr 10.1.2.5
-FGT# diagnose debug flow trace start 100
-FGT# diagnose debug enable
-# ... reproduce traffic ...
-FGT# diagnose debug disable
-```
-
-### Check Point (R81+)
-
-```bash
-# fw monitor (packet capture at inspection points)
-fw monitor -e "accept src=10.1.2.5 and dst=10.1.3.10;"
-
-# fw ctl zdebug drop (show reason for drops)
-fw ctl zdebug drop | grep "10.1.2.5"
-
-# Connection table
-fw tab -t connections -f -u | grep "10.1.2.5"
-
-# Policy verification
-mgmt_cli show access-rulebase name "Network" filter "src:10.1.2.5 AND dst:10.1.3.10" -f json
-```
-
-### Cisco ASA / FTD
-
-```bash
-# Packet tracer (simulates full packet path)
-ASA# packet-tracer input dmz tcp 10.1.2.5 12345 10.1.3.10 3306
-
-# Show connection table
-ASA# show conn address 10.1.2.5
-
-# Capture on interface
-ASA# capture CAP1 interface dmz match tcp host 10.1.2.5 host 10.1.3.10 eq 3306
-ASA# show capture CAP1
-
-# Show NAT translations
-ASA# show xlate | include 10.1.2.5
-
-# ASP drop reasons
-ASA# show asp drop
-```
-
-### Juniper SRX
-
-```bash
-# Policy match test
-> show security match-policies from-zone DMZ to-zone Database source-ip 10.1.2.5 destination-ip 10.1.3.10 protocol tcp destination-port 3306
-
-# Flow session table
-> show security flow session source-prefix 10.1.2.5 destination-prefix 10.1.3.10
-
-# Packet capture (datapath debugging)
-> monitor traffic interface ge-0/0/1 matching "host 10.1.2.5 and host 10.1.3.10"
-
-# Flow trace (debug)
-> set security flow traceoptions file flow-trace
-> set security flow traceoptions flag basic-datapath
-> set security flow traceoptions packet-filter filter1 source-prefix 10.1.2.5
-# ... reproduce traffic ...
-> show log flow-trace
-```
-
-### Zscaler
-
-```bash
-# ZIA: Check if traffic is being forwarded to Zscaler
-# In ZIA Admin Portal: Logs > Web Logs / Firewall Logs
-# Filter by source IP: 10.1.2.5
-
-# ZPA: Check connector status
-# ZPA Admin Portal: Dashboard > Connector Status
-
-# App Connector diagnostic commands (on connector host)
-zpa-connector-health-check
-
-# NSS feed for raw log analysis via SIEM
-```
-
-### Sophos XG / XGS
-
-```bash
-# Packet capture (device console)
-console> tcpdump -i any host 10.1.2.5
-
-# Connection tracking
-console> conntrack -L | grep 10.1.2.5
-
-# Log viewer: Monitor & Analyze > Log Viewer
-# Filter: src=10.1.2.5 AND dst=10.1.3.10
-```
-
-### OPNsense
-
-```bash
-# Packet capture via GUI: Interfaces > Diagnostics > Packet Capture
-# Or via CLI:
-tcpdump -i em1 host 10.1.2.5 and host 10.1.3.10 -nn
-
-# Show pf state table for specific connection
-pfctl -ss | grep "10.1.2.5"
-
-# Show loaded rules (verify rule exists and order)
-pfctl -sr | head -50
-pfctl -vsr   # verbose — includes labels, hit counts
-
-# Check if packet matches a rule
-pfctl -sr -v | grep -A2 "10.1.3.0/24"
-
-# Show pf info (counters, drops)
-pfctl -si
-
-# Show interface statistics
-pfctl -sI -i em1
-
-# Check NAT rules
-pfctl -sn
-```
-
-### pfSense
-
-```bash
-# Packet capture: Diagnostics > Packet Capture
-# Or CLI:
-tcpdump -i em0 host 10.1.2.5 and host 10.1.3.10 -nn
-
-# Show loaded rules
-pfctl -sr
-
-# Show states
-pfctl -ss | grep "10.1.2.5"
-
-# Show pf counters
-pfctl -si
-
-# Show NAT rules
-pfctl -sn
-
-# Check filter log for drops
-clog /var/log/filter.log | grep "10.1.2.5"
-
-# Verify gateway status
-netstat -rn
-```
-
-### VyOS
-
-```bash
-# Show firewall rules and counters
-$ show firewall name DMZ-to-DB
-
-# Monitor traffic on interface
-$ monitor traffic interface eth1 filter "host 10.1.2.5 and host 10.1.3.10"
-
-# Show connection tracking
-$ show conntrack table ipv4 | grep "10.1.2.5"
-
-# Show session table filtered
-$ show conntrack table ipv4 | match "10.1.2.5.*10.1.3.10"
-
-# Show firewall statistics for specific ruleset
-$ show firewall name DMZ-to-DB statistics
-
-# Verify routing
-$ show ip route 10.1.3.0/24
-```
-
-### iptables / nftables
-
-```bash
-# Verbose rule listing with hit counts
-iptables -L FORWARD -v -n --line-numbers
-iptables -L INPUT -v -n --line-numbers
-
-# Check specific rule match
-iptables -C FORWARD -s 10.1.2.5 -d 10.1.3.10 -p tcp --dport 3306 -j ACCEPT
-
-# TRACE target for packet path debugging
-iptables -t raw -A PREROUTING -s 10.1.2.5 -d 10.1.3.10 -p tcp --dport 3306 -j TRACE
-# View trace output:
-journalctl -k | grep TRACE
-# or
-dmesg | grep TRACE
-
-# Connection tracking state
-conntrack -L -s 10.1.2.5 -d 10.1.3.10
-conntrack -E   # live event monitor
-
-# NAT translations
-conntrack -L -n   # show NAT entries
-iptables -t nat -L -v -n --line-numbers
-
-# nftables equivalents
-nft list chain inet filter forward
-nft monitor trace    # after adding: nft add rule ... meta nftrace set 1
-```
+## When to use troubleshoot
+
+| Scenario | Behaviour |
+|---|---|
+| "User can't reach app on port X — blocked at firewall?" | 5-tuple → packet-tracer → policy match → NAT trace → session table → log |
+| "Intermittent drops on this flow" | Check HA state, session table evict, hash-pinning, asymmetric routing |
+| "Throughput dropped" | Check sessions/CPU, IDS/IPS load, signature update event, HA failover event |
+| "Tunnel up but no traffic" | Check IKE/IPsec SA + child SA + crypto-map / proposals + route + log |
+| "FQDN rule worked then stopped" | DNS TTL race; check FQDN cache + DNS resolver |
+| "VPN client can reach Azure but not on-prem via VPN" | UDR / route-table audit + firewall rule + asymmetric routing |
+| Hunting in logs broadly (not a specific failure) | Redirect: `cn_skill({ specialist: "cn_fw", skill: "log-analysis" })` |
+| Once root cause is known: re-design needed | Redirect: `cn_skill({ specialist: "cn_fw", skill: "policy-design" })` |
+| Once root cause is known: rule-fix only | Redirect: `cn_skill({ specialist: "cn_fw", skill: "config-gen" })` + `policy-test` |
+| HA-specific failover diagnosis | Apply HA-state-check + cite `cn_skill({ specialist: "cn_fw", skill: "ha-design" })` |
+| Cross-domain (firewall + load balancer + DNS) | Apply this + `cn_skill({ specialist: "cn_ntsh", skill: "connectivity-troubleshoot" })` |
 
 ---
 
-## Common Issues and Solutions
+## Reference pages (load these first)
 
-| Issue | Symptom | Investigation | Resolution |
-|-------|---------|---------------|------------|
-| **Asymmetric routing** | Intermittent drops, TCP RSTs | Session table shows half-open sessions; packet captures show traffic entering one interface but return traffic on another | Fix routing to ensure symmetric paths, or disable state checking on affected interfaces (last resort) |
-| **MTU / PMTUD failure** | Large transfers fail, small packets work | Capture shows fragmented packets or ICMP "need to frag" being dropped | Set MSS clamping (`set tcp-mss-adjust`), allow ICMP type 3 code 4, reduce MTU |
-| **NAT hairpin** | Internal hosts cannot reach public IP of internal server | DNAT works from outside but fails from inside (same zone) | Configure NAT hairpin / reflection / U-turn NAT; ensure source NAT is applied for same-zone DNAT traffic |
-| **Implicit deny hit** | New traffic flow blocked with no matching explicit deny rule | Logs show default deny rule match | Add an explicit allow rule for the traffic flow |
-| **Session timeout** | Long-lived connections drop after inactivity | Session table shows session aging out | Increase session timeout for the specific application; configure TCP keepalives on endpoints |
-| **L7 inspection blocking** | HTTPS or app traffic blocked despite L4 allow rule | SSL decryption errors, App-ID mismatch, IPS signature match | Check security profiles, SSL decryption exceptions, application overrides |
+| Topic | Vault page | Load with |
+|---|---|---|
+| Canonical firewall-troubleshooting reference — systematic methodology, per-vendor diagnostic commands (PAN-OS, FortiGate, Check Point, ASA, SRX, Azure FW, AWS NFW, GCP Cloud FW, iptables/nftables, Sophos, OPNsense, pfSense, VyOS, Zscaler), common issues + solutions (asymmetric routing, NAT bypass, FQDN race, MTU/MSS, session table fill, HA split-brain, signature update outage, TLS inspection cert issues) | [[Firewall-Troubleshooting]] | `cn_vault_page({ page: "Firewall-Troubleshooting" })` |
+
+Mandatory.
 
 ---
+
+## Required inputs — collect before answering
+
+1. **Vendor + version**.
+2. **Symptom statement** — what is failing? since when? for whom?
+3. **5-tuple** — src IP, src port, dst IP, dst port, protocol.
+4. **Reproducibility** — always / intermittent / once.
+5. **Timestamp** of failure (in firewall TZ + user TZ).
+6. **Topology** — direct / via VPN / via cloud LB / via inspection NVA / asymmetric possibility.
+7. **Recent changes** — rule pushes, signature updates, HA events, vendor upgrades.
+8. **Vendor-support readiness** — supportsave / tech-support / show-tech file already captured?
+
+---
+
+## Workflow
+
+1. **Collect inputs** above.
+2. **Load `Firewall-Troubleshooting`**.
+3. **State the 5-tuple** explicitly. If missing, refuse to proceed.
+4. **Reproduce** — synthetic curl / nc / Test-NetConnection / ping from the source.
+5. **Run vendor packet-tracer** from vault — exact CLI for the platform with the 5-tuple.
+6. **Check policy match** — which rule matched? expected vs actual?
+7. **Check NAT** — pre-NAT vs post-NAT 5-tuple; some vendors evaluate rules pre-NAT, others post-NAT.
+8. **Check session table** — is there a stale session pinning to a stale path?
+9. **Check counters / drops** — interface drops, IDS drops, threat-prevention drops, session-table evictions.
+10. **Check HA state** — failover events? sync state? both nodes thinking they're primary (split-brain)?
+11. **Check logs** in the ±5 min window in firewall TZ — deny logs, threat logs, system logs (signature update / HA / commit).
+12. **Check route / UDR / asymmetric routing** — for stateful firewalls, asymmetric path = drop.
+13. **Apply common-issues catalogue** from vault — FQDN TTL race, MTU/MSS, TLS inspection cert chain, time-based rule timezone drift, geo-block customer VPN exit, signature update outage, ARP / GARP failover lag.
+14. **Determine root cause** — never edit prod blindly; once root cause is identified, route to `policy-design` (re-design) / `config-gen` (rule fix) / `ha-design` (HA fix) / `hardening-check` (hardening fix).
+15. **For unresolved >30 min** — capture supportsave / tech-support / show-tech file + open vendor TAC case.
+16. **Surface anti-patterns** — blind rule edits in prod, missing 5-tuple, ignoring HA state, wrong TZ for log correlation, no packet-tracer run.
+17. **Emit** in the output format below.
+
+---
+
+## Output format
+
+Every troubleshoot answer should emit:
+
+1. **Inputs assumed** — vendor + version, 5-tuple, symptom, reproducibility, recent changes.
+2. **Hypothesis** — likely failure mode (policy / NAT / session table / HA / route / FQDN / MTU / TLS / signature).
+3. **Diagnostic commands** — exact per-vendor CLI from vault, in evaluation order.
+4. **Expected vs actual** — what should match / drop / forward, what actually does.
+5. **Root cause** statement.
+6. **Remediation pointer** — `policy-design` / `config-gen` / `ha-design` / `hardening-check` / `vendor-migrate` / supplier TAC.
+7. **Verification steps** — how to confirm the fix worked + how to monitor for recurrence.
+8. **Evidence captured** for change record (logs, packet-tracer output, supportsave if escalated).
+9. **Anti-pattern check** — confirm none of the workflow mistakes below apply.
+10. **What this excludes** — log hunting (`log-analysis`), policy design (`policy-design`), config gen (`config-gen`), hardening (`hardening-check`).
+11. **Footer** — `Analysis only — verify against vendor documentation before applying.`
+
+---
+
+## Common workflow mistakes (do not repeat these)
+
+1. **Editing the production rule base before identifying root cause.** Often the rule is fine; the failure is NAT order / route / HA / signature.
+2. **No 5-tuple captured.** Diagnostics turn into a guessing game.
+3. **Skipping the packet-tracer / debug-flow.** The vendor's own tool tells you exactly what the firewall evaluated.
+4. **Ignoring HA state.** Sync failures and split-brain look like policy bugs.
+5. **Correlating logs in user TZ instead of firewall TZ.** Miss the actual log entry by hours.
+6. **No NAT-pre-vs-post check.** Rules evaluate against the wrong 5-tuple; rule looks wrong but isn't.
+7. **No asymmetric-routing check.** Stateful firewall sees only one direction; drop.
+8. **No FQDN-TTL check.** Rule using `*.example.com` racing DNS resolver.
+9. **No MTU / MSS check.** TCP completes handshake then drops on first large payload.
+10. **No TLS-inspection cert-chain check.** Cert validation fails downstream; firewall drops.
+11. **No signature-update event correlation.** Failure starts exactly at last sig update → known issue.
+12. **No supportsave / tech-support file when escalating.** Vendor TAC starts from zero.
+
 **Analysis only — verify against vendor documentation before applying.**
