@@ -1,177 +1,112 @@
-# Skill: ExpressRoute / Direct Connect / Cloud Interconnect Design (hyb_expressroute-design)
+# Skill: ExpressRoute / Direct Connect / Cloud Interconnect Design (`hyb_expressroute-design`)
 
-Design dedicated private connectivity between on-premises networks and cloud environments using Azure ExpressRoute, AWS Direct Connect, and GCP Cloud Interconnect. This skill covers circuit provisioning, peering configuration, redundancy patterns, and advanced features.
-
----
-
-## Azure ExpressRoute
-
-### Circuit Architecture
-An ExpressRoute circuit represents a logical connection between on-premises infrastructure and Microsoft cloud services through a connectivity provider at a peering location (meet-me facility). Each circuit consists of two physical cross-connections (primary and secondary) for redundancy.
-
-**Circuit Bandwidth Options**: 50 Mbps, 100 Mbps, 200 Mbps, 500 Mbps, 1 Gbps, 2 Gbps, 5 Gbps, 10 Gbps.
-
-**SKUs**:
-- **Standard**: Connect to VNets in the same geopolitical region as the peering location.
-- **Premium**: Connect to VNets in any Azure region worldwide. Increased route limits (10,000 routes for private peering vs 4,000 for Standard).
-
-**Billing Models**:
-- **Metered**: Per-GB egress charge (ingress free). Suitable for variable workloads.
-- **Unlimited**: Flat monthly fee regardless of egress volume. Cost-effective above ~10 TB/month egress.
-
-### Peering Types
-
-**Private Peering**:
-- Connects on-premises networks to Azure VNets. BGP session between on-premises edge router (customer/provider ASN) and Microsoft Enterprise Edge routers (MSEE, ASN 12076).
-- Requires two /30 or /126 subnets for BGP peering (primary and secondary links).
-- Advertise on-premises routes to Azure; learn VNet address spaces from Azure.
-- Route limit: 4,000 prefixes (Standard) or 10,000 prefixes (Premium).
-
-**Microsoft Peering**:
-- Connects to Microsoft 365, Dynamics 365, and Azure PaaS services via public IPs.
-- Requires public IP prefixes owned by the customer or provider (registered in RIR).
-- Route filters control which Microsoft service communities are advertised (e.g., Exchange Online, SharePoint Online, Azure Storage in specific regions).
-- NAT required — Microsoft services see traffic from the customer's public IP pool.
-
-### Advanced Features
-
-**ExpressRoute Global Reach**: Enables data transfer between on-premises sites through two ExpressRoute circuits via Microsoft's backbone. Useful for inter-site connectivity without MPLS or internet VPN. Available in supported peering locations.
-
-**FastPath**: Bypasses the ExpressRoute virtual network gateway for data-path traffic, sending packets directly from the MSEE to the VNet VM. Reduces latency. Support for VNet peering and user-defined routes depends on circuit type and documented constraints; verify the current FastPath matrix before relying on peering or UDR behavior: https://learn.microsoft.com/en-us/azure/expressroute/about-fastpath.
-
-| Circuit type | VNet peering with FastPath | UDR support with FastPath | Guidance |
-|--------------|----------------------------|---------------------------|----------|
-| ExpressRoute Direct | Supported under documented constraints | Supported under documented constraints | Validate gateway, route table, and NVA constraints in the current FastPath docs. |
-| Provider-provisioned ExpressRoute | Verify current support before design | Verify current support before design | Do not assume ExpressRoute Direct behavior applies to partner/provisioned circuits. |
-
-**ExpressRoute Direct**: Provides 10 Gbps or 100 Gbps physical port pairs directly into Microsoft's peering edge. Enables MACsec (802.1AE) encryption on the physical link. Supports multiple ExpressRoute circuits on the same Direct port pair with flexible bandwidth allocation. Required for circuits > 10 Gbps.
-
-### Provisioning Commands
-```bash
-# Create ExpressRoute circuit
-az network express-route create \
-  --name MyERCircuit \
-  --resource-group MyRG \
-  --bandwidth 1000 \
-  --peering-location "Silicon Valley" \
-  --provider "Equinix" \
-  --sku-family MeteredData \
-  --sku-tier Premium
-
-# Configure Private Peering
-az network express-route peering create \
-  --circuit-name MyERCircuit \
-  --resource-group MyRG \
-  --peering-type AzurePrivatePeering \
-  --peer-asn 65001 \
-  --primary-peer-subnet 10.0.0.0/30 \
-  --secondary-peer-subnet 10.0.0.4/30 \
-  --vlan-id 100
-```
+Design dedicated private connectivity between on-premises networks and the cloud — Azure ExpressRoute, AWS Direct Connect, GCP Cloud Interconnect. Owns the cross-cloud equivalence map, the input checklist (bandwidth, peering location, redundancy, SKU/peering selection), and the architectural workflow. The per-service CLI commands, SKU tables, peering subnets, and VIF / VLAN-attachment configuration live in the vault service pages.
 
 ---
 
-## AWS Direct Connect
+## Knowledge loading contract
 
-### Connection Types
+This is a **thin specialist skill**. It owns the design workflow, the redundancy patterns, the BGP attribute / weight conventions that span all three clouds, the sizing methodology, and the "what's missing from a typical answer" discipline. The exact provisioning commands, SKU enumerations, peering subnet formats, FastPath constraints, hosted-connection speed lists, and MED-based routing rules live in the vault and **must be loaded with `cn_vault_page` before issuing per-cloud detail**.
 
-**Dedicated Connection**: Physical port (1 Gbps, 10 Gbps, or 100 Gbps) at an AWS Direct Connect location. Customer manages the cross-connect to their router or colocated equipment. Lead time: typically 2–4 weeks.
+Mandatory steps every time you use this skill:
 
-**Hosted Connection**: Sub-rate connection provisioned by an AWS Direct Connect Partner. Available bandwidths vary by partner and region, including higher options where supported; verify current hosted connection speeds in the AWS Direct Connect documentation before sizing: https://docs.aws.amazon.com/directconnect/latest/UserGuide/hosted_connection.html.
+1. Collect inputs (cloud(s), bandwidth, peering location, redundancy target, SKU/peering type preference, gateway sizing).
+2. Call `cn_vault_page` for the relevant per-cloud service page(s) from the table below.
+3. Cite the vault page when stating SKU rates, FastPath support, peering subnet sizes, or VIF/VLAN-attachment limits.
 
-### Virtual Interfaces (VIFs)
-
-**Private VIF**: Connects to a VPC via a Virtual Private Gateway (VGW) or Direct Connect Gateway. BGP session with Amazon's router (ASN 7224 by default). Supports 802.1Q VLAN tagging. One private VIF per VPC (via VGW) or multiple VPCs (via Direct Connect Gateway).
-
-**Public VIF**: Connects to AWS public services (S3, DynamoDB, EC2 public IPs) via Amazon's public IP space. BGP session advertises Amazon's public prefixes. Customer must advertise their own public prefixes (or Amazon-provided prefixes).
-
-**Transit VIF**: Connects to one or more Transit Gateways via a Direct Connect Gateway. Enables connectivity to multiple VPCs and other Transit Gateway attachments. Supports up to 3 Transit Gateways per Direct Connect Gateway. Limited to 100 route prefixes advertised from AWS.
-
-### Link Aggregation Groups (LAGs)
-Bundle multiple dedicated connections (same bandwidth, same location) into a single logical connection using LACP (802.3ad). Minimum links threshold configurable — if active links drop below threshold, the entire LAG goes down.
-
-### Direct Connect Gateway
-A globally available resource that enables connectivity to VPCs in any AWS region (excluding China). Associates with VGWs (for private VIFs) or Transit Gateways (for transit VIFs). Supports up to 10 VGW associations and 3 Transit Gateway associations.
-
-### Configuration Commands
-```bash
-# Create Direct Connect Gateway
-aws directconnect create-direct-connect-gateway \
-  --direct-connect-gateway-name MyDCGateway \
-  --amazon-side-asn 64512
-
-# Create Private VIF
-aws directconnect create-private-virtual-interface \
-  --connection-id dxcon-xxxx \
-  --new-private-virtual-interface '{
-    "virtualInterfaceName": "MyPrivateVIF",
-    "vlan": 100,
-    "asn": 65001,
-    "authKey": "MyBGPKey",
-    "amazonAddress": "169.254.100.1/30",
-    "customerAddress": "169.254.100.2/30",
-    "directConnectGatewayId": "dxgw-xxxx"
-  }'
-```
+If the user asks about a peering or feature not in the table, fall back to `cn_search({ query: "<keywords>", specialist: "cn_hyb" })`, identify the right page, then load it.
 
 ---
 
-## GCP Cloud Interconnect
+## When to use ExpressRoute design
 
-### Dedicated Interconnect
-Physical 10 Gbps or 100 Gbps connections at GCP colocation facilities. Customer provisions cross-connects between their router and Google's peering edge. Supports up to 8 connections per interconnect for link aggregation (LACP). SLA: 99.9% with single interconnect, 99.99% with recommended topology (4 connections across 2 metro areas).
-
-### Partner Interconnect
-Connections through a Google Cloud Partner (50 Mbps to 50 Gbps). Partner handles the physical connectivity to Google. Suitable when the customer's data center is not at a GCP colocation facility or when lower bandwidth is sufficient.
-
-### VLAN Attachments
-Connect an interconnect (Dedicated or Partner) to a VPC network via Cloud Router. Each VLAN attachment is assigned a VLAN ID and creates a BGP session with the Cloud Router. Multiple VLAN attachments can share a single interconnect.
-
-### MED-Based Routing
-GCP uses Multi-Exit Discriminator (MED) for inbound traffic engineering on Cloud Interconnect:
-- Cloud Router advertises VPC subnets with MED values based on the region of the VPC subnet relative to the interconnect location.
-- Local region subnets: MED = 100 (preferred)
-- Remote region subnets: MED = 200+ (based on inter-region distance)
-- On-premises routers should honor MED to route traffic to the nearest interconnect.
-
-### Configuration Commands
-```bash
-# Create VLAN attachment for Dedicated Interconnect
-gcloud compute interconnects attachments dedicated create my-attachment \
-  --interconnect=my-interconnect \
-  --router=my-cloud-router \
-  --region=us-central1 \
-  --bandwidth=1g \
-  --vlan=100
-
-# Verify BGP session status
-gcloud compute routers get-status my-cloud-router \
-  --region=us-central1
-```
+| Scenario | Behaviour |
+|---|---|
+| "Design an ExpressRoute / Direct Connect / Interconnect for our HQ" | Run full design workflow |
+| "Which SKU / connection type / peering should we pick?" | SKU / peering selection (load per-cloud page) |
+| "How do we make this redundant?" | Pair with `cn_skill({ specialist: "cn_hyb", skill: "failover-design" })` |
+| "How do we route between VNets / VPCs after the circuit is up?" | Pair with `cn_skill({ specialist: "cn_hyb", skill: "routing-design" })` |
+| BGP attribute design specifically | Pair with `cn_skill({ specialist: "cn_hyb", skill: "bgp-design" })` |
+| "How much does it cost?" | Redirect: `cn_skill({ specialist: "cn_price", skill: "circuit-pricing" })` |
+| User asks about VPN instead | Redirect: `cn_skill({ specialist: "cn_hyb", skill: "vpn-design" })` |
 
 ---
 
-## Circuit Sizing and Redundancy Patterns
+## Reference pages (load these first)
 
-### Sizing Guidelines
-- Measure current bandwidth usage (95th percentile, peak, and average) for 30 days.
-- Add 40% headroom for growth and burst absorption.
-- Consider protocol overhead: Ethernet (14 bytes), IP (20 bytes), TCP (20 bytes) headers reduce usable throughput.
-- Account for bidirectional traffic — most circuits are symmetric but workloads may be asymmetric.
+| Topic | Vault page | Load with |
+|---|---|---|
+| Azure ExpressRoute — circuit / SKU / peering / FastPath / Direct / provisioning | [[ExpressRoute]] | `cn_vault_page({ page: "ExpressRoute" })` |
+| AWS Direct Connect — connection types / VIFs / LAGs / DXGW | [[Direct-Connect]] | `cn_vault_page({ page: "Direct-Connect" })` |
+| GCP Cloud Interconnect — Dedicated / Partner / VLAN attachments / MED | [[Cloud-Interconnect]] | `cn_vault_page({ page: "Cloud-Interconnect" })` |
+| BGP design (route filters, attributes, multi-circuit patterns) | [[BGP-Design]] | `cn_vault_page({ page: "BGP-Design" })` |
+| Bandwidth planning (sizing methodology, 95th-percentile, headroom) | [[Hybrid-Bandwidth-Planning]] | `cn_vault_page({ page: "Hybrid-Bandwidth-Planning" })` |
+| Failover patterns | [[Hybrid-Failover-Design]] | `cn_vault_page({ page: "Hybrid-Failover-Design" })` |
+| Troubleshooting hooks (used when the answer needs verification steps) | [[Hybrid-Connectivity-Troubleshooting]] | `cn_vault_page({ page: "Hybrid-Connectivity-Troubleshooting" })` |
 
-### Redundancy Patterns
+Call **only the row(s) relevant to the user's cloud(s)**. Always load the cloud-specific service page; load BGP-Design when answering anything about peering, route filters, or multi-circuit attribute design.
 
-**Dual Circuits — Same Provider, Different Peering Locations**:
-- Active-active or active-passive. Provides resilience against peering location failure.
-- Use BGP local preference to define primary/secondary paths.
+---
 
-**Dual Circuits — Diverse Providers**:
-- Maximum resilience against provider outages. Higher cost and complexity.
-- Ensure diverse physical paths (different fiber routes, different meet-me rooms).
+## Required inputs — collect before answering
 
-**ExpressRoute + VPN Backup**:
-- ExpressRoute as primary (BGP LP 200), S2S VPN as backup (BGP LP 100).
-- VPN provides encrypted backup over internet with automatic failover via BGP.
-- Azure supports this natively — VPN Gateway and ExpressRoute Gateway can coexist in the same VNet.
+1. **Cloud(s)** — Azure / AWS / GCP / multi (different cross-connects per cloud).
+2. **Required throughput** — Mbps or Gbps; drives circuit / SKU choice and gateway sizing.
+3. **Peering location preference / NSP** — meet-me facility; influences partner availability and latency.
+4. **Redundancy** — single circuit / dual circuits (same provider, diverse PoPs) / dual circuits (diverse providers) / circuit + VPN backup.
+5. **Geographic scope** — Standard vs. Premium (Azure ER); single-region vs. global (DXGW / GCP global routing).
+6. **Peering type required** — Private peering only / Public/Microsoft peering / Transit (TGW attachment).
+7. **Gateway sizing on cloud side** — ER Gateway tier (ErGw1Az / ErGw3Az / FastPath), Direct Connect Gateway + TGW, GCP Cloud Router.
+8. **Encryption requirement** — MACsec on ExpressRoute Direct / IPsec over ExpressRoute / IPsec over Direct Connect.
+
+---
+
+## Workflow
+
+1. **Collect inputs** above. If "what bandwidth?" is unknown, pair with `Hybrid-Bandwidth-Planning` to size it.
+2. **Load the cloud-specific service page** (`ExpressRoute` / `Direct-Connect` / `Cloud-Interconnect`) and `BGP-Design`.
+3. **Pick the connection model**:
+   - Azure: Provider-provisioned vs. ExpressRoute Direct; Standard vs. Premium; Metered vs. Unlimited vs. Local.
+   - AWS: Dedicated vs. Hosted connection; Private VIF vs. Public VIF vs. Transit VIF; via VGW vs. DXGW vs. DXGW+TGW.
+   - GCP: Dedicated Interconnect vs. Partner Interconnect; per-attachment bandwidth; Cloud Router placement (regional vs. global routing mode).
+4. **Pick the peering / VIF / VLAN attachment**:
+   - Azure: Private peering subnets (two /30 or /126), VLAN ID, peer ASN.
+   - AWS: VIF type, VLAN, peer ASN, addressing (`169.254.x.x/30`), DXGW associations.
+   - GCP: VLAN attachment, Cloud Router BGP peer, MED expectations.
+5. **Size the gateway** on the cloud side (ErGw1Az vs. ErGw3Az vs. FastPath; TGW attachment + DXGW; Cloud Router HA).
+6. **Define BGP** — peer ASN, route advertisements, route filters, attribute strategy (load `BGP-Design` and cite its sections).
+7. **Add redundancy** — load `Hybrid-Failover-Design` and apply the matching pattern (dual circuits / circuit + VPN backup / active-active gateways).
+8. **Note out-of-band items** — partner / NSP cross-connect, colocation cabling, MRC, lead time (~2–6 weeks typical).
+9. **Emit** in the format below.
+
+---
+
+## Output format
+
+Every ExpressRoute / DX / Interconnect design answer should emit:
+
+1. **Inputs assumed** — one line each.
+2. **Architecture summary** — connection model + peering / VIF / VLAN attachment + cloud-side gateway + redundancy pattern.
+3. **Per-cloud SKU + peering choice** — cite the vault page section.
+4. **BGP plan** — peer ASN, prefixes to advertise/accept, route filters, attribute strategy. Cite `BGP-Design` sections.
+5. **Redundancy** — primary/secondary, weight/LP values, expected convergence time (cite `Hybrid-Failover-Design` for the value).
+6. **Provisioning commands** — point at the vault page section (e.g. "see [[Direct-Connect]] § Configuration Commands") rather than duplicating commands here.
+7. **Out-of-band items** — partner / NSP / colocation / MRC / lead time, with a clear "ask your NSP" callout.
+8. **Footer** — `Analysis only — verify against vendor documentation before applying.`
+
+---
+
+## Common workflow mistakes (do not repeat these)
+
+These are workflow anti-patterns specific to this skill — not a substitute for the vault page's "Common pitfalls" section. Always also surface the loaded service page's pitfall list.
+
+1. **Conflating "circuit up" with "connectivity working".** A provisioned circuit with no peering or no BGP session is the most common "why isn't it working" ticket. Always require BGP peering and route advertisement in the design.
+2. **Skipping the gateway sizing.** ErGw1Az caps at 2 Gbps; ErGw3Az is required for higher throughput / FastPath. AWS DXGW is free but TGW attachment + data processing is not. GCP Cloud Router is regional vs. global — wrong mode breaks multi-region. Cite the vault page for the right SKU.
+3. **Assuming FastPath supports everything.** FastPath has documented constraints around VNet peering, UDRs, and gateway SKU — load the vault page's FastPath subsection and cite the constraint matrix; do not assume it works without verification.
+4. **Forgetting that ExpressRoute Standard is regional (geopolitical).** Cross-region requires Premium add-on (+50–100% port fee). Always check the user's VNets vs. the peering-location geo.
+5. **Recommending a single circuit for production.** Even with SLAs, a single circuit + no VPN backup is an availability anti-pattern. Default to dual-circuit or circuit + VPN backup; if the user explicitly wants single, document the risk.
+6. **Missing public-IP requirements for Microsoft Peering (Azure) or Public VIF (AWS).** Both require customer-owned (or provider-owned) RIR-registered public prefixes. Surface this early — it's a multi-week procurement item.
+7. **Quoting hosted-connection / partner speeds from memory.** AWS hosted-connection speed list changes (partners now offer higher tiers in some regions). Always load `Direct-Connect` and cite the speed list.
+8. **Ignoring NSP / cross-connect / colocation as out-of-band.** A cloud-side architecture diagram is half the story — the partner side has its own MRC, cross-connect fees, and lead time. Always include an "out-of-band items" section.
 
 **Analysis only — verify against vendor documentation before applying.**

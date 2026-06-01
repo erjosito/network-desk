@@ -1,176 +1,112 @@
-# Skill: Failover and Redundancy Design (hyb_failover-design)
+# Skill: Failover and Redundancy Design (`hyb_failover-design`)
 
-Design high-availability hybrid connectivity architectures with automatic failover, fast convergence, and tested recovery procedures.
+Design high-availability hybrid connectivity with automatic failover, fast convergence, and tested recovery procedures. Owns the convergence-time methodology, the BGP attribute conventions for primary/secondary path selection, the BFD-timer trade-off framing, and the testing protocol. The exact per-cloud CLI for setting connection weight, active-active gateways, and BFD timers lives in the vault.
 
----
-
-## Dual ExpressRoute / Direct Connect Circuits
-
-### Diverse Peering Locations
-Deploy two circuits at geographically separate peering locations to protect against single-site failure (fiber cut, facility outage, provider equipment failure).
-
-**Azure ExpressRoute**:
-- Circuit A at peering location "Ashburn" (primary), Circuit B at "Dallas" (backup).
-- Both circuits connect to the same ExpressRoute Gateway in the target VNet.
-- Use BGP local preference on-premises: Circuit A LP 200 (primary), Circuit B LP 100 (backup).
-- From Azure side, configure connection weight: primary connection weight 100, backup weight 0 (Azure prefers higher weight for outbound traffic to on-premises).
-
-```bash
-# Set connection weight on ExpressRoute connection
-az network vpn-connection update \
-  --name PrimaryERConnection \
-  --resource-group MyRG \
-  --routing-weight 100
-
-az network vpn-connection update \
-  --name SecondaryERConnection \
-  --resource-group MyRG \
-  --routing-weight 0
-```
-
-**AWS Direct Connect**:
-- Connection A at "Equinix DC1" with Private VIF through Direct Connect Gateway.
-- Connection B at "CoreSite DC2" with Private VIF through the same Direct Connect Gateway.
-- Configure BGP local preference on-premises routers for primary/secondary path selection.
-- AWS automatically prefers the path with the shortest AS path for return traffic.
-
-**GCP Cloud Interconnect**:
-- Google recommends a "production-grade" topology: 4 VLAN attachments across 2 metro areas, 2 per metro, in different edge availability domains.
-- Each metro has 2 connections to different edge availability domains for 99.99% SLA.
+**Without BFD and without BGP, failover is ~90 seconds.** Most operational outage tickets come from "failover took too long" — design BFD + BGP into the topology, don't bolt them on later.
 
 ---
 
-## VPN Backup for Dedicated Circuits
+## Knowledge loading contract
 
-### ExpressRoute + S2S VPN Failover
+This is a **thin specialist skill**. It owns the convergence-time table (what's achievable with vs. without BFD), the testing protocol (pre-test prep, scenarios, post-test validation), the BGP attribute conventions (LP / weight / MED) that span all three clouds, and the "what failure modes did we forget?" review discipline. Per-cloud commands, exact BFD timer values, and active-active gateway specifics live in the vault.
 
-Deploy a VPN Gateway alongside the ExpressRoute Gateway in the same VNet for automatic failover when ExpressRoute is unavailable.
+Mandatory steps every time you use this skill:
 
-**Architecture**:
-- ExpressRoute Gateway (ErGw1AZ or higher) handles primary traffic.
-- VPN Gateway (VpnGw1AZ or higher, active-active recommended) provides backup.
-- BGP is mandatory for both connections — enables automatic route withdrawal and failover.
-- On-premises: advertise the same prefixes via both ExpressRoute and VPN BGP sessions.
-- Set local preference: ExpressRoute LP 200, VPN LP 100.
+1. Identify the cloud(s), circuit / VPN topology, and the user's target RTO.
+2. Call `cn_vault_page({ page: "Hybrid-Failover-Design" })` for the canonical convergence table + CLI.
+3. Call `cn_vault_page({ page: "BGP-Design" })` for BGP attribute manipulation specifics.
+4. Cite the vault page when stating CLI, convergence numbers, or BFD timer recommendations.
 
-**Failover Behavior**:
-1. ExpressRoute circuit goes down → MSEE withdraws BGP routes.
-2. On-premises router detects BGP session loss (via BFD in ~1s or hold timer in ~90s).
-3. On-premises routing table converges — VPN path (LP 100) becomes best path.
-4. Traffic shifts to VPN tunnel. Throughput drops to VPN gateway capacity.
-5. When ExpressRoute recovers, BGP session re-establishes, LP 200 routes reinstall, traffic shifts back.
-
-**Convergence Time**:
-- With BFD: 1–3 seconds detection + 2–5 seconds convergence = **3–8 seconds total**.
-- Without BFD: 90 seconds hold timer + 5–15 seconds convergence = **95–105 seconds total**.
-
-### AWS Direct Connect + VPN Backup
-- Create a VPN connection to the same VGW or Transit Gateway that terminates Direct Connect.
-- AWS path selection: Direct Connect preferred over VPN by default (shorter AS path if Direct Connect is single-hop; VPN traverses Amazon backbone with additional hops).
-- For Transit Gateway: configure route table preferences — Direct Connect attachment preferred over VPN attachment.
+If the user asks about a failover pattern not in the vault page (e.g. SD-WAN-driven failover, specific NVA HA), fall back to `cn_search({ query: "<keywords>", specialist: "cn_hyb" })`.
 
 ---
 
-## Active-Active Gateways
+## When to use failover design
 
-### Azure Active-Active VPN Gateway
-- Two gateway instances, each with a dedicated public IP.
-- Each instance establishes separate S2S tunnels to the on-premises VPN device.
-- On-premises device must support two IPsec tunnels and ECMP (Equal-Cost Multi-Path) or BGP multi-path.
-- Traffic is distributed across both tunnels. If one instance fails, all traffic shifts to the surviving instance.
-
-```bash
-# Create active-active VPN gateway
-az network vnet-gateway create \
-  --name MyVPNGateway \
-  --resource-group MyRG \
-  --vnet MyVNet \
-  --gateway-type Vpn \
-  --sku VpnGw2AZ \
-  --vpn-type RouteBased \
-  --active-active true \
-  --public-ip-addresses MyGwPIP1 MyGwPIP2
-```
-
-### GCP HA VPN Gateway
-- Two interfaces (interface 0, interface 1), each with a unique external IP.
-- Recommended: 4 tunnels (2 per interface) connecting to 2 interfaces on the peer gateway.
-- Achieves 99.99% SLA when configured with recommended redundancy.
-- Cloud Router handles BGP for all tunnels — automatic failover if any tunnel goes down.
+| Scenario | Behaviour |
+|---|---|
+| "Make our ExpressRoute / DX / Interconnect redundant" | Run dual-circuit pattern |
+| "We have one circuit — what's the cheapest reasonable backup?" | Recommend circuit + VPN backup pattern |
+| "Target RTO is < 10 seconds" | Pair BFD + BGP, document timer trade-offs |
+| "Failover is taking 90+ seconds" | Diagnose: BFD on/off, BGP scan interval, route table size |
+| "How do we test failover safely?" | Run testing-protocol workflow |
+| Question is about the active circuit design (not failover) | Redirect: `cn_skill({ specialist: "cn_hyb", skill: "expressroute-design" })` |
+| Question is about BGP attribute design generally | Redirect: `cn_skill({ specialist: "cn_hyb", skill: "bgp-design" })` |
+| Question is about VPN-only HA (no dedicated circuit) | Redirect: `cn_skill({ specialist: "cn_hyb", skill: "vpn-design" })` |
 
 ---
 
-## BFD Timer Configuration
+## Reference pages (load these first)
 
-BFD is critical for achieving sub-second failover. Timer selection balances detection speed against false-positive risk.
+| Topic | Vault page | Load with |
+|---|---|---|
+| Canonical failover patterns — dual circuits, VPN backup, active-active gateways, BFD, convergence table, testing | [[Hybrid-Failover-Design]] | `cn_vault_page({ page: "Hybrid-Failover-Design" })` |
+| BGP attribute design (LP / MED / weight / AS path) — required for any primary/secondary topology | [[BGP-Design]] | `cn_vault_page({ page: "BGP-Design" })` |
+| Azure ExpressRoute service detail (gateway SKU + weight semantics) | [[ExpressRoute]] | `cn_vault_page({ page: "ExpressRoute" })` |
+| AWS Direct Connect service detail (DXGW path preference) | [[Direct-Connect]] | `cn_vault_page({ page: "Direct-Connect" })` |
+| GCP Cloud Interconnect service detail (recommended HA topology) | [[Cloud-Interconnect]] | `cn_vault_page({ page: "Cloud-Interconnect" })` |
+| Troubleshooting (used for "failover is broken" diagnostics) | [[Hybrid-Connectivity-Troubleshooting]] | `cn_vault_page({ page: "Hybrid-Connectivity-Troubleshooting" })` |
 
-| Environment | TX Interval | RX Interval | Multiplier | Detection Time |
-|------------|------------|------------|-----------|---------------|
-| Production (conservative) | 1000ms | 1000ms | 3 | 3 seconds |
-| Production (standard) | 300ms | 300ms | 3 | 900ms |
-| Production (aggressive) | 100ms | 100ms | 3 | 300ms |
-| Direct Connect / ER | 300ms | 300ms | 3 | 900ms |
-
-**Recommendations**:
-- Start with standard (300ms/3x) and monitor for false positives before reducing intervals.
-- Avoid sub-100ms intervals on cloud peering sessions — cloud provider edge routers may not support or may flap.
-- Ensure BFD is enabled on both ends — asymmetric BFD configuration causes unpredictable behavior.
+Rows #1 and #2 are mandatory for almost every answer. Per-cloud service pages are conditional on the user's cloud(s).
 
 ---
 
-## Convergence Time Expectations
+## Required inputs — collect before answering
 
-| Scenario | With BFD | Without BFD |
-|---------|---------|------------|
-| ExpressRoute primary → ExpressRoute secondary | 1–5s | 30–90s |
-| ExpressRoute → VPN backup | 3–8s | 95–105s |
-| S2S VPN tunnel failover (active-active) | 1–3s | 10–15s |
-| AWS Direct Connect → VPN backup | 3–10s | 60–120s |
-| GCP HA VPN tunnel failover | 1–5s | 30–60s |
-
-**Factors Affecting Convergence**:
-- BGP scan interval (default 60s on some platforms — reduce to 5–15s).
-- BGP next-hop tracking (enables sub-scan-interval convergence).
-- Route table size (larger tables take longer to converge).
-- TCP session state on firewalls/NVAs (asymmetric routing during failover may cause session drops).
+1. **Cloud(s)**.
+2. **Current topology** — single circuit / dual circuit (same or different PoPs) / circuit + VPN backup / VPN only.
+3. **Target RTO** — < 10s (requires BFD + BGP), < 90s (BGP hold timer is fine), < 5min (loose acceptable).
+4. **Failure modes to cover** — single circuit, peering-location, provider, VPN gateway, region, on-prem CE router?
+5. **BGP attribute strategy** — local preference vs. weight vs. MED — and whether on-prem device supports each.
+6. **BFD support** — both ends must support it; ask before designing aggressive timers.
+7. **Test window availability** — required to validate the design; if no window exists, recommend deferring.
 
 ---
 
-## Failover Testing Procedures
+## Workflow
 
-### Pre-Test Preparation
-1. Document current routing state: BGP neighbor table, routing table, active tunnels/circuits.
-2. Identify test window — off-peak hours recommended for first test.
-3. Establish monitoring: real-time BGP session status, throughput graphs, application health checks.
-4. Notify stakeholders — even planned failovers may cause brief application disruption.
+1. **Collect inputs** above.
+2. **Load `Hybrid-Failover-Design`** + `BGP-Design`.
+3. **Pick the redundancy pattern** matching the user's circuit + budget:
+   - Dual circuits, same provider, diverse PoPs (highest cost, highest availability)
+   - Dual circuits, diverse providers (highest cost + complexity; protects against provider outage)
+   - Single circuit + VPN backup (most common; encryption + cheap, but VPN bandwidth ceiling on failover)
+   - Active-active VPN (Azure / GCP HA VPN) — preferred for VPN-only HA
+4. **Plan BGP attributes** — LP 200 primary, LP 100 backup on-prem; corresponding weight/MED on the cloud side. Cite `BGP-Design` for the attribute semantics.
+5. **Plan BFD** — recommend 300ms/3x as production-standard from the vault page's BFD table; warn against < 100ms on cloud peering.
+6. **Compute expected convergence time** from the vault page's table (with BFD vs. without). Surface the number — users care about RTO numbers, not feature lists.
+7. **Plan the failover test** — pre-test state capture, scenario list (shut interface / clear BGP / cloud-side disable), post-test validation. Use the vault's testing-procedures section.
+8. **Emit** in the format below.
 
-### Test Scenarios
+---
 
-**Scenario 1 — Primary Circuit Shutdown**:
-```bash
-# On-premises router — shut down primary interface
-interface GigabitEthernet0/0
-  shutdown
-```
-- Expected: BFD detects failure → BGP session drops → backup path installs → traffic shifts.
-- Measure: Time from shutdown to first packet on backup path. Target: < 10 seconds.
+## Output format
 
-**Scenario 2 — BGP Session Reset**:
-```bash
-# On-premises router — clear BGP session
-clear ip bgp 10.0.0.1
-```
-- Expected: BGP session goes through Idle → Active → OpenSent → OpenConfirm → Established. Backup path active during re-convergence.
-- Measure: Total reconvergence time. Target: < 30 seconds.
+Every failover-design answer should emit:
 
-**Scenario 3 — Cloud Provider Maintenance Simulation**:
-- Disable the ExpressRoute circuit or VPN connection from the cloud portal.
-- Validates end-to-end failover including cloud-side routing convergence.
+1. **Inputs assumed** — one line each.
+2. **Redundancy pattern chosen** — name + justification (matches RTO + failure modes).
+3. **Primary / backup path attributes** — BGP LP, weight, MED — for both sides — cited from `BGP-Design`.
+4. **BFD configuration** — TX / RX / multiplier; expected detection time — cited from `Hybrid-Failover-Design`.
+5. **Expected convergence time** — bold number (e.g. "**3–8 seconds** with BFD, ~95 seconds without"). Cited from vault.
+6. **Throughput on backup path** — explicit statement of capacity loss when failing over (e.g. "VPN gateway caps at 1.25 Gbps vs. 10 Gbps ER — expect application degradation during outage").
+7. **Test plan** — pre-test capture, 3 scenarios with expected outcome, post-test validation.
+8. **Provisioning commands** — pointer to vault page section, not inline duplication.
+9. **Footer** — `Analysis only — verify against vendor documentation before applying.`
 
-### Post-Test Validation
-1. Verify traffic has shifted to backup path (check interface counters, flow logs).
-2. Confirm application functionality on backup path (reduced bandwidth may impact performance).
-3. Re-enable primary path and verify traffic shifts back (preemptive failback if using LP/weight).
-4. Document results: actual convergence time, any application errors, any unexpected behaviors.
+---
+
+## Common workflow mistakes (do not repeat these)
+
+These are workflow anti-patterns specific to this skill — not a substitute for the vault page's pitfall list.
+
+1. **Designing without BGP.** Static-route failover requires manual intervention or polling — fails the RTO target every time. BGP is mandatory for any auto-failover design.
+2. **Designing without BFD.** Without BFD, failover is 90+ seconds (BGP hold timer). If the user has an aggressive RTO, BFD on both ends is not optional.
+3. **Recommending sub-100ms BFD on cloud peering.** Cloud edge routers may not support or may flap. The vault page's recommendation (300ms / 3x = 900ms) is the prod-standard floor.
+4. **Forgetting throughput drop on failover.** A 10 Gbps ER → 1.25 Gbps VPN backup is an 8× capacity loss; the app will suffer. Call this out so the user can size the VPN backup appropriately (or accept degradation).
+5. **Skipping the test plan.** A failover design that has never been tested has a near-100% probability of failing in production. Always include the test scenarios.
+6. **Mixing LP and weight without explaining.** Cisco's "weight" is router-local and not propagated; LP is iBGP-propagated. Recommending both without explaining the precedence (weight > LP) confuses operators.
+7. **Treating "Direct Connect prefers over VPN" as automatic everywhere.** AWS does prefer DX by default via AS-path, but Transit Gateway path selection requires explicit route-table preference — cite `Direct-Connect` for the TGW case.
+8. **Forgetting application-layer session state.** Failover may break long-lived TCP/TLS sessions, NAT-tracked flows, and stateful firewall sessions. Call this out so the app team plans for retries.
 
 **Analysis only — verify against vendor documentation before applying.**
