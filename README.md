@@ -17,6 +17,7 @@
 | 📦 | [Installation](#installation) | 5 ways to install (npx user-level, npx project-level, npm, Copilot prompt, manual) |
 | 🖥️ | [CLI Reference](#cli-reference) | `init`, `status`, `uninstall`, `--version` |
 | ⚙️ | [How It Works](#how-it-works) | Architecture, routing, and workflow |
+| 🏛️ | [Architecture deep-dive](ARCHITECTURE-EVALUATION.md) | Detailed evaluation: PSKB (upstream) vs CKB (this fork), design-space survey, benchmark results (Tier 1–3) |
 | 📝 | [Usage Examples](#usage-examples) | Example prompts for every specialist |
 | 📁 | [Output files](#output-files) | Where generated diagrams, reports, and configs are saved |
 | 📂 | [Repository Structure](#repository-structure) | Full folder tree and conventions |
@@ -309,6 +310,8 @@ You: @network-desk design a hub-spoke VNet with Azure Firewall and
 ```
 
 You never need to call individual tools — just describe what you need after `@network-desk` and the coordinator handles the rest.
+
+> 📐 **Want the deep design rationale?** See [**ARCHITECTURE-EVALUATION.md**](ARCHITECTURE-EVALUATION.md) for a detailed breakdown of how Network Desk is built, a survey of every alternative pattern considered (system-prompt monolith, vector RAG, one-tool-per-skill, router+workers, etc.), and the three-tier benchmark comparing this fork against [`dmauser/network-desk`](https://github.com/dmauser/network-desk) on static, retrieval, and live LLM-judge metrics.
 
 ## Usage Examples
 

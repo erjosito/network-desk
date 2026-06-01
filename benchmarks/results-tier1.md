@@ -1,26 +1,26 @@
-# Network-desk: upstream vs ours — static + microbench
+# Network-desk: PSKB vs CKB — static + microbench
 
 Generated 2026-06-01T12:05:59.977Z
 
-- **upstream** = `C:\Users\jomore\Repos\network-desk-upstream` (dmauser/network-desk @ master)
-- **ours**     = `C:\Users\jomore\Repos\network-desk` (erjosito/network-desk + Phase 1-3 local commits)
+- **PSKB** (Per-Skill Knowledge Base) = `C:\Users\jomore\Repos\network-desk-upstream` (`dmauser/network-desk` @ master)
+- **CKB**  (Consolidated Knowledge Base) = `C:\Users\jomore\Repos\network-desk` (this fork; `erjosito/network-desk` + Phase 1-3 local commits)
 
 ## 1. Content footprint
 
 | side     | specialists .md | specialists KB | vault .md | vault KB  | all .md | all KB    |
 | -------- | --------------- | -------------- | --------- | --------- | ------- | --------- |
-| upstream | 144             | 1421.3 KB      | 0         | 0.0 KB    | 144     | 1421.3 KB |
-| ours     | 144             | 1421.3 KB      | 164       | 1408.8 KB | 308     | 2830.1 KB |
+| PSKB | 144             | 1421.3 KB      | 0         | 0.0 KB    | 144     | 1421.3 KB |
+| CKB     | 144             | 1421.3 KB      | 164       | 1408.8 KB | 308     | 2830.1 KB |
 
-- **Delta:** ours has **+164 .md files** (+113.9%), **+1408.8 KB** total (+99.1%).
-- The vault layer (`extensions/network-desk/vault/`) is **net new** in ours — 164 pages, 1408.8 KB.
+- **Delta:** CKB has **+164 .md files** (+113.9%), **+1408.8 KB** total (+99.1%).
+- The vault layer (`extensions/network-desk/vault/`) is **net new** in CKB — 164 pages, 1408.8 KB.
 
 ## 2. Tool surface
 
 | side     | tools | names                                                                   |
 | -------- | ----- | ----------------------------------------------------------------------- |
-| upstream | 5     | cn_capabilities, cn_route, cn_role, cn_orchestrate, cn_skill            |
-| ours     | 6     | cn_capabilities, cn_route, cn_role, cn_orchestrate, cn_skill, cn_search |
+| PSKB | 5     | cn_capabilities, cn_route, cn_role, cn_orchestrate, cn_skill            |
+| CKB     | 6     | cn_capabilities, cn_route, cn_role, cn_orchestrate, cn_skill, cn_search |
 
 - **Added:** `cn_search`
 
@@ -28,8 +28,8 @@ Generated 2026-06-01T12:05:59.977Z
 
 | side     | specialists | skills (total) | avg skills/specialist |
 | -------- | ----------- | -------------- | --------------------- |
-| upstream | 20          | 124            | 6.2                   |
-| ours     | 20          | 124            | 6.2                   |
+| PSKB | 20          | 124            | 6.2                   |
+| CKB     | 20          | 124            | 6.2                   |
 
 - Same specialist set (registry parity confirmed).
 
@@ -37,19 +37,19 @@ Generated 2026-06-01T12:05:59.977Z
 
 | side     | dep count | deps       |
 | -------- | --------- | ---------- |
-| upstream | 0         | (none)     |
-| ours     | 1         | minisearch |
+| PSKB | 0         | (none)     |
+| CKB     | 1         | minisearch |
 
 ## 5. extension.mjs size
 
 | side     | LOC | bytes       |
 | -------- | --- | ----------- |
-| upstream | 852 | 57221 bytes |
-| ours     | 902 | 59947 bytes |
+| PSKB | 852 | 57221 bytes |
+| CKB     | 902 | 59947 bytes |
 
 ## 6. Microbench — cn_search cold-start + per-query latency
 
-Upstream has no equivalent search tool, so this section measures only the new `cn_search` runtime cost.
+PSKB has no equivalent search tool, so this section measures only the new `cn_search` runtime cost.
 
 - **vault-search.mjs import:** 7.23 ms (one-time)
 - **First cn_search call (cold — builds index):** 190.09 ms
@@ -58,7 +58,7 @@ Upstream has no equivalent search tool, so this section measures only the new `c
 
 ## 7. Summary
 
-| | upstream | ours | delta |
+| | PSKB | CKB | delta |
 |---|---:|---:|---:|
 | Markdown files | 144 | 308 | +164 (+113.9%) |
 | Markdown KB    | 1421.3 KB | 2830.1 KB | +1408.8 KB (+99.1%) |
