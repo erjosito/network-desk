@@ -1,184 +1,93 @@
 # Skill: Private Endpoint Security Review (`pl_security_review`)
 
-Review and harden private endpoint security posture. Covers NSG support on PE subnets, network policies, UDR support, disabling public access, and network policy configuration across Azure, AWS, and GCP.
+Review and harden an existing private-endpoint deployment. Drives a structured checklist across PE-subnet network policies, NSG/UDR, public-access disablement on the PaaS resource, service-firewall exceptions, endpoint policies (AWS), VPC Service Controls (GCP), DNS, connection state, and logging.
+
+The single most common finding: **a PE is in place but public access is still allowed** on the PaaS resource.
 
 ---
 
-## Azure Private Endpoint Network Policies
+## Knowledge loading contract
 
-Historically, Azure private endpoints did **not** support NSGs or UDRs on their subnets. This has changed — network policies can now be enabled.
+This is a **thin specialist skill**. It owns the review methodology, the order of checks, the output (a checklist with status + evidence), and the "what counts as a finding" judgements. The exact NSG / UDR / public-access / endpoint-policy commands and the full checklist live in the vault and **must be loaded with `cn_vault_page` before issuing the review** — do not paraphrase commands from memory.
 
-### Enabling Network Policies
+Mandatory steps every time you use this skill:
 
-```bash
-# Enable network policies on the PE subnet (required for NSG/UDR to apply to PE traffic)
-az network vnet subnet update \
-  --resource-group myRG \
-  --vnet-name myVNet \
-  --name PrivateEndpointSubnet \
-  --private-endpoint-network-policies Enabled
+1. Identify which cloud(s) and which PaaS service(s) the PE fronts.
+2. Call `cn_vault_page({ page: "Private-Endpoint-Security-Review" })` for the canonical checklist + commands.
+3. Load the per-service / per-cloud reference page if a specific service detail is needed (Storage, SQL, Key Vault, Cosmos, S3, BigQuery, etc.).
+4. Build the review around the loaded page(s); cite the page name in each finding.
 
-# Verify the setting
-az network vnet subnet show \
-  --resource-group myRG \
-  --vnet-name myVNet \
-  --name PrivateEndpointSubnet \
-  --query 'privateEndpointNetworkPolicies'
-```
-
-**Network policy states:**
-- `Disabled` (legacy default): NSG and UDR rules are **ignored** for PE traffic on this subnet.
-- `Enabled`: NSG and UDR rules **apply** to PE traffic.
-- `NetworkSecurityGroupEnabled`: Only NSG rules apply (UDR bypassed).
-- `RouteTableEnabled`: Only UDR rules apply (NSG bypassed).
-
-### NSG Rules for Private Endpoints
-
-Once network policies are enabled, apply NSGs to control which sources can reach PEs:
-
-```bash
-# Allow only specific workload subnet to reach PE subnet
-az network nsg rule create \
-  --resource-group myRG \
-  --nsg-name peSubnetNSG \
-  --name AllowWorkloadToStorage \
-  --priority 100 \
-  --direction Inbound \
-  --source-address-prefixes 10.1.0.0/24 \
-  --destination-address-prefixes 10.0.4.0/24 \
-  --destination-port-ranges 443 \
-  --protocol Tcp \
-  --access Allow
-
-# Deny all other inbound traffic to PE subnet
-az network nsg rule create \
-  --resource-group myRG \
-  --nsg-name peSubnetNSG \
-  --name DenyAllInbound \
-  --priority 4096 \
-  --direction Inbound \
-  --source-address-prefixes "*" \
-  --destination-address-prefixes "*" \
-  --destination-port-ranges "*" \
-  --protocol "*" \
-  --access Deny
-```
-
-### UDR for Private Endpoints
-
-Force PE traffic through Azure Firewall or NVA:
-
-```bash
-# Route PE-destined traffic through firewall
-az network route-table route create \
-  --resource-group myRG \
-  --route-table-name workloadRT \
-  --name toPE \
-  --address-prefix 10.0.4.0/24 \
-  --next-hop-type VirtualAppliance \
-  --next-hop-ip-address 10.0.1.4
-```
+If the user asks about a service or control plane not in the table below, fall back to `cn_search({ query: "<keywords>", specialist: "cn_pl" })` or `cn_search({ query: "<keywords>", specialist: "cn_nsec" })`, identify the right page, then load it.
 
 ---
 
-## Disabling Public Access
+## When to use security review
 
-**Creating a private endpoint does NOT disable public access.** This is the most misunderstood aspect of private endpoints. You must explicitly disable public access on the PaaS resource.
-
-### Azure
-
-```bash
-# Storage Account — disable public access
-az storage account update \
-  --resource-group myRG --name mystorageaccount \
-  --public-network-access Disabled
-
-# Azure SQL — disable public access
-az sql server update \
-  --resource-group myRG --name mysqlserver \
-  --public-network-access Disabled
-
-# Key Vault — disable public access
-az keyvault update \
-  --resource-group myRG --name mykeyvault \
-  --public-network-access Disabled
-
-# Cosmos DB — disable public access
-az cosmosdb update \
-  --resource-group myRG --name mycosmosdb \
-  --public-network-access Disabled
-```
-
-### AWS
-
-AWS services use **resource policies** and **endpoint policies** to restrict access:
-
-```bash
-# S3 bucket policy — restrict to VPC endpoint only
-aws s3api put-bucket-policy --bucket my-bucket --policy '{
-  "Version": "2012-10-17",
-  "Statement": [{
-    "Sid": "RestrictToVPCe",
-    "Effect": "Deny",
-    "Principal": "*",
-    "Action": "s3:*",
-    "Resource": ["arn:aws:s3:::my-bucket", "arn:aws:s3:::my-bucket/*"],
-    "Condition": {
-      "StringNotEquals": {
-        "aws:sourceVpce": "vpce-0123456789abcdef0"
-      }
-    }
-  }]
-}'
-
-# VPC endpoint policy — restrict which S3 buckets are accessible
-aws ec2 modify-vpc-endpoint --vpc-endpoint-id vpce-... --policy-document '{
-  "Statement": [{
-    "Sid": "AllowSpecificBucket",
-    "Effect": "Allow",
-    "Principal": "*",
-    "Action": ["s3:GetObject", "s3:PutObject"],
-    "Resource": "arn:aws:s3:::my-bucket/*"
-  }]
-}'
-```
-
-### GCP
-
-```bash
-# Use VPC Service Controls to restrict access to PaaS services
-gcloud access-context-manager perimeters create my-perimeter \
-  --title="Production Perimeter" \
-  --resources="projects/12345" \
-  --restricted-services="storage.googleapis.com,bigquery.googleapis.com" \
-  --access-levels="accessPolicies/.../accessLevels/corp-network"
-```
+| Scenario | Behaviour |
+|---|---|
+| "We have private endpoints in place — can you check we did this right?" | Run the full checklist |
+| "We're enabling Private Link for service X — what hardening steps are mandatory?" | Run the relevant subset (mostly: public access off, network policies on, NSGs scoped, logging on) |
+| Compliance / audit prep (CIS, NIST, customer security questionnaire) | Run full checklist + emit findings in pass/fail/gap format |
+| The user wants to **design** the PE (subnet, groupId) | Redirect: `cn_skill({ specialist: "cn_pl", skill: "endpoint-design" })` |
+| The user wants to **expose** their own service | Redirect: `cn_skill({ specialist: "cn_pl", skill: "service-exposure" })` |
+| Resolution is broken | Redirect: `cn_skill({ specialist: "cn_pl", skill: "troubleshoot" })` |
+| Broader network security posture (firewalls, segmentation, identity) | Redirect: `cn_role({ specialist: "cn_nsec" })` |
 
 ---
 
-## Security Review Checklist
+## Reference pages (load these first)
 
-| Check | Status | Command to Verify |
+| Topic | Vault page | Load with |
 |---|---|---|
-| PE network policies enabled on subnet | ☐ | `az network vnet subnet show ... --query privateEndpointNetworkPolicies` |
-| NSG applied to PE subnet | ☐ | `az network vnet subnet show ... --query networkSecurityGroup.id` |
-| Public access disabled on PaaS resource | ☐ | `az storage account show ... --query publicNetworkAccess` |
-| PE connection state is `Approved` | ☐ | `az network private-endpoint show ... --query privateLinkServiceConnections[0].privateLinkServiceConnectionState.status` |
-| DNS resolves to private IP (not public) | ☐ | `nslookup <fqdn>` |
-| No service firewall exceptions allowing public IPs | ☐ | `az storage account network-rule list ...` |
-| PE activity logging enabled | ☐ | Use VNet flow logs for new Azure deployments; keep NSG flow logs only for legacy migration and verify lifecycle dates: https://learn.microsoft.com/en-us/azure/network-watcher/nsg-flow-logs-overview |
-| AWS endpoint policy restricts access | ☐ | `aws ec2 describe-vpc-endpoints --query 'VpcEndpoints[].PolicyDocument'` |
-| AWS resource policy restricts to VPCe | ☐ | Check S3/SQS/SNS resource policies |
-| GCP VPC Service Controls configured | ☐ | `gcloud access-context-manager perimeters list` |
+| Canonical PE security-review checklist + per-cloud commands + common mistakes | [[Private-Endpoint-Security-Review]] | `cn_vault_page({ page: "Private-Endpoint-Security-Review" })` |
+| Azure consumer page (subnet rules, network-policies states, groupId table) | [[Private-Endpoint]] | `cn_vault_page({ page: "Private-Endpoint" })` |
+| Azure producer page (PLS NAT, source IP, visibility scope) | [[Private-Link-Service]] | `cn_vault_page({ page: "Private-Link-Service" })` |
+| AWS consumer page (endpoint policies, security groups, `--private-dns-enabled`) | [[VPC-Endpoint]] | `cn_vault_page({ page: "VPC-Endpoint" })` |
+| GCP consumer page (PSC firewall rules, IAM on the consumer side) | [[Private-Service-Connect]] | `cn_vault_page({ page: "Private-Service-Connect" })` |
+| DNS hardening (rogue / split-horizon / zone hijacks) | [[Private-Endpoint-DNS-Integration]] | `cn_vault_page({ page: "Private-Endpoint-DNS-Integration" })` |
+
+Call **only the row(s) relevant to the user's deployment**. The canonical checklist (row #1) is mandatory; the others are conditional.
 
 ---
 
-## Common Security Mistakes
+## Review methodology (fixed order)
 
-1. **Assuming PE = no public access** — PE only adds a private path; it doesn't remove the public one.
-2. **NSGs not applied because network policies are disabled** — enable `privateEndpointNetworkPolicies` on the subnet first.
-3. **Overly permissive VPC endpoint policies (AWS)** — default endpoint policy allows all actions to all resources. Scope it down.
-4. **No logging** — enable VNet flow logs for new Azure deployments and VPC flow logs for AWS/GCP; use NSG flow logs only for legacy migration after checking the Azure lifecycle notice.
-5. **Service firewall exceptions left open** — after enabling PE, remove any "Allow all networks" or specific public IP rules from the service firewall.
+Walk the checks in this order — earlier failures change later guidance:
+
+1. **Public access** — is it explicitly disabled on the PaaS resource? (PE does **not** disable public access; this is mistake #1.)
+2. **Service-firewall exceptions** — are there `Allow public IP X.Y.Z.W` or `Allow all networks` rules that defeat the PE?
+3. **Approval state** — is the PE connection state `Approved` / `Available` (not Pending / Rejected / Disconnected)?
+4. **PE-subnet network policies** — for Azure, is `privateEndpointNetworkPolicies` set to `Enabled` (or `NetworkSecurityGroupEnabled` / `RouteTableEnabled`)? Without this, NSGs and UDRs are ignored for PE traffic.
+5. **NSG / security group / firewall rules on the PE side** — least-privilege source ranges, deny-all default, port 443 (or service port).
+6. **Egress controls (AWS endpoint policy / GCP VPC Service Controls)** — endpoint policy scoped to specific buckets / actions; VPC-SC perimeters in place; not the default `*:*` allow.
+7. **DNS** — does the FQDN resolve to the private IP from inside the VNet/VPC? (If no, PE is bypassed even though it exists.)
+8. **Logging** — VNet flow logs (Azure, preferred over NSG flow logs for new deployments), VPC flow logs (AWS), VPC Flow Logs (GCP), Activity Log / CloudTrail / Cloud Audit Logs for PE config changes.
+9. **Tenant- / org-wide guardrails** — Azure Policy denying `publicNetworkAccess=Enabled` on the relevant resource types; AWS SCP denying public endpoint creation; GCP Org Policy `constraints/storage.publicAccessPrevention`.
+
+---
+
+## Output format
+
+Every review answer should emit:
+
+1. **Scope** restated in one line (cloud(s), services, PE count if known).
+2. **Checklist with status** — one row per check from the methodology above, status one of `Pass` / `Fail` / `Gap (need info)`, plus the verification command (cited from the loaded vault page).
+3. **Top 3 findings** — ranked by severity. Each finding cites the vault page section and the exact remediation command.
+4. **Recommended guardrails** — Azure Policy / AWS SCP / GCP Org Policy entries to prevent regression.
+5. **Footer** — `Analysis only — verify against vendor documentation before applying.`
+
+---
+
+## Common workflow mistakes (do not repeat these)
+
+These are **workflow** anti-patterns for security reviews — not a substitute for the vault page's "Common Security Mistakes" list. Always also surface the loaded vault page's mistake list.
+
+1. **Reviewing PE config without checking the PaaS resource.** Most PE deployments fail security review because the PaaS resource still has public access on; the PE itself is fine.
+2. **Trusting that NSGs apply because they exist.** On Azure, the NSG is ignored unless `privateEndpointNetworkPolicies` is `Enabled` on the subnet. Always check the subnet flag first; otherwise NSG findings are misleading.
+3. **Forgetting service-firewall exception rules.** A storage account with a single `Allow IP 0.0.0.0/0` rule defeats the PE entirely; check the service's network-rule list, not only the PE.
+4. **Recommending NSG flow logs for new Azure deployments.** Microsoft is migrating to VNet flow logs; recommend VNet flow logs for new work and call out NSG flow logs only when reviewing legacy deployments — cite the lifecycle note from the vault page.
+5. **Defaulting to AWS endpoint policy = "Allow `*` on `*`".** This is the default and almost always over-permissive; review must scope endpoint policies down to specific actions / buckets / topics.
+6. **Treating the PE as a substitute for IAM / authorisation.** PE changes the network path only; identity / RBAC / resource-policy still need to be correct. Always include one line in the review noting this.
+7. **Issuing a "pass" without checking DNS resolution from inside the VNet.** A PE that exists but isn't resolved to is functionally absent — DNS is part of the security posture, not separate from it.
 
 **Analysis only — verify against vendor documentation before applying.**
