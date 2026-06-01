@@ -1,0 +1,102 @@
+{
+  "$comment": "Batch 1 — 10 high-confidence promotions from _migrated/ to permanent vault homes. Each entry fully specifies the new frontmatter; the script drops provenance fields (migration_source, original_*) and the 'migrated' tag. Specialist prefixes come from extensions/network-desk/extension.mjs REGISTRY. specialists arrays start minimal (primary owner only); add cross-claimed specialists in later batches once everything else is classified.",
+  "batch": "01-services-azure-and-patterns",
+  "moves": [
+    {
+      "source": "_migrated/hybrid-connectivity/expressroute-design.md",
+      "target": "Services/Azure/ExpressRoute.md",
+      "type": "service",
+      "name": "Azure ExpressRoute",
+      "cloud": "azure",
+      "category": "networking",
+      "specialists": ["cn_hyb"],
+      "tags": ["expressroute", "hybrid", "bgp", "dedicated-circuit"]
+    },
+    {
+      "source": "_migrated/hybrid-connectivity/vpn-design.md",
+      "target": "Services/Azure/VPN-Gateway.md",
+      "type": "service",
+      "name": "Azure VPN Gateway",
+      "cloud": "azure",
+      "category": "networking",
+      "specialists": ["cn_hyb"],
+      "tags": ["vpn", "ipsec", "hybrid", "bgp"]
+    },
+    {
+      "source": "_migrated/private-link/endpoint-design.md",
+      "target": "Services/Azure/Private-Endpoint.md",
+      "type": "service",
+      "name": "Azure Private Endpoint",
+      "cloud": "azure",
+      "category": "networking",
+      "specialists": ["cn_pl"],
+      "tags": ["private-link", "private-endpoint", "dns", "networking"]
+    },
+    {
+      "source": "_migrated/private-link/service-exposure.md",
+      "target": "Services/Azure/Private-Link-Service.md",
+      "type": "service",
+      "name": "Azure Private Link Service",
+      "cloud": "azure",
+      "category": "networking",
+      "specialists": ["cn_pl"],
+      "tags": ["private-link", "alias", "service-exposure"]
+    },
+    {
+      "source": "_migrated/vwan-sdwan/vwan-design.md",
+      "target": "Services/Azure/Virtual-WAN.md",
+      "type": "service",
+      "name": "Azure Virtual WAN",
+      "cloud": "azure",
+      "category": "networking",
+      "specialists": ["cn_vwan"],
+      "tags": ["vwan", "hub", "sd-wan", "transit"]
+    },
+    {
+      "source": "_migrated/vwan-sdwan/secured-vhub-design.md",
+      "target": "Services/Azure/Secured-Virtual-Hub.md",
+      "type": "service",
+      "name": "Azure Secured Virtual Hub",
+      "cloud": "azure",
+      "category": "security",
+      "specialists": ["cn_vwan"],
+      "tags": ["vwan", "firewall", "security", "hub", "routing-intent"]
+    },
+    {
+      "source": "_migrated/vnet-architect/hub-spoke-design.md",
+      "target": "Patterns/Hub-and-Spoke.md",
+      "type": "pattern",
+      "name": "Hub-and-Spoke Topology",
+      "clouds": ["azure", "aws", "gcp"],
+      "specialists": ["cn_vnet"],
+      "tags": ["topology", "hub-spoke", "segmentation"]
+    },
+    {
+      "source": "_migrated/container-networking/cross-cluster.md",
+      "target": "Patterns/Multi-Cluster-Networking.md",
+      "type": "pattern",
+      "name": "Multi-Cluster Networking",
+      "clouds": ["azure", "aws", "gcp"],
+      "specialists": ["cn_cnet"],
+      "tags": ["kubernetes", "cni", "multi-cluster", "service-mesh"]
+    },
+    {
+      "source": "_migrated/network-security/segmentation-design.md",
+      "target": "Patterns/Network-Segmentation.md",
+      "type": "pattern",
+      "name": "Network Segmentation",
+      "clouds": ["azure", "aws", "gcp"],
+      "specialists": ["cn_nsec"],
+      "tags": ["topology", "security", "segmentation", "zero-trust"]
+    },
+    {
+      "source": "_migrated/multi-cloud-net/transit-design.md",
+      "target": "Patterns/Transit-Hub.md",
+      "type": "pattern",
+      "name": "Multi-Cloud Transit Hub",
+      "clouds": ["azure", "aws", "gcp"],
+      "specialists": ["cn_mcn"],
+      "tags": ["topology", "transit", "multi-cloud", "interconnect"]
+    }
+  ]
+}

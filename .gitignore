@@ -14,3 +14,6 @@ out/
 # Python bytecode
 __pycache__/
 *.pyc
+
+# Generated review reports (regenerate on demand with tools/suggest-*.mjs)
+tools/reports/

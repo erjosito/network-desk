@@ -1,0 +1,88 @@
+{
+  "$comment": "Batch 2 — ipv6-migration specialist (5 skills, all Topics). Cross-claims kept minimal: addressing/dual-stack also touch cn_vnet (subnet & VNet design), troubleshoot also belongs to cn_ntsh (network-troubleshooter).",
+  "batch": "02-ipv6-topics",
+  "moves": [
+    {
+      "source": "_migrated/ipv6-migration/addressing.md",
+      "target": "Topics/IPv6/IPv6-Addressing.md",
+      "type": "topic",
+      "name": "IPv6 Addressing",
+      "specialists": [
+        "cn_ipv6",
+        "cn_vnet"
+      ],
+      "tags": [
+        "ipv6",
+        "addressing",
+        "subnet",
+        "prefix",
+        "slaac"
+      ]
+    },
+    {
+      "source": "_migrated/ipv6-migration/compatibility.md",
+      "target": "Topics/IPv6/IPv4-IPv6-Compatibility.md",
+      "type": "topic",
+      "name": "IPv4/IPv6 Compatibility Mechanisms",
+      "specialists": [
+        "cn_ipv6"
+      ],
+      "tags": [
+        "ipv6",
+        "ipv4",
+        "nat64",
+        "dns64",
+        "464xlat",
+        "transition"
+      ]
+    },
+    {
+      "source": "_migrated/ipv6-migration/dual-stack.md",
+      "target": "Topics/IPv6/Dual-Stack-Networking.md",
+      "type": "topic",
+      "name": "Dual-Stack Networking",
+      "specialists": [
+        "cn_ipv6",
+        "cn_vnet"
+      ],
+      "tags": [
+        "ipv6",
+        "dual-stack",
+        "networking",
+        "subnet"
+      ]
+    },
+    {
+      "source": "_migrated/ipv6-migration/transition-plan.md",
+      "target": "Topics/IPv6/IPv6-Transition-Planning.md",
+      "type": "topic",
+      "name": "IPv6 Transition Planning",
+      "specialists": [
+        "cn_ipv6"
+      ],
+      "tags": [
+        "ipv6",
+        "transition",
+        "migration",
+        "planning"
+      ]
+    },
+    {
+      "source": "_migrated/ipv6-migration/troubleshoot.md",
+      "target": "Topics/IPv6/IPv6-Troubleshooting.md",
+      "type": "topic",
+      "name": "IPv6 Troubleshooting",
+      "specialists": [
+        "cn_ipv6",
+        "cn_ntsh"
+      ],
+      "tags": [
+        "ipv6",
+        "troubleshooting",
+        "debug",
+        "icmpv6",
+        "neighbor-discovery"
+      ]
+    }
+  ]
+}

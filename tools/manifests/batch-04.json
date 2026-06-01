@@ -1,0 +1,1652 @@
+{
+  "$comment": "Batch 4 — promote all 103 remaining files in _migrated/ to their final vault locations. Grouped by source specialist for review. Cross-specialist claims kept conservative (primary owner + at most one or two clearly-related specialists). zero-trust-architecture is the only entry classified as Pattern (multi-component reusable architecture); everything else is Topic. Firewall vendor extraction (the 14 vendors that live inside firewall-engineer/* sections) is intentionally deferred to a later dedup/extract pass.",
+  "batch": "04-bulk-topics",
+  "moves": [
+    {
+      "$source_specialist": "capacity-planner (cn_ncap)",
+      "source": "_migrated/capacity-planner/bandwidth-forecast.md",
+      "target": "Topics/Capacity/Bandwidth-Forecasting.md",
+      "type": "topic",
+      "name": "Bandwidth Forecasting",
+      "specialists": [
+        "cn_ncap"
+      ],
+      "tags": [
+        "capacity",
+        "bandwidth",
+        "forecasting",
+        "growth"
+      ]
+    },
+    {
+      "source": "_migrated/capacity-planner/gateway-sizing.md",
+      "target": "Topics/Capacity/Gateway-Sizing.md",
+      "type": "topic",
+      "name": "Gateway Sizing",
+      "specialists": [
+        "cn_ncap",
+        "cn_hyb"
+      ],
+      "tags": [
+        "capacity",
+        "gateway",
+        "sizing",
+        "vpn",
+        "expressroute"
+      ]
+    },
+    {
+      "source": "_migrated/capacity-planner/growth-model.md",
+      "target": "Topics/Capacity/Capacity-Growth-Modeling.md",
+      "type": "topic",
+      "name": "Capacity Growth Modeling",
+      "specialists": [
+        "cn_ncap"
+      ],
+      "tags": [
+        "capacity",
+        "growth",
+        "modeling",
+        "forecasting"
+      ]
+    },
+    {
+      "source": "_migrated/capacity-planner/scalability-design.md",
+      "target": "Topics/Capacity/Scalability-Design.md",
+      "type": "topic",
+      "name": "Network Scalability Design",
+      "specialists": [
+        "cn_ncap"
+      ],
+      "tags": [
+        "capacity",
+        "scalability",
+        "horizontal-scaling",
+        "limits"
+      ]
+    },
+    {
+      "source": "_migrated/capacity-planner/throughput-calc.md",
+      "target": "Topics/Capacity/Throughput-Calculations.md",
+      "type": "topic",
+      "name": "Throughput Calculations",
+      "specialists": [
+        "cn_ncap"
+      ],
+      "tags": [
+        "capacity",
+        "throughput",
+        "bandwidth",
+        "calculations"
+      ]
+    },
+    {
+      "$source_specialist": "cdn-edge (cn_cdn)",
+      "source": "_migrated/cdn-edge/cache-optimization.md",
+      "target": "Topics/CDN/CDN-Cache-Optimization.md",
+      "type": "topic",
+      "name": "CDN Cache Optimization",
+      "specialists": [
+        "cn_cdn"
+      ],
+      "tags": [
+        "cdn",
+        "cache",
+        "optimization",
+        "hit-ratio"
+      ]
+    },
+    {
+      "source": "_migrated/cdn-edge/cdn-design.md",
+      "target": "Topics/CDN/CDN-Architecture-Design.md",
+      "type": "topic",
+      "name": "CDN Architecture Design",
+      "specialists": [
+        "cn_cdn"
+      ],
+      "tags": [
+        "cdn",
+        "architecture",
+        "design",
+        "front-door",
+        "cloudfront",
+        "cloud-cdn"
+      ]
+    },
+    {
+      "source": "_migrated/cdn-edge/edge-routing.md",
+      "target": "Topics/CDN/Edge-Routing.md",
+      "type": "topic",
+      "name": "Edge Routing and Traffic Management",
+      "specialists": [
+        "cn_cdn"
+      ],
+      "tags": [
+        "cdn",
+        "edge",
+        "routing",
+        "edge-compute",
+        "traffic-management"
+      ]
+    },
+    {
+      "source": "_migrated/cdn-edge/troubleshoot.md",
+      "target": "Topics/CDN/CDN-Troubleshooting.md",
+      "type": "topic",
+      "name": "CDN Troubleshooting",
+      "specialists": [
+        "cn_cdn",
+        "cn_ntsh"
+      ],
+      "tags": [
+        "cdn",
+        "troubleshooting",
+        "cache-miss",
+        "edge"
+      ]
+    },
+    {
+      "source": "_migrated/cdn-edge/waf-edge.md",
+      "target": "Topics/CDN/Edge-WAF-and-DDoS.md",
+      "type": "topic",
+      "name": "Security at the Edge (WAF and DDoS)",
+      "specialists": [
+        "cn_cdn",
+        "cn_nsec"
+      ],
+      "tags": [
+        "cdn",
+        "edge",
+        "waf",
+        "ddos",
+        "security"
+      ]
+    },
+    {
+      "$source_specialist": "container-networking (cn_cnet)",
+      "source": "_migrated/container-networking/cni-selection.md",
+      "target": "Topics/Containers/CNI-Plugin-Selection.md",
+      "type": "topic",
+      "name": "CNI Plugin Selection",
+      "specialists": [
+        "cn_cnet"
+      ],
+      "tags": [
+        "kubernetes",
+        "cni",
+        "container",
+        "networking",
+        "plugin"
+      ]
+    },
+    {
+      "source": "_migrated/container-networking/ingress-design.md",
+      "target": "Topics/Containers/Ingress-and-Gateway-API.md",
+      "type": "topic",
+      "name": "Ingress and Gateway API Design",
+      "specialists": [
+        "cn_cnet"
+      ],
+      "tags": [
+        "kubernetes",
+        "ingress",
+        "gateway-api",
+        "container"
+      ]
+    },
+    {
+      "source": "_migrated/container-networking/network-policy.md",
+      "target": "Topics/Containers/Kubernetes-Network-Policies.md",
+      "type": "topic",
+      "name": "Kubernetes Network Policies",
+      "specialists": [
+        "cn_cnet",
+        "cn_nsec"
+      ],
+      "tags": [
+        "kubernetes",
+        "network-policy",
+        "container",
+        "segmentation",
+        "security"
+      ]
+    },
+    {
+      "source": "_migrated/container-networking/service-mesh.md",
+      "target": "Topics/Containers/Service-Mesh-Design.md",
+      "type": "topic",
+      "name": "Service Mesh Design",
+      "specialists": [
+        "cn_cnet"
+      ],
+      "tags": [
+        "kubernetes",
+        "service-mesh",
+        "istio",
+        "linkerd",
+        "container"
+      ]
+    },
+    {
+      "source": "_migrated/container-networking/troubleshoot.md",
+      "target": "Topics/Containers/Container-Networking-Troubleshooting.md",
+      "type": "topic",
+      "name": "Container Networking Troubleshooting",
+      "specialists": [
+        "cn_cnet",
+        "cn_ntsh"
+      ],
+      "tags": [
+        "kubernetes",
+        "container",
+        "troubleshooting",
+        "cni"
+      ]
+    },
+    {
+      "$source_specialist": "firewall-engineer (cn_fw) — vendor extraction deferred to dedup pass",
+      "source": "_migrated/firewall-engineer/config-gen.md",
+      "target": "Topics/Firewall/Firewall-Config-Generation.md",
+      "type": "topic",
+      "name": "Firewall Configuration Generation",
+      "specialists": [
+        "cn_fw",
+        "cn_iac"
+      ],
+      "tags": [
+        "firewall",
+        "config-generation",
+        "iac",
+        "vendor-templates"
+      ]
+    },
+    {
+      "source": "_migrated/firewall-engineer/ha-design.md",
+      "target": "Topics/Firewall/Firewall-HA-Design.md",
+      "type": "topic",
+      "name": "Firewall High-Availability Design",
+      "specialists": [
+        "cn_fw"
+      ],
+      "tags": [
+        "firewall",
+        "high-availability",
+        "active-passive",
+        "active-active",
+        "heartbeat"
+      ]
+    },
+    {
+      "source": "_migrated/firewall-engineer/hardening-check.md",
+      "target": "Topics/Firewall/Firewall-Hardening.md",
+      "type": "topic",
+      "name": "Firewall Hardening Checklist",
+      "specialists": [
+        "cn_fw",
+        "cn_nsec"
+      ],
+      "tags": [
+        "firewall",
+        "hardening",
+        "security",
+        "baseline"
+      ]
+    },
+    {
+      "source": "_migrated/firewall-engineer/log-analysis.md",
+      "target": "Topics/Firewall/Firewall-Log-Analysis.md",
+      "type": "topic",
+      "name": "Firewall Log Analysis",
+      "specialists": [
+        "cn_fw",
+        "cn_nmon"
+      ],
+      "tags": [
+        "firewall",
+        "logs",
+        "analysis",
+        "monitoring"
+      ]
+    },
+    {
+      "source": "_migrated/firewall-engineer/policy-design.md",
+      "target": "Topics/Firewall/Firewall-Policy-Design.md",
+      "type": "topic",
+      "name": "Firewall Policy Design",
+      "specialists": [
+        "cn_fw",
+        "cn_nsec"
+      ],
+      "tags": [
+        "firewall",
+        "policy",
+        "zone",
+        "rule-design"
+      ]
+    },
+    {
+      "source": "_migrated/firewall-engineer/policy-test.md",
+      "target": "Topics/Firewall/Firewall-Policy-Testing.md",
+      "type": "topic",
+      "name": "Firewall Policy Testing and Rule Simulation",
+      "specialists": [
+        "cn_fw"
+      ],
+      "tags": [
+        "firewall",
+        "testing",
+        "rule-simulation",
+        "validation"
+      ]
+    },
+    {
+      "source": "_migrated/firewall-engineer/rule-audit.md",
+      "target": "Topics/Firewall/Firewall-Rule-Audit.md",
+      "type": "topic",
+      "name": "Firewall Rule Audit",
+      "specialists": [
+        "cn_fw",
+        "cn_nsec"
+      ],
+      "tags": [
+        "firewall",
+        "audit",
+        "rules",
+        "hit-count",
+        "cleanup"
+      ]
+    },
+    {
+      "source": "_migrated/firewall-engineer/troubleshoot.md",
+      "target": "Topics/Firewall/Firewall-Troubleshooting.md",
+      "type": "topic",
+      "name": "Firewall Troubleshooting",
+      "specialists": [
+        "cn_fw",
+        "cn_ntsh"
+      ],
+      "tags": [
+        "firewall",
+        "troubleshooting",
+        "diagnostics"
+      ]
+    },
+    {
+      "source": "_migrated/firewall-engineer/vendor-migrate.md",
+      "target": "Topics/Firewall/Firewall-Vendor-Migration.md",
+      "type": "topic",
+      "name": "Firewall Vendor Migration",
+      "specialists": [
+        "cn_fw"
+      ],
+      "tags": [
+        "firewall",
+        "migration",
+        "vendor",
+        "conversion"
+      ]
+    },
+    {
+      "$source_specialist": "hybrid-connectivity (cn_hyb)",
+      "source": "_migrated/hybrid-connectivity/bandwidth-calc.md",
+      "target": "Topics/Hybrid/Hybrid-Bandwidth-Planning.md",
+      "type": "topic",
+      "name": "Hybrid Bandwidth Planning",
+      "specialists": [
+        "cn_hyb",
+        "cn_ncap"
+      ],
+      "tags": [
+        "hybrid",
+        "bandwidth",
+        "circuit-sizing",
+        "qos",
+        "dscp"
+      ]
+    },
+    {
+      "source": "_migrated/hybrid-connectivity/bgp-design.md",
+      "target": "Topics/Hybrid/BGP-Design.md",
+      "type": "topic",
+      "name": "BGP Design for Cloud Hybrid Connectivity",
+      "specialists": [
+        "cn_hyb"
+      ],
+      "tags": [
+        "bgp",
+        "hybrid",
+        "routing",
+        "asn",
+        "peering"
+      ]
+    },
+    {
+      "source": "_migrated/hybrid-connectivity/failover-design.md",
+      "target": "Topics/Hybrid/Hybrid-Failover-Design.md",
+      "type": "topic",
+      "name": "Hybrid Failover and Redundancy Design",
+      "specialists": [
+        "cn_hyb"
+      ],
+      "tags": [
+        "hybrid",
+        "failover",
+        "redundancy",
+        "bfd",
+        "active-active"
+      ]
+    },
+    {
+      "source": "_migrated/hybrid-connectivity/routing-design.md",
+      "target": "Topics/Hybrid/BGP-Routing-Policies.md",
+      "type": "topic",
+      "name": "BGP Routing Policies",
+      "specialists": [
+        "cn_hyb"
+      ],
+      "tags": [
+        "bgp",
+        "routing-policy",
+        "as-path",
+        "communities",
+        "local-preference"
+      ]
+    },
+    {
+      "source": "_migrated/hybrid-connectivity/troubleshoot.md",
+      "target": "Topics/Hybrid/Hybrid-Connectivity-Troubleshooting.md",
+      "type": "topic",
+      "name": "Hybrid Connectivity Troubleshooting",
+      "specialists": [
+        "cn_hyb",
+        "cn_ntsh"
+      ],
+      "tags": [
+        "hybrid",
+        "troubleshooting",
+        "bgp",
+        "vpn",
+        "expressroute",
+        "mtu"
+      ]
+    },
+    {
+      "$source_specialist": "iac-generator (cn_iac)",
+      "source": "_migrated/iac-generator/ansible-gen.md",
+      "target": "Topics/IaC/Ansible-Generation.md",
+      "type": "topic",
+      "name": "Ansible Playbook Generation",
+      "specialists": [
+        "cn_iac",
+        "cn_nauto"
+      ],
+      "tags": [
+        "iac",
+        "ansible",
+        "automation"
+      ]
+    },
+    {
+      "source": "_migrated/iac-generator/arm-gen.md",
+      "target": "Topics/IaC/ARM-Template-Generation.md",
+      "type": "topic",
+      "name": "ARM Template Generation",
+      "specialists": [
+        "cn_iac"
+      ],
+      "tags": [
+        "iac",
+        "arm",
+        "azure",
+        "templates"
+      ]
+    },
+    {
+      "source": "_migrated/iac-generator/bicep-gen.md",
+      "target": "Topics/IaC/Bicep-Generation.md",
+      "type": "topic",
+      "name": "Bicep Template Generation",
+      "specialists": [
+        "cn_iac"
+      ],
+      "tags": [
+        "iac",
+        "bicep",
+        "azure",
+        "templates"
+      ]
+    },
+    {
+      "source": "_migrated/iac-generator/terraform-gen.md",
+      "target": "Topics/IaC/Terraform-Generation.md",
+      "type": "topic",
+      "name": "Terraform Configuration Generation",
+      "specialists": [
+        "cn_iac"
+      ],
+      "tags": [
+        "iac",
+        "terraform",
+        "azurerm",
+        "aws-provider",
+        "google-provider"
+      ]
+    },
+    {
+      "$source_specialist": "load-balancer (cn_lb)",
+      "source": "_migrated/load-balancer/health-probe-design.md",
+      "target": "Topics/Load-Balancing/Health-Probe-Design.md",
+      "type": "topic",
+      "name": "Load Balancer Health Probe Design",
+      "specialists": [
+        "cn_lb"
+      ],
+      "tags": [
+        "load-balancer",
+        "health-probe",
+        "monitoring"
+      ]
+    },
+    {
+      "source": "_migrated/load-balancer/lb-selector.md",
+      "target": "Topics/Load-Balancing/Load-Balancer-Selection.md",
+      "type": "topic",
+      "name": "Load Balancer Selection",
+      "specialists": [
+        "cn_lb"
+      ],
+      "tags": [
+        "load-balancer",
+        "selection",
+        "decision-tree",
+        "alb",
+        "nlb",
+        "front-door"
+      ]
+    },
+    {
+      "source": "_migrated/load-balancer/ssl-offload.md",
+      "target": "Topics/Load-Balancing/SSL-TLS-Offload.md",
+      "type": "topic",
+      "name": "SSL/TLS Offload and Certificate Management",
+      "specialists": [
+        "cn_lb"
+      ],
+      "tags": [
+        "load-balancer",
+        "tls",
+        "ssl",
+        "offload",
+        "certificates"
+      ]
+    },
+    {
+      "source": "_migrated/load-balancer/tls-cert-mgmt.md",
+      "target": "Topics/Load-Balancing/TLS-Certificate-Management.md",
+      "type": "topic",
+      "name": "TLS Certificate Management for Load Balancers",
+      "specialists": [
+        "cn_lb"
+      ],
+      "tags": [
+        "load-balancer",
+        "tls",
+        "certificates",
+        "key-vault",
+        "acm",
+        "cert-manager"
+      ]
+    },
+    {
+      "source": "_migrated/load-balancer/traffic-routing.md",
+      "target": "Topics/Load-Balancing/Load-Balancer-Traffic-Routing.md",
+      "type": "topic",
+      "name": "Load Balancer Traffic Routing Methods",
+      "specialists": [
+        "cn_lb"
+      ],
+      "tags": [
+        "load-balancer",
+        "traffic-routing",
+        "weighted",
+        "geo",
+        "priority"
+      ]
+    },
+    {
+      "source": "_migrated/load-balancer/troubleshoot.md",
+      "target": "Topics/Load-Balancing/Load-Balancer-Troubleshooting.md",
+      "type": "topic",
+      "name": "Load Balancer Troubleshooting",
+      "specialists": [
+        "cn_lb",
+        "cn_ntsh"
+      ],
+      "tags": [
+        "load-balancer",
+        "troubleshooting",
+        "502",
+        "504",
+        "snat"
+      ]
+    },
+    {
+      "source": "_migrated/load-balancer/waf-rules.md",
+      "target": "Topics/Security/WAF-Rules-Configuration.md",
+      "type": "topic",
+      "name": "WAF Rules Configuration",
+      "specialists": [
+        "cn_lb",
+        "cn_nsec"
+      ],
+      "tags": [
+        "waf",
+        "load-balancer",
+        "rules",
+        "azure-waf",
+        "aws-waf",
+        "cloud-armor"
+      ]
+    },
+    {
+      "$source_specialist": "multi-cloud-net (cn_mcn)",
+      "source": "_migrated/multi-cloud-net/addressing-plan.md",
+      "target": "Topics/Multi-Cloud/Multi-Cloud-Addressing-Plan.md",
+      "type": "topic",
+      "name": "Multi-Cloud Addressing Plan",
+      "specialists": [
+        "cn_mcn",
+        "cn_vnet"
+      ],
+      "tags": [
+        "multi-cloud",
+        "addressing",
+        "cidr",
+        "ipam",
+        "rfc-1918"
+      ]
+    },
+    {
+      "source": "_migrated/multi-cloud-net/cost-comparison.md",
+      "target": "Topics/Multi-Cloud/Multi-Cloud-Cost-Comparison.md",
+      "type": "topic",
+      "name": "Multi-Cloud Network Cost Comparison",
+      "specialists": [
+        "cn_mcn",
+        "cn_price"
+      ],
+      "tags": [
+        "multi-cloud",
+        "cost",
+        "pricing",
+        "comparison"
+      ]
+    },
+    {
+      "source": "_migrated/multi-cloud-net/latency-optimization.md",
+      "target": "Topics/Multi-Cloud/Multi-Cloud-Latency-Optimization.md",
+      "type": "topic",
+      "name": "Multi-Cloud Latency Optimization",
+      "specialists": [
+        "cn_mcn"
+      ],
+      "tags": [
+        "multi-cloud",
+        "latency",
+        "peering",
+        "backbone",
+        "cdn"
+      ]
+    },
+    {
+      "source": "_migrated/multi-cloud-net/service-mapping.md",
+      "target": "Topics/Multi-Cloud/Cloud-Network-Service-Mapping.md",
+      "type": "topic",
+      "name": "Cloud Network Service Mapping",
+      "specialists": [
+        "cn_mcn"
+      ],
+      "tags": [
+        "multi-cloud",
+        "service-mapping",
+        "azure-aws-gcp",
+        "equivalency"
+      ]
+    },
+    {
+      "$source_specialist": "network-automation (cn_nauto)",
+      "source": "_migrated/network-automation/drift-detection.md",
+      "target": "Topics/Automation/Configuration-Drift-Detection.md",
+      "type": "topic",
+      "name": "Configuration Drift Detection",
+      "specialists": [
+        "cn_nauto"
+      ],
+      "tags": [
+        "automation",
+        "drift",
+        "iac",
+        "terraform-plan"
+      ]
+    },
+    {
+      "source": "_migrated/network-automation/pipeline-design.md",
+      "target": "Topics/Automation/Network-CICD-Pipeline.md",
+      "type": "topic",
+      "name": "CI/CD Pipeline Design for Network Infrastructure",
+      "specialists": [
+        "cn_nauto",
+        "cn_iac"
+      ],
+      "tags": [
+        "automation",
+        "cicd",
+        "pipeline",
+        "github-actions",
+        "azure-devops"
+      ]
+    },
+    {
+      "source": "_migrated/network-automation/policy-as-code.md",
+      "target": "Topics/Automation/Policy-as-Code.md",
+      "type": "topic",
+      "name": "Policy-as-Code for Network Infrastructure",
+      "specialists": [
+        "cn_nauto",
+        "cn_nsec"
+      ],
+      "tags": [
+        "automation",
+        "policy-as-code",
+        "opa",
+        "azure-policy",
+        "scp"
+      ]
+    },
+    {
+      "source": "_migrated/network-automation/rollback.md",
+      "target": "Topics/Automation/Network-Change-Rollback.md",
+      "type": "topic",
+      "name": "Network Change Rollback and Change Management",
+      "specialists": [
+        "cn_nauto"
+      ],
+      "tags": [
+        "automation",
+        "rollback",
+        "change-management"
+      ]
+    },
+    {
+      "source": "_migrated/network-automation/testing.md",
+      "target": "Topics/Automation/Network-Configuration-Testing.md",
+      "type": "topic",
+      "name": "Network Configuration Testing",
+      "specialists": [
+        "cn_nauto"
+      ],
+      "tags": [
+        "automation",
+        "testing",
+        "validation"
+      ]
+    },
+    {
+      "$source_specialist": "network-monitor (cn_nmon)",
+      "source": "_migrated/network-monitor/alert-design.md",
+      "target": "Topics/Monitoring/Network-Alert-Design.md",
+      "type": "topic",
+      "name": "Network Alert Design",
+      "specialists": [
+        "cn_nmon"
+      ],
+      "tags": [
+        "monitoring",
+        "alerts",
+        "action-groups",
+        "escalation"
+      ]
+    },
+    {
+      "source": "_migrated/network-monitor/baseline-analysis.md",
+      "target": "Topics/Monitoring/Traffic-Baseline-Analysis.md",
+      "type": "topic",
+      "name": "Traffic Baseline Analysis",
+      "specialists": [
+        "cn_nmon"
+      ],
+      "tags": [
+        "monitoring",
+        "baseline",
+        "anomaly-detection"
+      ]
+    },
+    {
+      "source": "_migrated/network-monitor/connection-monitor.md",
+      "target": "Topics/Monitoring/Network-Connection-Monitoring.md",
+      "type": "topic",
+      "name": "Network Connection Monitoring",
+      "specialists": [
+        "cn_nmon"
+      ],
+      "tags": [
+        "monitoring",
+        "connection-monitor",
+        "reachability-analyzer",
+        "synthetic"
+      ]
+    },
+    {
+      "source": "_migrated/network-monitor/dashboard-build.md",
+      "target": "Topics/Monitoring/Network-Dashboard-Build.md",
+      "type": "topic",
+      "name": "Network Dashboard Build",
+      "specialists": [
+        "cn_nmon"
+      ],
+      "tags": [
+        "monitoring",
+        "dashboards",
+        "workbooks",
+        "cloudwatch"
+      ]
+    },
+    {
+      "source": "_migrated/network-monitor/flow-log-setup.md",
+      "target": "Topics/Monitoring/Flow-Log-Setup.md",
+      "type": "topic",
+      "name": "Flow Log Setup",
+      "specialists": [
+        "cn_nmon",
+        "cn_nsec"
+      ],
+      "tags": [
+        "monitoring",
+        "flow-logs",
+        "vnet-flow-logs",
+        "vpc-flow-logs"
+      ]
+    },
+    {
+      "source": "_migrated/network-monitor/synthetic-monitoring.md",
+      "target": "Topics/Monitoring/Synthetic-Network-Monitoring.md",
+      "type": "topic",
+      "name": "Synthetic Network Monitoring",
+      "specialists": [
+        "cn_nmon"
+      ],
+      "tags": [
+        "monitoring",
+        "synthetic",
+        "probes",
+        "availability"
+      ]
+    },
+    {
+      "source": "_migrated/network-monitor/traffic-analytics.md",
+      "target": "Topics/Monitoring/Traffic-Analytics.md",
+      "type": "topic",
+      "name": "Traffic Analytics",
+      "specialists": [
+        "cn_nmon"
+      ],
+      "tags": [
+        "monitoring",
+        "traffic-analytics",
+        "athena",
+        "network-intelligence-center"
+      ]
+    },
+    {
+      "$source_specialist": "network-security (cn_nsec) — zero-trust-architecture is a Pattern",
+      "source": "_migrated/network-security/compliance-check.md",
+      "target": "Topics/Security/Network-Compliance-Check.md",
+      "type": "topic",
+      "name": "Network Compliance Check",
+      "specialists": [
+        "cn_nsec"
+      ],
+      "tags": [
+        "security",
+        "compliance",
+        "cis",
+        "pci-dss",
+        "nist"
+      ]
+    },
+    {
+      "source": "_migrated/network-security/ddos-design.md",
+      "target": "Topics/Security/DDoS-Protection-Design.md",
+      "type": "topic",
+      "name": "DDoS Protection Design",
+      "specialists": [
+        "cn_nsec"
+      ],
+      "tags": [
+        "security",
+        "ddos",
+        "shield",
+        "cloud-armor"
+      ]
+    },
+    {
+      "source": "_migrated/network-security/flow-analysis.md",
+      "target": "Topics/Monitoring/Flow-Log-Analysis.md",
+      "type": "topic",
+      "name": "Flow Log Analysis",
+      "specialists": [
+        "cn_nsec",
+        "cn_nmon"
+      ],
+      "tags": [
+        "security",
+        "flow-logs",
+        "analysis",
+        "top-talkers",
+        "pattern-detection"
+      ]
+    },
+    {
+      "source": "_migrated/network-security/nsg-audit.md",
+      "target": "Topics/Security/NSG-and-Security-Group-Audit.md",
+      "type": "topic",
+      "name": "NSG and Security Group Audit",
+      "specialists": [
+        "cn_nsec"
+      ],
+      "tags": [
+        "security",
+        "nsg",
+        "security-group",
+        "audit",
+        "permissive-rules"
+      ]
+    },
+    {
+      "source": "_migrated/network-security/troubleshoot.md",
+      "target": "Topics/Security/Network-Security-Troubleshooting.md",
+      "type": "topic",
+      "name": "Network Security Troubleshooting",
+      "specialists": [
+        "cn_nsec",
+        "cn_ntsh"
+      ],
+      "tags": [
+        "security",
+        "troubleshooting",
+        "ip-flow-verify",
+        "reachability"
+      ]
+    },
+    {
+      "source": "_migrated/network-security/waf-policy-design.md",
+      "target": "Topics/Security/WAF-Policy-Design.md",
+      "type": "topic",
+      "name": "WAF Policy Design",
+      "specialists": [
+        "cn_nsec"
+      ],
+      "tags": [
+        "security",
+        "waf",
+        "policy",
+        "managed-rules",
+        "custom-rules"
+      ]
+    },
+    {
+      "source": "_migrated/network-security/zero-trust-architecture.md",
+      "target": "Patterns/Zero-Trust-Network-Architecture.md",
+      "type": "pattern",
+      "name": "Zero Trust Network Architecture",
+      "clouds": [
+        "azure",
+        "aws",
+        "gcp"
+      ],
+      "specialists": [
+        "cn_nsec",
+        "cn_sase"
+      ],
+      "tags": [
+        "zero-trust",
+        "architecture",
+        "security",
+        "pillars"
+      ]
+    },
+    {
+      "$source_specialist": "network-troubleshooter (cn_ntsh)",
+      "source": "_migrated/network-troubleshooter/connectivity-test.md",
+      "target": "Topics/Troubleshooting/Connectivity-Testing.md",
+      "type": "topic",
+      "name": "Connectivity Testing",
+      "specialists": [
+        "cn_ntsh"
+      ],
+      "tags": [
+        "troubleshooting",
+        "connectivity",
+        "reachability-analyzer",
+        "network-watcher"
+      ]
+    },
+    {
+      "source": "_migrated/network-troubleshooter/latency-analysis.md",
+      "target": "Topics/Troubleshooting/Network-Latency-Analysis.md",
+      "type": "topic",
+      "name": "Network Latency Analysis",
+      "specialists": [
+        "cn_ntsh",
+        "cn_ncap"
+      ],
+      "tags": [
+        "troubleshooting",
+        "latency",
+        "rtt",
+        "jitter",
+        "traceroute",
+        "mtr"
+      ]
+    },
+    {
+      "source": "_migrated/network-troubleshooter/mtu-path-discovery.md",
+      "target": "Topics/Troubleshooting/MTU-and-PMTUD.md",
+      "type": "topic",
+      "name": "MTU and Path MTU Discovery",
+      "specialists": [
+        "cn_ntsh"
+      ],
+      "tags": [
+        "troubleshooting",
+        "mtu",
+        "pmtud",
+        "mss-clamping"
+      ]
+    },
+    {
+      "source": "_migrated/network-troubleshooter/nat-debug.md",
+      "target": "Topics/Troubleshooting/NAT-Debugging.md",
+      "type": "topic",
+      "name": "NAT Debugging",
+      "specialists": [
+        "cn_ntsh"
+      ],
+      "tags": [
+        "troubleshooting",
+        "nat",
+        "snat",
+        "dnat",
+        "conntrack"
+      ]
+    },
+    {
+      "source": "_migrated/network-troubleshooter/packet-capture.md",
+      "target": "Topics/Troubleshooting/Packet-Capture.md",
+      "type": "topic",
+      "name": "Packet Capture and Analysis",
+      "specialists": [
+        "cn_ntsh"
+      ],
+      "tags": [
+        "troubleshooting",
+        "packet-capture",
+        "tcpdump",
+        "network-watcher"
+      ]
+    },
+    {
+      "source": "_migrated/network-troubleshooter/pcap-analysis.md",
+      "target": "Topics/Troubleshooting/PCAP-Analysis.md",
+      "type": "topic",
+      "name": "PCAP Analysis with Wireshark and tshark",
+      "specialists": [
+        "cn_ntsh"
+      ],
+      "tags": [
+        "troubleshooting",
+        "pcap",
+        "wireshark",
+        "tshark",
+        "analysis"
+      ]
+    },
+    {
+      "source": "_migrated/network-troubleshooter/routing-debug.md",
+      "target": "Topics/Troubleshooting/Routing-Debug.md",
+      "type": "topic",
+      "name": "Routing Debug",
+      "specialists": [
+        "cn_ntsh"
+      ],
+      "tags": [
+        "troubleshooting",
+        "routing",
+        "udr",
+        "effective-routes",
+        "bgp"
+      ]
+    },
+    {
+      "source": "_migrated/network-troubleshooter/tls-handshake-debug.md",
+      "target": "Topics/Troubleshooting/TLS-Handshake-Debugging.md",
+      "type": "topic",
+      "name": "TLS Handshake Debugging",
+      "specialists": [
+        "cn_ntsh"
+      ],
+      "tags": [
+        "troubleshooting",
+        "tls",
+        "handshake",
+        "alerts",
+        "wireshark"
+      ]
+    },
+    {
+      "$source_specialist": "pricing-analyst (cn_price)",
+      "source": "_migrated/pricing-analyst/circuit-pricing.md",
+      "target": "Topics/Pricing/Dedicated-Circuit-Pricing.md",
+      "type": "topic",
+      "name": "Dedicated Circuit Pricing",
+      "specialists": [
+        "cn_price",
+        "cn_hyb"
+      ],
+      "tags": [
+        "pricing",
+        "expressroute",
+        "direct-connect",
+        "cloud-interconnect"
+      ]
+    },
+    {
+      "source": "_migrated/pricing-analyst/cost-optimizer.md",
+      "target": "Topics/Pricing/Network-Cost-Optimization.md",
+      "type": "topic",
+      "name": "Network Cost Optimization",
+      "specialists": [
+        "cn_price"
+      ],
+      "tags": [
+        "pricing",
+        "cost-optimization",
+        "egress",
+        "reserved-capacity"
+      ]
+    },
+    {
+      "source": "_migrated/pricing-analyst/egress-architecture.md",
+      "target": "Topics/Pricing/Egress-Cost-Architecture.md",
+      "type": "topic",
+      "name": "Egress Cost Architecture",
+      "specialists": [
+        "cn_price"
+      ],
+      "tags": [
+        "pricing",
+        "egress",
+        "architecture",
+        "patterns"
+      ]
+    },
+    {
+      "source": "_migrated/pricing-analyst/egress-calc.md",
+      "target": "Topics/Pricing/Egress-Cost-Calculation.md",
+      "type": "topic",
+      "name": "Egress and Data Transfer Cost Calculation",
+      "specialists": [
+        "cn_price"
+      ],
+      "tags": [
+        "pricing",
+        "egress",
+        "data-transfer",
+        "calculation"
+      ]
+    },
+    {
+      "source": "_migrated/pricing-analyst/firewall-pricing.md",
+      "target": "Topics/Pricing/Firewall-Pricing.md",
+      "type": "topic",
+      "name": "Firewall Pricing",
+      "specialists": [
+        "cn_price",
+        "cn_fw"
+      ],
+      "tags": [
+        "pricing",
+        "firewall",
+        "azure-firewall",
+        "aws-nfw",
+        "cloud-armor",
+        "nva"
+      ]
+    },
+    {
+      "source": "_migrated/pricing-analyst/lb-pricing.md",
+      "target": "Topics/Pricing/Load-Balancer-Pricing.md",
+      "type": "topic",
+      "name": "Load Balancer Pricing",
+      "specialists": [
+        "cn_price",
+        "cn_lb"
+      ],
+      "tags": [
+        "pricing",
+        "load-balancer",
+        "alb",
+        "nlb",
+        "front-door"
+      ]
+    },
+    {
+      "source": "_migrated/pricing-analyst/price-compare.md",
+      "target": "Topics/Pricing/Cross-Cloud-Price-Comparison.md",
+      "type": "topic",
+      "name": "Cross-Cloud Network Price Comparison",
+      "specialists": [
+        "cn_price",
+        "cn_mcn"
+      ],
+      "tags": [
+        "pricing",
+        "multi-cloud",
+        "comparison"
+      ]
+    },
+    {
+      "source": "_migrated/pricing-analyst/vpn-pricing.md",
+      "target": "Topics/Pricing/VPN-Gateway-Pricing.md",
+      "type": "topic",
+      "name": "VPN Gateway Pricing",
+      "specialists": [
+        "cn_price",
+        "cn_hyb"
+      ],
+      "tags": [
+        "pricing",
+        "vpn",
+        "azure-vpn",
+        "aws-vpn",
+        "cloud-vpn"
+      ]
+    },
+    {
+      "$source_specialist": "private-link (cn_pl)",
+      "source": "_migrated/private-link/dns-integration.md",
+      "target": "Topics/Private-Link/Private-Endpoint-DNS-Integration.md",
+      "type": "topic",
+      "name": "Private Endpoint DNS Integration",
+      "specialists": [
+        "cn_pl",
+        "cn_dns"
+      ],
+      "tags": [
+        "private-link",
+        "private-endpoint",
+        "dns",
+        "private-dns-zone",
+        "hub-spoke"
+      ]
+    },
+    {
+      "source": "_migrated/private-link/security-review.md",
+      "target": "Topics/Private-Link/Private-Endpoint-Security-Review.md",
+      "type": "topic",
+      "name": "Private Endpoint Security Review",
+      "specialists": [
+        "cn_pl",
+        "cn_nsec"
+      ],
+      "tags": [
+        "private-link",
+        "private-endpoint",
+        "security",
+        "network-policies",
+        "public-access"
+      ]
+    },
+    {
+      "source": "_migrated/private-link/troubleshoot.md",
+      "target": "Topics/Private-Link/Private-Endpoint-Troubleshooting.md",
+      "type": "topic",
+      "name": "Private Endpoint Troubleshooting",
+      "specialists": [
+        "cn_pl",
+        "cn_ntsh"
+      ],
+      "tags": [
+        "private-link",
+        "private-endpoint",
+        "troubleshooting",
+        "dns",
+        "connection-state"
+      ]
+    },
+    {
+      "$source_specialist": "report-builder (cn_doc) — tooling/process docs",
+      "source": "_migrated/report-builder/docx-report.md",
+      "target": "Topics/Reporting/DOCX-Report-Generation.md",
+      "type": "topic",
+      "name": "DOCX Report Generation",
+      "specialists": [
+        "cn_doc"
+      ],
+      "tags": [
+        "reporting",
+        "docx",
+        "word",
+        "tooling"
+      ]
+    },
+    {
+      "source": "_migrated/report-builder/html-report.md",
+      "target": "Topics/Reporting/HTML-Report-Generation.md",
+      "type": "topic",
+      "name": "HTML Report Generation",
+      "specialists": [
+        "cn_doc"
+      ],
+      "tags": [
+        "reporting",
+        "html",
+        "tooling"
+      ]
+    },
+    {
+      "source": "_migrated/report-builder/pdf-report.md",
+      "target": "Topics/Reporting/PDF-Report-Generation.md",
+      "type": "topic",
+      "name": "PDF Report Generation",
+      "specialists": [
+        "cn_doc"
+      ],
+      "tags": [
+        "reporting",
+        "pdf",
+        "playwright",
+        "tooling"
+      ]
+    },
+    {
+      "source": "_migrated/report-builder/report-structure.md",
+      "target": "Topics/Reporting/Report-Structure.md",
+      "type": "topic",
+      "name": "Report Structure and Quality Bar",
+      "specialists": [
+        "cn_doc"
+      ],
+      "tags": [
+        "reporting",
+        "structure",
+        "quality",
+        "executive-summary"
+      ]
+    },
+    {
+      "source": "_migrated/report-builder/xlsx-workbook.md",
+      "target": "Topics/Reporting/XLSX-Workbook-Generation.md",
+      "type": "topic",
+      "name": "XLSX Workbook Generation",
+      "specialists": [
+        "cn_doc"
+      ],
+      "tags": [
+        "reporting",
+        "xlsx",
+        "excel",
+        "formulas",
+        "tooling"
+      ]
+    },
+    {
+      "$source_specialist": "sase-sse (cn_sase)",
+      "source": "_migrated/sase-sse/architecture.md",
+      "target": "Topics/SASE/SASE-SSE-Architecture.md",
+      "type": "topic",
+      "name": "SASE/SSE Architecture Design",
+      "specialists": [
+        "cn_sase"
+      ],
+      "tags": [
+        "sase",
+        "sse",
+        "architecture",
+        "design-framework"
+      ]
+    },
+    {
+      "source": "_migrated/sase-sse/sdwan-integration.md",
+      "target": "Topics/SASE/SD-WAN-SASE-Integration.md",
+      "type": "topic",
+      "name": "SD-WAN with SASE Integration",
+      "specialists": [
+        "cn_sase",
+        "cn_vwan"
+      ],
+      "tags": [
+        "sase",
+        "sd-wan",
+        "integration"
+      ]
+    },
+    {
+      "source": "_migrated/sase-sse/swg-casb.md",
+      "target": "Topics/SASE/SWG-and-CASB.md",
+      "type": "topic",
+      "name": "Secure Web Gateway and CASB",
+      "specialists": [
+        "cn_sase"
+      ],
+      "tags": [
+        "sase",
+        "swg",
+        "casb",
+        "web-security"
+      ]
+    },
+    {
+      "source": "_migrated/sase-sse/vendor-compare.md",
+      "target": "Topics/SASE/SASE-SSE-Vendor-Comparison.md",
+      "type": "topic",
+      "name": "SASE/SSE Vendor Comparison",
+      "specialists": [
+        "cn_sase"
+      ],
+      "tags": [
+        "sase",
+        "sse",
+        "vendor-comparison",
+        "zscaler",
+        "netskope",
+        "palo-alto-prisma"
+      ]
+    },
+    {
+      "source": "_migrated/sase-sse/ztna-design.md",
+      "target": "Topics/SASE/ZTNA-Design.md",
+      "type": "topic",
+      "name": "Zero Trust Network Access (ZTNA) Design",
+      "specialists": [
+        "cn_sase"
+      ],
+      "tags": [
+        "sase",
+        "ztna",
+        "zero-trust",
+        "access"
+      ]
+    },
+    {
+      "$source_specialist": "vnet-architect (cn_vnet)",
+      "source": "_migrated/vnet-architect/address-planner.md",
+      "target": "Topics/VNet/IP-Address-Space-Planning.md",
+      "type": "topic",
+      "name": "IP Address Space Planning",
+      "specialists": [
+        "cn_vnet"
+      ],
+      "tags": [
+        "vnet",
+        "addressing",
+        "cidr",
+        "ipam",
+        "planning"
+      ]
+    },
+    {
+      "source": "_migrated/vnet-architect/drawio-diagram.md",
+      "target": "Topics/Diagrams/Drawio-Diagram-Generation.md",
+      "type": "topic",
+      "name": "draw.io Network Diagram Generation",
+      "specialists": [
+        "cn_vnet",
+        "cn_doc"
+      ],
+      "tags": [
+        "diagram",
+        "drawio",
+        "tooling"
+      ]
+    },
+    {
+      "source": "_migrated/vnet-architect/excalidraw-diagram.md",
+      "target": "Topics/Diagrams/Excalidraw-Diagram-Generation.md",
+      "type": "topic",
+      "name": "Excalidraw Network Diagram Generation",
+      "specialists": [
+        "cn_vnet",
+        "cn_doc"
+      ],
+      "tags": [
+        "diagram",
+        "excalidraw",
+        "tooling"
+      ]
+    },
+    {
+      "source": "_migrated/vnet-architect/migration-planner.md",
+      "target": "Topics/VNet/Network-Migration-Planning.md",
+      "type": "topic",
+      "name": "Network Migration Planning",
+      "specialists": [
+        "cn_vnet"
+      ],
+      "tags": [
+        "vnet",
+        "migration",
+        "planning"
+      ]
+    },
+    {
+      "source": "_migrated/vnet-architect/network-diagram.md",
+      "target": "Topics/Diagrams/Mermaid-Network-Diagram-Generation.md",
+      "type": "topic",
+      "name": "Mermaid Network Diagram Generation",
+      "specialists": [
+        "cn_vnet",
+        "cn_doc"
+      ],
+      "tags": [
+        "diagram",
+        "mermaid",
+        "tooling"
+      ]
+    },
+    {
+      "source": "_migrated/vnet-architect/peering-advisor.md",
+      "target": "Topics/VNet/VNet-VPC-Peering.md",
+      "type": "topic",
+      "name": "VNet/VPC Peering Advisor",
+      "specialists": [
+        "cn_vnet"
+      ],
+      "tags": [
+        "vnet",
+        "vpc",
+        "peering"
+      ]
+    },
+    {
+      "source": "_migrated/vnet-architect/subnet-calculator.md",
+      "target": "Topics/VNet/Subnet-Calculator.md",
+      "type": "topic",
+      "name": "Subnet Calculator",
+      "specialists": [
+        "cn_vnet"
+      ],
+      "tags": [
+        "vnet",
+        "subnet",
+        "cidr",
+        "calculator"
+      ]
+    },
+    {
+      "$source_specialist": "vwan-sdwan (cn_vwan)",
+      "source": "_migrated/vwan-sdwan/branch-connectivity.md",
+      "target": "Topics/VWAN/VWAN-Branch-Connectivity.md",
+      "type": "topic",
+      "name": "Virtual WAN Branch Connectivity",
+      "specialists": [
+        "cn_vwan",
+        "cn_hyb"
+      ],
+      "tags": [
+        "vwan",
+        "branch",
+        "s2s-vpn",
+        "p2s-vpn",
+        "expressroute"
+      ]
+    },
+    {
+      "source": "_migrated/vwan-sdwan/nva-integration.md",
+      "target": "Topics/VWAN/VWAN-NVA-Integration.md",
+      "type": "topic",
+      "name": "Virtual WAN NVA and SD-WAN Integration",
+      "specialists": [
+        "cn_vwan",
+        "cn_fw"
+      ],
+      "tags": [
+        "vwan",
+        "nva",
+        "sd-wan",
+        "bgp"
+      ]
+    },
+    {
+      "source": "_migrated/vwan-sdwan/routing-intent.md",
+      "target": "Topics/VWAN/VWAN-Routing-Intent.md",
+      "type": "topic",
+      "name": "Virtual WAN Routing Intent and Policies",
+      "specialists": [
+        "cn_vwan"
+      ],
+      "tags": [
+        "vwan",
+        "routing-intent",
+        "routing-policy",
+        "spoke-to-spoke"
+      ]
+    },
+    {
+      "source": "_migrated/vwan-sdwan/troubleshoot.md",
+      "target": "Topics/VWAN/VWAN-Troubleshooting.md",
+      "type": "topic",
+      "name": "Virtual WAN Troubleshooting",
+      "specialists": [
+        "cn_vwan",
+        "cn_ntsh"
+      ],
+      "tags": [
+        "vwan",
+        "troubleshooting",
+        "effective-routes",
+        "connection-state"
+      ]
+    }
+  ]
+}
