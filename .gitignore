@@ -17,3 +17,9 @@ __pycache__/
 
 # Generated review reports (regenerate on demand with tools/suggest-*.mjs)
 tools/reports/
+
+# Benchmark run artifacts — machine-specific (contains absolute paths to
+# isolated COPILOT_HOMEs and bulky share files). Regenerate with the
+# instructions in benchmarks/results-tier3.md.
+benchmarks/runs/
+benchmarks/.tier3-state.json

@@ -1,0 +1,55 @@
+{
+  "$comment": "Tier 3 minimal v1 — 10-prompt subset of queries.json chosen to maximize variant discrimination (ours vs upstream). Categories balanced: 3 regex-easy with granular vault pages where cn_search precision matters, 3 vendor-specific (extracted Vendors/* pages exist in ours only), 2 cloud-service (where Tier 2 showed regex-routing failed but cn_search recovers), 2 vague (likely both poor; interesting). See benchmarks/queries.json for the full 49-query catalog.",
+  "queries": [
+    {
+      "id": "vnet-hub-spoke",
+      "query": "design a hub-spoke VNet topology across 3 Azure regions",
+      "category": "regex-easy"
+    },
+    {
+      "id": "fw-ha",
+      "query": "active-passive firewall HA configuration patterns",
+      "category": "regex-easy"
+    },
+    {
+      "id": "nsec-ddos",
+      "query": "Azure DDoS Protection Standard sizing and tier selection",
+      "category": "regex-easy"
+    },
+    {
+      "id": "fw-vendor-palo",
+      "query": "design Palo Alto NGFW high-availability cluster on Azure",
+      "category": "vendor-specific"
+    },
+    {
+      "id": "fw-vendor-cisco",
+      "query": "migrate Cisco ASA rules to Cisco FTD step by step",
+      "category": "vendor-specific"
+    },
+    {
+      "id": "fw-vendor-vyos",
+      "query": "VyOS lab firewall config for site-to-site VPN testing",
+      "category": "vendor-specific"
+    },
+    {
+      "id": "hyb-gcp-interconnect",
+      "query": "GCP Dedicated Interconnect redundancy patterns",
+      "category": "cloud-service"
+    },
+    {
+      "id": "vwan-aws-equiv",
+      "query": "what is the AWS equivalent of Azure Virtual WAN",
+      "category": "cloud-service"
+    },
+    {
+      "id": "price-egress",
+      "query": "minimize egress costs in a multi-cloud architecture",
+      "category": "vague"
+    },
+    {
+      "id": "ntsh-asymmetric",
+      "query": "how to avoid asymmetric routing through an NVA in hub-spoke",
+      "category": "vague"
+    }
+  ]
+}
