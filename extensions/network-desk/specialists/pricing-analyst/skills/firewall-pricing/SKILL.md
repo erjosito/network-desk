@@ -1,170 +1,110 @@
 # Skill: Firewall Pricing (`price_skill_firewall_pricing`)
 
-Compare firewall pricing across cloud-native services and third-party NVAs (Network Virtual Appliances). Covers Azure Firewall, AWS Network Firewall, GCP Cloud Armor, and marketplace NVAs.
+Compare firewall pricing across cloud-native services (Azure Firewall Basic/Standard/Premium, AWS Network Firewall, GCP Cloud Armor, GCP Cloud NGFW) and third-party NVAs (Palo Alto VM-Series, FortiGate, Check Point CloudGuard). Owns the cloud-native-vs-NVA cross-over decision at ~5 TB/month throughput, the SKU-feature-vs-need gate, and the BYOL-vs-PAYG break-even. The full per-SKU price tables, per-AZ multi-deployment math, throughput-tier comparison matrix, and CLI for checking SKU + metrics all live in the vault.
 
 ---
 
-## Azure Firewall Pricing
+## Knowledge loading contract
 
-| SKU | Deployment $/hr | Deployment $/month (730 hrs) | Data Processing $/GB |
-|---|---|---|---|
-| Basic | $0.395 | $288 | $0.065 |
-| Standard | $1.25 | $912 | $0.016 |
-| Premium | $1.75 | $1,278 | $0.016 |
+This is a **thin specialist skill**. It owns the *decision logic* (low traffic → cloud-native; high traffic → NVA; advanced L7 → Premium SKU or NVA; multi-cloud consistency → NVA) and the BYOL-vs-PAYG horizon rule. All per-SKU rates, per-AZ deployment math, throughput-tier matrix, and CLI for checking SKU/metrics live in the vault.
 
-### What Each SKU Includes
+Mandatory steps every time you use this skill:
 
-| Feature | Basic | Standard | Premium |
-|---|---|---|---|
-| L3/L4 filtering | ✅ | ✅ | ✅ |
-| Threat intelligence | Alerts only | Alerts + deny | Alerts + deny |
-| FQDN filtering | ✅ | ✅ | ✅ |
-| IDPS | ❌ | ❌ | ✅ (signature-based) |
-| TLS inspection | ❌ | ❌ | ✅ |
-| URL filtering | ❌ | ❌ | ✅ |
-| Web categories | ❌ | ✅ | ✅ |
+1. Call `cn_vault_page({ page: "Firewall-Pricing" })` for the canonical per-SKU rates (Azure FW Basic/Standard/Premium, AWS Network Firewall per-AZ, GCP Cloud Armor / Cloud NGFW), NVA pricing (PAN VM-Series, FortiGate, Check Point), throughput-tier comparison matrix (100 GB → 10 TB), and SKU-feature comparison.
+2. Cite the vault page when quoting $/hr, $/GB, or $/month numbers.
+3. For firewall *policy / config design*, redirect to `firewall-engineer`.
 
-### Azure Firewall Manager
+If a vendor isn't covered, fall back to `cn_search({ query: "<keywords>", specialist: "cn_price" })`.
 
-| Component | Cost |
+---
+
+## When to use firewall-pricing
+
+| Scenario | Behaviour |
 |---|---|
-| Secured virtual hub (vWAN) | $0.25/hr ($182.50/month) per hub deployment |
-| Firewall policies | Free (management plane) |
-
-```bash
-# Check Azure Firewall SKU and metrics
-az network firewall show --name <fw-name> -g <rg> --query '{sku:sku, threatIntel:threatIntelMode}'
-
-# Check data processed
-az monitor metrics list --resource <firewall-resource-id> \
-  --metric "DataProcessed" --interval PT1H --aggregation Total
-```
-
-**Pricing page:** https://azure.microsoft.com/en-us/pricing/details/azure-firewall/
+| "Compare Azure Firewall SKUs" | Load vault; surface Basic/Standard/Premium with feature gating |
+| "Cloud-native vs NVA at our scale" | Apply 5-TB/month cross-over rule + throughput-tier matrix |
+| "Should we go Premium for IDPS?" | Feature-need gate; if no advanced L7 need → Standard |
+| "AWS Network Firewall 3-AZ cost" | Per-AZ multiplier from vault |
+| "GCP Cloud Armor or Cloud NGFW?" | Cloud Armor is WAF/DDoS, not full firewall; Cloud NGFW for L7 inspection — disambiguate, then price |
+| "BYOL vs PAYG for FortiGate" | Break-even ~3-yr; BYOL wins for sustained 24×7 |
+| Firewall policy / rule design | Redirect: `cn_skill({ specialist: "cn_fw", skill: "policy-design" })` |
+| Firewall HA topology design | Redirect: `cn_skill({ specialist: "cn_fw", skill: "ha-design" })` |
+| Firewall hardening checklist | Redirect: `cn_skill({ specialist: "cn_fw", skill: "hardening-check" })` |
+| WAF policy specifically | Redirect: `cn_skill({ specialist: "cn_nsec", skill: "waf-policy-design" })` |
+| Total network cost optimisation | Redirect: `cn_skill({ specialist: "cn_price", skill: "cost-optimizer" })` |
 
 ---
 
-## AWS Network Firewall Pricing
+## Reference pages (load these first)
 
-| Component | Cost |
-|---|---|
-| Firewall endpoint (per AZ) | $0.395/hr (~$288/month) |
-| Data processed | $0.065/GB |
-
-A typical multi-AZ deployment with endpoints in **3 AZs** costs:
-- Endpoints: 3 × $288 = **$864/month**
-- Data (1 TB): 1000 × $0.065 = **$65/month**
-- **Total: ~$929/month**
-
-```bash
-# Check Network Firewall status
-aws network-firewall describe-firewall --firewall-name <name> \
-  --query 'Firewall.{Name:FirewallName,Status:FirewallStatus.Status}'
-
-# Check data processed metrics
-aws cloudwatch get-metric-statistics --namespace AWS/NetworkFirewall \
-  --metric-name ProcessedBytes --dimensions Name=FirewallName,Value=<name> \
-  --period 2592000 --statistics Sum --start-time 2024-01-01 --end-time 2024-02-01
-```
-
-**Pricing page:** https://aws.amazon.com/network-firewall/pricing/
-
----
-
-## GCP Cloud Armor Pricing
-
-Cloud Armor is a WAF/DDoS service, not a full network firewall. Pricing is per-policy and per-request:
-
-| Component | Standard Tier | Plus Tier |
+| Topic | Vault page | Load with |
 |---|---|---|
-| Security policy | $5/month per policy | $5/month per policy |
-| Per rule | $1/month per rule | $1/month per rule |
-| Requests (first 1M) | $0.75 per million | $0.75 per million |
-| Requests (1M – 10M) | $0.60 per million | $0.60 per million |
-| Adaptive protection | ❌ | Included |
-| Bot management | ❌ | Included |
-| Plus subscription | — | $3,000/month |
+| Canonical firewall pricing — Azure FW Basic/Standard/Premium SKU table + feature matrix + Firewall Manager / Secured Hub costs + CLI; AWS Network Firewall per-AZ pricing + CLI; GCP Cloud Armor / Cloud NGFW pricing; NVA pricing (PAN VM-Series, FortiGate, Check Point) PAYG vs BYOL; throughput-tier comparison matrix (100 GB → 10 TB); cloud-native vs NVA decision framework | [[Firewall-Pricing]] | `cn_vault_page({ page: "Firewall-Pricing" })` |
 
-### GCP Cloud Firewall (VPC Firewall Rules)
-
-Standard VPC firewall rules are **free**. Hierarchical Firewall Policies and Cloud NGFW (powered by Palo Alto Networks) have additional costs:
-
-| Component | Cost |
-|---|---|
-| VPC firewall rules | Free |
-| Cloud NGFW Standard (FQDN, geo-filtering) | $0.018/GB |
-| Cloud NGFW Enterprise (IPS/IDS by PAN-OS) | $0.018/GB + $1.75/hr per endpoint |
-
-```bash
-# List Cloud Armor policies and rules
-gcloud compute security-policies list --format='table(name,type)'
-gcloud compute security-policies describe <policy-name> --format='table(rules[].priority,rules[].action)'
-```
-
-**Pricing page:** https://cloud.google.com/armor/pricing
+Mandatory.
 
 ---
 
-## NVA (Network Virtual Appliance) Pricing
+## Required inputs — collect before answering
 
-Third-party firewalls on cloud marketplaces combine VM compute costs with software licensing:
-
-### Palo Alto Networks VM-Series
-
-| Component | Cost (approx.) |
-|---|---|
-| VM-300 equivalent (4 vCPU) | $0.50 – $1.00/hr compute |
-| PAYG license (Bundle 1) | ~$1.05/hr |
-| PAYG license (Bundle 2 - NGFW) | ~$1.76/hr |
-| BYOL | $0 runtime (annual license ~$5K–$50K) |
-| **Total PAYG (Bundle 2)** | **~$2.76/hr ($2,015/month)** |
-
-### Fortinet FortiGate
-
-| Component | Cost (approx.) |
-|---|---|
-| FortiGate-VM04 (4 vCPU) | $0.40 – $0.80/hr compute |
-| PAYG license (NGFW) | ~$0.84/hr |
-| BYOL | $0 runtime (annual license ~$3K–$20K) |
-| **Total PAYG** | **~$1.64/hr ($1,197/month)** |
-
-### Check Point CloudGuard
-
-| Component | Cost (approx.) |
-|---|---|
-| vSEC (4 vCPU) | $0.40 – $0.80/hr compute |
-| PAYG license (NGTP) | ~$1.25/hr |
-| BYOL | $0 runtime (annual license varies) |
-| **Total PAYG** | **~$2.05/hr ($1,497/month)** |
-
-> **BYOL vs PAYG:** For sustained use (24×7), BYOL is typically 30-50% cheaper over 3 years. PAYG is better for dev/test, burst capacity, or proof-of-concept.
+1. **Cloud(s)** in scope.
+2. **Expected monthly data processed (GB or TB)** — drives the cloud-native-vs-NVA cross-over.
+3. **Feature needs** — L3/L4 only? FQDN filtering? IDPS / TLS inspection? URL filtering / web categories?
+4. **HA / multi-AZ requirement** — for AWS NFW, multiplies per-endpoint cost by AZ count.
+5. **Operational model** — managed PaaS preferred vs willingness to patch/upgrade NVA.
+6. **Multi-cloud consistency** — is the same policy plane needed across clouds? (drives NVA).
+7. **Commitment horizon** — for BYOL break-even.
+8. **Compliance / certification** — sometimes mandates specific vendor (e.g., FedRAMP-approved NVA).
 
 ---
 
-## Cost at Different Throughput Levels
+## Workflow
 
-| Monthly Data | Azure FW Standard | Azure FW Premium | AWS NFW (3 AZ) | NVA (FortiGate PAYG) |
-|---|---|---|---|---|
-| 100 GB | $912 + $2 = $914 | $1,278 + $2 = $1,280 | $864 + $7 = $871 | $1,197 + $0 = $1,197 |
-| 500 GB | $912 + $8 = $920 | $1,278 + $8 = $1,286 | $864 + $33 = $897 | $1,197 |
-| 1 TB | $912 + $16 = $928 | $1,278 + $16 = $1,294 | $864 + $65 = $929 | $1,197 |
-| 5 TB | $912 + $80 = $992 | $1,278 + $80 = $1,358 | $864 + $325 = $1,189 | $1,197 |
-| 10 TB | $912 + $160 = $1,072 | $1,278 + $160 = $1,438 | $864 + $650 = $1,514 | $1,197 |
-
-> **Key insight:** Cloud-native firewalls have lower fixed costs but per-GB charges add up. NVAs have higher fixed costs but no per-GB charges — making them cheaper at high throughput (typically 5+ TB/month). Azure Firewall Basic ($288/month) is compelling for small workloads with light traffic.
+1. **Collect inputs** above.
+2. **Load `Firewall-Pricing`**.
+3. **Disambiguate GCP early** — Cloud Armor is WAF/DDoS in front of LB; Cloud NGFW is L7 inspection inline. Don't confuse them.
+4. **Apply the SKU-feature gate** — if user needs IDPS / TLS inspection / URL filtering → Azure FW Premium or NVA (Standard / Basic cannot meet).
+5. **Apply the cloud-native-vs-NVA cross-over** — at ~5 TB/month, NVA flat cost ≈ cloud-native (fixed + per-GB). Below 5 TB → cloud-native wins; above → NVA wins.
+6. **For AWS NFW** — multiply endpoint cost by AZ count (3 AZs is typical HA → $864/month just endpoints).
+7. **For NVA** — break PAYG vs BYOL: BYOL typically 30-50% cheaper over 3 yrs; PAYG better for dev/test/PoC/burst.
+8. **For Azure FW Basic** — flag the limit: only for small dev/test workloads with light traffic; lacks Standard's threat-intel deny.
+9. **Produce 3-column comparison** — chosen cloud-native vs chosen NVA vs (if applicable) Azure FW Basic. Use throughput-tier matrix from vault.
+10. **Surface anti-patterns** — Premium SKU for L3/L4 only; NVA at sub-1-TB scale; ignoring multi-AZ multiplier on AWS NFW; comparing list price without commit discount.
+11. **Emit** in the output format below.
 
 ---
 
-## Decision Framework
+## Output format
 
-| Factor | Cloud-Native FW | NVA (3rd party) |
-|---|---|---|
-| Low traffic (< 1 TB/month) | ✅ Cheaper | Over-provisioned |
-| High traffic (> 5 TB/month) | Per-GB costs grow | ✅ Flat cost |
-| Advanced L7 features (IPS/IDS) | Azure FW Premium / AWS NFW | ✅ More mature |
-| Operational complexity | Low (PaaS managed) | Higher (patching, HA) |
-| Multi-cloud consistency | ❌ Different per cloud | ✅ Same vendor everywhere |
-| HA requirements | Built-in | Must design (active/passive, GWLB) |
+Every firewall-pricing answer should emit:
 
-Pricing is indicative — verify against current vendor pricing pages before budgeting.
+1. **Inputs assumed** — cloud, expected throughput, feature needs, HA model.
+2. **Required SKU tier (justification)** — feature-need-gate output.
+3. **3-column comparison table** — cloud-native SKU vs NVA vs (optional) Azure FW Basic; columns: $/month fixed, $/GB, total at user's throughput, features included.
+4. **Cross-over note** — at what throughput does the recommended option change.
+5. **BYOL vs PAYG note** (if NVA) — break-even horizon for the user's commitment.
+6. **Cited rates** — vault page reference + last-verified date if available.
+7. **Anti-pattern check** — confirm none of the workflow mistakes below apply.
+8. **What this excludes** — policy design (`cn_fw/policy-design`), HA topology (`cn_fw/ha-design`), egress redesign (`cn_price/egress-architecture`).
+9. **Footer** — `Pricing is indicative — verify against current vendor pricing pages before budgeting.` then `Analysis only — verify against vendor documentation before applying.`
+
+---
+
+## Common workflow mistakes (do not repeat these)
+
+1. **Recommending Azure FW Premium when only L3/L4 is needed.** Premium costs +40% over Standard for IDPS/TLS that won't be used.
+2. **Recommending Azure FW Basic for prod.** Throughput-capped; lacks Standard's threat-intel deny; only suitable for small dev/test.
+3. **Pricing AWS Network Firewall as a single endpoint.** Production deployments are 3-AZ → $864/month just for endpoints before any data.
+4. **Confusing GCP Cloud Armor with a full network firewall.** Cloud Armor is WAF/DDoS in front of an LB. For inline inspection, recommend Cloud NGFW (Palo Alto-powered) or NVA.
+5. **Recommending NVA at < 1 TB/month.** Cloud-native flat + per-GB is cheaper below the cross-over. Don't burden ops with NVA upgrades for marginal saving.
+6. **Recommending cloud-native at 10+ TB/month** without showing that NVA flat cost wins.
+7. **Quoting PAYG NVA pricing for a sustained 24×7 production load.** BYOL is 30-50% cheaper over 3 yrs.
+8. **Ignoring Secured Virtual Hub price** when comparing vWAN with built-in Azure Firewall (additional $182.50/month per hub).
+9. **Comparing list price** when the customer has EA / MAP / EDP discount — flag the % off.
+10. **Conflating data-processing $/GB with egress $/GB.** They're separate meters; both apply.
+11. **Forgetting to factor multi-vendor policy management overhead** — picking different vendors per cloud kills the "multi-cloud consistency" advantage.
+12. **Pricing without an HA model.** Single-AZ FW in prod is a one-AZ outage from total inspection loss; always price the HA topology.
+
+**Pricing is indicative — verify against current vendor pricing pages before budgeting.**
 **Analysis only — verify against vendor documentation before applying.**

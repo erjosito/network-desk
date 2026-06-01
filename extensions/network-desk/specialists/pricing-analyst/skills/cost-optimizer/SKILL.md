@@ -1,255 +1,118 @@
 # Skill: Network Cost Optimization (`price_skill_cost_optimizer`)
 
-Strategies and checklists for reducing cloud networking costs. Covers egress reduction, right-sizing, reserved capacity, architecture patterns, and identifying unused resources.
+Pragmatic checklist for reducing cloud networking spend across Azure, AWS, and GCP. Owns the prioritisation (which optimisations to attempt first, and which to ignore until the bill exceeds a threshold), the right-sizing methodology (utilisation observation → SKU step-down), and the "delete-the-orphan" hygiene loop. The CDN/compression/private-endpoint pattern catalogue, the per-cloud right-sizing CLI, the reserved-capacity discount tables, the NAT-gateway vs LB-SNAT decision table, and the orphan-resource CLI live in the vault.
 
 ---
 
-## 1. Reduce Egress Costs
+## Knowledge loading contract
 
-Egress is typically the largest and most surprising networking cost. Key strategies:
+This is a **thin specialist skill**. It owns the *order of attack* (egress before fixed cost; orphans before right-sizing; reserved capacity only after right-sizing), the quarterly-checklist cadence, the "is this cost line ≥ 5% of the bill?" gate, and the reversibility/break-even discipline. All per-cloud CLI, per-pattern savings tables, and the 12-line quarterly checklist live in the vault.
 
-### CDN Offload for Static Content
+Mandatory steps every time you use this skill:
 
-Move static assets (images, JS, CSS, videos, downloads) to a CDN. CDN egress is 25-50% cheaper than origin egress, and it reduces load on your origin infrastructure.
+1. Call `cn_vault_page({ page: "Network-Cost-Optimization" })` for the canonical pattern catalogue, right-sizing CLI per cloud, reserved-capacity tables, orphan-resource CLI, and quarterly-checklist.
+2. For egress-specific architectural redesigns, also call `cn_vault_page({ page: "Egress-Cost-Architecture" })` (or redirect to `cn_skill({ specialist: "cn_price", skill: "egress-architecture" })`).
+3. Cite the vault page when quoting discount %s, SKU prices, or step-down savings.
 
-| Approach | Cost Impact |
+If a vendor / scenario isn't covered, fall back to `cn_search({ query: "<keywords>", specialist: "cn_price" })`.
+
+---
+
+## When to use cost-optimizer
+
+| Scenario | Behaviour |
 |---|---|
-| Serve static content from origin | Full egress rate ($0.087-$0.12/GB) |
-| Serve via CDN | $0.06-$0.085/GB + cache fill |
-| Estimated savings | 25-50% on static content egress |
-
-```bash
-# Azure — check which content could be CDN-cached
-az cdn endpoint show --name <endpoint> -g <rg> --profile-name <profile> \
-  --query '{origins:origins[].hostName, caching:deliveryPolicy}'
-
-# AWS — check CloudFront cache hit ratio
-aws cloudwatch get-metric-statistics --namespace AWS/CloudFront \
-  --metric-name CacheHitRate --dimensions Name=DistributionId,Value=<id> \
-  --period 86400 --statistics Average --start-time 2024-01-01 --end-time 2024-02-01
-```
-
-### Enable Compression
-
-Compressing API responses and web content reduces egress volume by 60-80%:
-
-```bash
-# Check if compression is enabled on Azure Application Gateway
-az network application-gateway show --name <appgw> -g <rg> \
-  --query 'httpListeners[].{name:name, protocol:protocol}'
-
-# Verify compression in response headers
-curl -s -D- -o /dev/null -H "Accept-Encoding: gzip" https://your-api.com/endpoint \
-  | grep -i content-encoding
-```
-
-### Keep Traffic Intra-Region
-
-Cross-region traffic costs $0.02-$0.08/GB. Architect for data locality:
-
-- Deploy read replicas in the same region as consumers
-- Use region-local caches (Redis, Memcached)
-- Avoid cross-region database queries — replicate data instead
-- Place compute close to storage
-
-### Private Endpoints vs. Internet Egress
-
-Traffic to PaaS services (Storage, SQL, Key Vault) through service endpoints or private endpoints stays on the Microsoft/AWS/Google backbone and avoids internet egress charges:
-
-| Path | Egress Cost |
-|---|---|
-| Via public endpoint (internet) | Full egress rate |
-| Via service endpoint | Free (Azure) |
-| Via private endpoint | ~$0.01/GB data processing (Azure) |
-| Via VPC endpoint (AWS) | $0.01/GB data processing |
+| "Our network bill is too high — where do we start?" | Apply ordered attack (egress first → orphans → right-size → reserved capacity → architecture) |
+| Quarterly cost review | Walk the 12-point checklist from the vault |
+| "Should we step down from VpnGw3AZ?" | Right-sizing methodology — pull `AverageBandwidth`, compare to next SKU down, decide |
+| "We have orphan public IPs / idle gateways" | Hygiene loop from the vault's orphan-CLI |
+| "Can we save with 1-yr or 3-yr reservation?" | Reserved-capacity discount tables; only AFTER right-sizing |
+| Architectural redesign (hub-spoke vs flat, NAT-GW vs LB-SNAT) | Load Network-Cost-Optimization §4 |
+| Pure egress redesign (replace internet egress with private paths, CDN, R2/B2) | Redirect: `cn_skill({ specialist: "cn_price", skill: "egress-architecture" })` |
+| Calculating *current* egress cost from a topology | Redirect: `cn_skill({ specialist: "cn_price", skill: "egress-calc" })` |
+| Firewall pricing comparison | Redirect: `cn_skill({ specialist: "cn_price", skill: "firewall-pricing" })` |
+| ER / DX / Interconnect price comparison | Redirect: `cn_skill({ specialist: "cn_price", skill: "circuit-pricing" })` |
+| VPN gateway pricing breakdown | Redirect: `cn_skill({ specialist: "cn_price", skill: "vpn-gw-pricing" })` |
+| Load balancer pricing breakdown | Redirect: `cn_skill({ specialist: "cn_price", skill: "lb-pricing" })` |
+| Compare a service price across clouds | Redirect: `cn_skill({ specialist: "cn_price", skill: "cross-cloud-comparison" })` |
 
 ---
 
-## 2. Right-Size Gateways and Resources
+## Reference pages (load these first)
 
-Over-provisioned gateways waste hundreds of dollars monthly.
-
-### VPN Gateway Right-Sizing
-
-```bash
-# Azure — check VPN gateway bandwidth utilization
-az monitor metrics list --resource <vpn-gw-id> \
-  --metric "AverageBandwidth" --interval PT1H --aggregation Average
-
-# If average bandwidth is <30% of SKU capacity, consider downgrading:
-# VpnGw3AZ ($1,000/mo, 1.25 Gbps) → VpnGw2AZ ($518/mo, 1 Gbps)
-# VpnGw2AZ ($518/mo, 1 Gbps) → VpnGw1AZ ($263/mo, 650 Mbps)
-```
-
-### ExpressRoute Circuit Right-Sizing
-
-```bash
-# Check ER circuit utilization
-az network express-route stats show --name <circuit> -g <rg>
-
-# If utilization consistently <25% of circuit speed, consider downsizing
-# ER 1 Gbps ($1,100/mo) → ER 500 Mbps ($550/mo) saves $6,600/year
-```
-
-### Load Balancer Right-Sizing
-
-```bash
-# Azure — check Application Gateway capacity units
-az monitor metrics list --resource <appgw-id> \
-  --metric "CapacityUnits" --interval PT1H --aggregation Average
-
-# AWS — check ALB consumed LCUs
-aws cloudwatch get-metric-statistics --namespace AWS/ApplicationELB \
-  --metric-name ConsumedLCUs --dimensions Name=LoadBalancer,Value=<arn-suffix> \
-  --period 86400 --statistics Maximum --start-time 2024-01-01 --end-time 2024-02-01
-```
-
----
-
-## 3. Reserved Capacity and Commitment Discounts
-
-### Azure ExpressRoute Reserved Circuits
-
-Committing to 1-year or 3-year terms saves 15-30%:
-
-| Circuit Speed | Pay-as-you-go ($/month) | 1-Year Reserved | 3-Year Reserved |
-|---|---|---|---|
-| 1 Gbps Unlimited | ~$1,650 | ~$1,400 (15% off) | ~$1,150 (30% off) |
-| 10 Gbps Unlimited | ~$6,550 | ~$5,570 (15% off) | ~$4,585 (30% off) |
-
-### AWS Direct Connect Capacity Reservations
-
-AWS offers committed-use pricing for Direct Connect ports through AWS Savings Plans and enterprise discounts. Contact AWS for custom pricing on long-term commitments.
-
-### Azure Savings Plans
-
-Azure savings plans for compute can reduce NVA (VM-based firewall) costs by up to 72% for 3-year commitments.
-
----
-
-## 4. Architecture Patterns That Save Money
-
-### NAT Gateway vs. Load Balancer SNAT
-
-> **Pricing assumption reviewed 2026-05-29:** NAT gateway rates change frequently. Use the provider calculators/pricing pages for exact numbers; examples here are illustrative only.
-
-| Approach | Cost model | Notes |
+| Topic | Vault page | Load with |
 |---|---|---|
-| Azure NAT Gateway | Gateway uptime + data processing + public IP resources | Best for managed outbound at scale; verify Standard vs StandardV2 needs |
-| AWS NAT Gateway | Gateway uptime + data processing + public IPv4 charges + egress | Avoid sending AWS-service traffic through NAT when Gateway/Interface Endpoints exist |
-| GCP Cloud NAT | Gateway uptime + data processing + public IP hourly charges + egress | Do not model as data-processing-only; see https://cloud.google.com/nat/pricing |
-| LB SNAT / existing egress path | Often lower incremental cost if already deployed | Limited port count, operational constraints, and cloud-specific support |
-| Instance-level public IPs | Public IP hourly/monthly charges + exposure risk | Simple but increases attack surface |
+| Canonical optimisation playbook — CDN/compression/private-endpoint patterns, right-sizing CLI per cloud, reserved-capacity tables, NAT-GW vs LB-SNAT, hub-spoke vs flat cost comparison, orphan-resource CLI, quarterly checklist, cost-monitoring setup | [[Network-Cost-Optimization]] | `cn_vault_page({ page: "Network-Cost-Optimization" })` |
+| Egress-specific architectural patterns (optional, load if egress dominates) | [[Egress-Cost-Architecture]] | `cn_vault_page({ page: "Egress-Cost-Architecture" })` |
 
-> **Recommendation:** If you already have a supported load balancer or private endpoint path, evaluate it before adding a NAT Gateway. NAT data processing and public IP charges can dominate outbound-heavy workloads.
-
-### Hub-Spoke vs. Flat Network
-
-Hub-spoke with centralized firewalling means all inter-spoke traffic traverses the hub firewall:
-
-| Pattern | Firewall Data Processing | Peering Cost |
-|---|---|---|
-| Hub-spoke (all via FW) | High — all inter-spoke GB | 2× peering hops |
-| Direct spoke-to-spoke peering | Lower — only inspected traffic | 1× peering hop |
-| vWAN with routing intent | High — all via secured hub | vWAN hub charges |
-
-If inter-spoke traffic doesn't require inspection, direct peering saves both firewall data processing and peering transit costs.
-
-### Private Endpoints — Watch the Data Processing Cost
-
-| Component | Cost |
-|---|---|
-| Private endpoint (resource) | $0.01/hr (~$7.30/month) |
-| Data processing | $0.01/GB inbound + $0.01/GB outbound |
-
-For high-throughput scenarios (e.g., 10 TB/month to Storage), the $200/month data processing cost is still far less than internet egress ($870/month at $0.087/GB), but it's not zero.
+Row #1 is mandatory.
 
 ---
 
-## 5. Identify and Remove Unused Resources
+## Required inputs — collect before answering
 
-### Idle VPN Gateways
-
-```bash
-# Azure — find VPN gateways with no connections
-az network vnet-gateway list -g <rg> --query "[?length(ipConfigurations) > \`0\`].{name:name, sku:sku.name}" -o table
-
-# Check for zero-traffic gateways
-az network vpn-connection list -g <rg> --query "[].{name:name, status:connectionStatus, bytesIn:ingressBytesTransferred}"
-```
-
-### Unused Public IPs
-
-```bash
-# Azure — find unattached public IPs (charged at ~$3.60/month each)
-az network public-ip list -g <rg> --query "[?ipConfiguration==null].{name:name, ip:ipAddress, sku:sku.name}" -o table
-
-# AWS — find unattached Elastic IPs (charged at $0.005/hr = $3.65/month)
-aws ec2 describe-addresses --query 'Addresses[?AssociationId==null].{IP:PublicIp,AllocationId:AllocationId}'
-```
-
-### Orphaned Load Balancers
-
-```bash
-# Azure — LBs with no backend pools
-az network lb list -g <rg> --query "[?length(backendAddressPools) == \`0\`].{name:name, sku:sku.name}"
-
-# AWS — ALBs with no registered targets
-aws elbv2 describe-target-health --target-group-arn <arn> --query 'TargetHealthDescriptions'
-```
-
-### Unused ExpressRoute Circuits
-
-```bash
-# Azure — check if ER circuit is provisioned but unused
-az network express-route list -g <rg> \
-  --query "[].{name:name, state:circuitProvisioningState, serviceProviderState:serviceProviderProvisioningState, bandwidth:bandwidthInMbps}"
-```
+1. **Current bill** — top 5 networking line items + total (so you optimise the 80%, not the 20%).
+2. **Cloud(s)** in scope.
+3. **Resources in scope** — VPN GW SKU, ER circuit speed, firewall SKU, NAT GW present?, CDN present?, public IPs count.
+4. **Utilisation data** — avg bandwidth on gateways, cache-hit ratio on CDNs, data processed on firewalls.
+5. **Commitment horizon** — willing to commit 1 yr / 3 yr for reserved discounts?
+6. **Operational maturity** — can engineering team redeploy gateways without downtime? (drives right-sizing willingness)
+7. **Reversibility tolerance** — can the change be rolled back in <1 day if traffic shifts?
 
 ---
 
-## Optimization Checklist
+## Workflow
 
-Run through this checklist quarterly:
-
-| # | Check | CLI / Action | Est. Savings |
-|---|---|---|---|
-| 1 | Delete unused public IPs | `az network public-ip list --query "[?ipConfiguration==null]"` | $3.60/IP/month |
-| 2 | Remove idle VPN gateways | Check connection count and traffic | $27–$2,400/month per GW |
-| 3 | Downsize over-provisioned VPN GWs | Check avg bandwidth vs SKU capacity | 30-60% of GW cost |
-| 4 | Downsize ExpressRoute circuits | Check utilization vs provisioned speed | $550+/month |
-| 5 | Enable CDN for static content | Set up Azure CDN / CloudFront / Cloud CDN | 25-50% egress savings |
-| 6 | Enable compression on APIs | App Gateway / ALB / origin config | 60-80% egress reduction |
-| 7 | Use Private Endpoints for PaaS | Replace internet access to Storage/SQL | Avoids egress charges |
-| 8 | Clean up orphaned LBs | Check for LBs with no backends | $18+/month per LB |
-| 9 | Consider reserved circuits | Compare PAYG vs 1yr/3yr ER pricing | 15-30% savings |
-| 10 | Review inter-region traffic | Check if replicas can be moved closer | $0.02-$0.08/GB saved |
-| 11 | Check NAT Gateway cost model | Review gateway uptime, data processing, public IPs, and egress | Significant at scale; verify current rates |
-| 12 | Audit firewall data processing | Right-size or consider NVA at high volume | Variable |
+1. **Collect inputs** above. **Refuse** to suggest optimisations if no current bill data is available — guesses will mis-prioritise.
+2. **Load `Network-Cost-Optimization`**.
+3. **Rank line items by $ contribution** — only optimise lines ≥ 5% of bill (Pareto). Cite #6 from common-mistakes: don't golf the small numbers.
+4. **Apply the ordered attack**:
+   - **(a) Hygiene** — orphan public IPs, idle gateways, unused circuits, empty LBs. Run the orphan CLI from §5; delete with no architecture change.
+   - **(b) Right-size** — for each gateway / LB / firewall / circuit, pull utilisation; if avg < 30% of SKU capacity, plan a step-down.
+   - **(c) Egress reduction** — CDN, compression, private endpoints, intra-region pinning (§1 of vault). Hand-off egress-only redesigns to `egress-architecture`.
+   - **(d) Architecture patterns** — NAT-GW vs LB-SNAT (§4), hub-spoke firewall traffic patterns, private-endpoint data-processing cost.
+   - **(e) Reserved capacity** — ONLY after right-sizing; reserving an oversized SKU locks in waste.
+5. **For each proposed change** — quantify before/after monthly cost + break-even time + reversibility plan.
+6. **Sanity-check anti-patterns** — "are we reserving capacity we just right-sized away?", "does the new SKU support our required features?", "are we breaking an HA design?".
+7. **Schedule a 30-day post-implementation measurement window** to validate the saving.
+8. **Emit** in the output format below.
 
 ---
 
-## Cost Monitoring Setup
+## Output format
 
-### Azure Cost Alerts
+Every cost-optimisation answer should emit:
 
-```bash
-# Create a budget with alert at 80% and 100%
-az consumption budget create --budget-name "NetworkCosts" \
-  --amount 5000 --time-grain Monthly --category Cost \
-  --resource-group <rg> --start-date 2024-01-01 --end-date 2025-01-01
-```
+1. **Inputs assumed** — top 5 line items + total.
+2. **Optimisation order** — letter-step plan (a → e) showing where you'll start and why (Pareto on line items).
+3. **Per-recommendation block** for each proposed change:
+   - Current state (resource + utilisation).
+   - Proposed change (SKU step / pattern adoption / deletion).
+   - Estimated monthly saving (with source: vault table).
+   - Implementation effort + reversibility note.
+   - Break-even time if non-zero setup cost.
+4. **Anti-pattern check** — confirm none of the 12 workflow mistakes below apply.
+5. **Total projected saving** — additive across all recommendations.
+6. **Measurement plan** — 30-day post-impl window.
+7. **What this excludes** — anything < 5% of bill; rebuild-only options.
+8. **Footer** — `Pricing is indicative — verify against current vendor pricing pages before budgeting.` then `Analysis only — verify against vendor documentation before applying.`
 
-### AWS Cost Anomaly Detection
+---
 
-```bash
-# Create cost anomaly monitor for networking
-aws ce create-anomaly-monitor --anomaly-monitor '{
-  "MonitorName": "NetworkCostMonitor",
-  "MonitorType": "DIMENSIONAL",
-  "MonitorDimension": "SERVICE"
-}'
-```
+## Common workflow mistakes (do not repeat these)
 
-Pricing is indicative — verify against current vendor pricing pages before budgeting.
+1. **Optimising before you have a bill.** Guesses about line items mis-rank the Pareto. Refuse to act until the user produces top-5 line items.
+2. **Reserving capacity before right-sizing.** Locks in waste for 1-3 years. Always step down to the right SKU *first*, then reserve.
+3. **Recommending CDN without a cache-control strategy.** 10% hit rate is rounding-error savings. Pair every CDN suggestion with a cache-policy + ETag plan.
+4. **Right-sizing a VPN gateway to where avg ≈ SKU capacity.** Burst traffic will throttle. Aim for avg ≤ 40-50% of SKU capacity.
+5. **Stepping down without checking the new SKU's feature set.** E.g., dropping from VpnGw3AZ to VpnGw1 loses zone redundancy.
+6. **Optimising < 5%-of-bill line items.** Every hour spent on a $20/month saving is an hour not spent on a $2000/month one.
+7. **Skipping orphan hygiene because "it's only $3.60/IP".** Often there are dozens; cumulative is real. Always do hygiene before architecture.
+8. **NAT-GW recommendations without considering Gateway/Interface endpoints for AWS service traffic.** NAT to S3 is a billing leak.
+9. **Recommending direct spoke-to-spoke peering "to save firewall data-processing"** without confirming the traffic doesn't require inspection by security policy.
+10. **Ignoring the data-processing cost on private endpoints.** They're cheap vs internet egress but they're not free.
+11. **No reversibility plan.** Cost optimisations are bets on future traffic shape. If usage shifts, you need to know how to roll back.
+12. **Skipping the 30-day measurement window.** Most "saving" claims are within billing noise unless verified.
+
+**Pricing is indicative — verify against current vendor pricing pages before budgeting.**
 **Analysis only — verify against vendor documentation before applying.**
