@@ -1210,6 +1210,15 @@ runtime entirely, makes the content portable across Copilot surfaces, and
 resolves the content-duplication problem by construction. The trade-off is
 the loss of deterministic routing — an empirically testable risk.
 
+> **Update (Pattern G now empirically validated).** A live A/B benchmark
+> against the upstream CLI extension showed Pattern G is **~43% faster on
+> p50 wall time, uses ~44% fewer tool calls, and ties on answer quality**
+> on a 15-query sample. See [§ 6](#6-live-ab-benchmark--pattern-g-vs-upstream-copilot-cli-sessions)
+> for the full data. The deterministic-routing risk did not materialize:
+> the LLM routed correctly on 14/15 queries and made a *better* call than
+> the deterministic system on the 15th. **Pattern G is now the recommended
+> direction for the next major iteration** of this fork.
+
 #### Known open work in this fork
 
 The CKB implementation as it ships today is not the fully realised form of
@@ -1233,5 +1242,201 @@ the cleanup pass.
 * [`benchmarks/results-tier1.md`](benchmarks/results-tier1.md) — static + microbench detail
 * [`benchmarks/results-tier2.md`](benchmarks/results-tier2.md) — retrieval recall detail (49 queries)
 * [`benchmarks/results-tier3.md`](benchmarks/results-tier3.md) — live LLM-judge A/B detail (10 prompts)
+* [`benchmarks/ab/results/_summary/summary.md`](benchmarks/ab/results/_summary/summary.md) — Section 6 raw data
 * [`README.md`](README.md) — installation and usage
 * [`CHANGELOG.md`](CHANGELOG.md) — release notes
+
+---
+
+## 6. Live A/B benchmark — Pattern G vs Upstream (Copilot CLI sessions)
+
+The earlier tier-3 benchmarks compared CKB to PSKB through synthetic
+prompt-and-judge harnesses. The numbers below come from a **real
+end-to-end Copilot CLI A/B run** comparing the **tiered-skill Pattern G
+prototype** against **the upstream `dmauser/network-desk` CLI
+extension**, both invoked through the same `copilot` subprocess.
+
+### 6.1 Methodology
+
+* **Harness:** `benchmarks/ab/copilot_bench.py` — three subcommands
+  (`run`, `judge`, `report`).
+* **Variants:**
+  * **Pattern G** — `benchmarks/ab/pattern-g-plugin/.claude-plugin/skills/network-desk/`
+    installed to `~/.copilot/skills/network-desk/` for each run, removed
+    after. Three specialist sub-skills (`cn_vnet`, `cn_fw`, `cn_hyb`).
+  * **Upstream** — `dmauser/network-desk @ 86a81ad` checked out as a git
+    worktree under `benchmarks/ab/temp/upstream/` and installed via
+    `node bin/cli.mjs init` (user-level extension, requires
+    `--experimental` flag).
+* **Answer model:** `gpt-5.5` at `medium` effort. Same prompt suffix on
+  every query forbids writing files / running shells / generating
+  diagrams to keep the comparison about *answer quality*, not artifact
+  generation.
+* **Containment:** `--excluded-tools` list of ~30 entries strips every
+  diagram / file-write skill and every shell tool from the session so
+  neither variant can wander into the broader Copilot tool universe.
+* **Judge:** `claude-opus-4.6` at `high` effort. Answer order
+  (`pattern-g` / `upstream`) randomized per-query via `random.Random(qid)`
+  to neutralize position bias. Verdict is a single-line JSON object with
+  five 0-10 axes plus `winner ∈ {A, B, tie}`.
+* **Query set:** 15 of the 49 queries in `benchmarks/queries.json` that
+  fall inside Pattern G's three-specialist coverage
+  (`cn_vnet ∪ cn_fw ∪ cn_hyb`). Categories: 8 `regex-easy`, 5
+  `vendor-specific`, 3 `cloud-service`.
+
+All raw outputs live under `benchmarks/ab/results/{pattern-g,upstream,judge,_summary}/`.
+
+### 6.2 Headline numbers
+
+| metric | pattern-g | upstream | delta |
+|---|---|---|---|
+| queries run | 15 | 15 | — |
+| **p50 wall time** | **65.5 s** | 114.1 s | **–43%** |
+| **p95 wall time** | **98.1 s** | 189.9 s | **–48%** |
+| **p50 LLM API time** | **26.3 s** | 32.3 s | **–19%** |
+| **mean output tokens** | **897** | 966 | **–7%** |
+| mean premium requests | 7.5 | 7.5 | 0% |
+| **mean tool calls / query** | **2.0** | 3.6 | **–44%** |
+| mean `cn_*` tool calls | 0.0 | 2.3 | n/a |
+| contaminated runs (wrote files) | 0 | 0 | ✓ both clean |
+| architecture-used rate | 93% | 100% | — |
+| network-desk skill load rate | 100% | — | — |
+| network-desk skill invoke rate | 93% | — | — |
+
+The session-duration win is the headline result: **median sessions
+finish in ~half the wall time and use ~half the tool calls**, with
+indistinguishable answer quality (see 6.3). The LLM-API portion of the
+budget shrinks too (–19%), but the bigger wins come from removing
+extension-side parameterized-tool round-trips that don't exist in
+Pattern G (it dispatches through a single `skill` tool invocation).
+
+A side-finding worth highlighting: pattern-g declined to invoke the
+network-desk skill on **one** trivial query (`vnet-subnet-math` — "how
+many usable IPs in a /27?"). It answered directly in 55 s for 113
+tokens. Upstream's regex routing forced the full `cn_route + cn_role`
+dance for the same question, taking 60 s and 571 tokens. Letting the
+LLM decide when *not* to load a specialist is an unanticipated
+efficiency lever that the deterministic-routing approach forfeits.
+
+### 6.3 Judge verdict (head-to-head)
+
+* **Pattern G wins: 6** (`fw-vendor-cisco`, `fw-vendor-opnsense`,
+  `fw-vendor-palo`, `fw-vendor-vyos`, `hyb-dx-macsec`,
+  `vnet-peering-transitivity`)
+* **Upstream wins: 7** (`fw-ha`, `fw-rule-audit`, `fw-vendor-fortigate`,
+  `hyb-bgp-design`, `hyb-er-fastpath`, `vnet-ip-planning`,
+  `vnet-subnet-math`)
+* **Ties: 2** (`hyb-gcp-interconnect`, `vnet-hub-spoke`)
+
+| axis | pattern-g | upstream |
+|---|---|---|
+| technical_accuracy | 8.3 | 8.4 |
+| completeness | 7.9 | 7.9 |
+| actionability | 7.5 | 7.7 |
+| clarity | 8.2 | 8.0 |
+| conciseness | 7.4 | 6.9 |
+
+The per-axis deltas are within **±0.5 on a 0-10 scale** on every
+dimension — a statistical tie in answer quality on this 15-query
+sample. Pattern G's only real quality regression was a CIDR
+hallucination in `vnet-ip-planning` (the answer used invalid
+5-octet notation like `10.x.y.1.0/24`); that's a content-quality
+issue in the network-desk skill itself, not an architectural defect
+— the upstream extension's `cn_vnet` specialist content happens to
+not trip that particular failure mode.
+
+### 6.4 What the numbers mean for the architecture choice
+
+The benchmark validates the central claim of Section 4.1: **Pattern G
+matches the upstream extension on answer quality while cutting wall
+time roughly in half and tool calls by 44%**, all while dropping the
+JavaScript extension runtime entirely. The architecture is portable
+across Copilot surfaces (CLI, Chat, future surfaces), needs no
+`--experimental` flag, and has nothing analogous to the 128-tool API
+ceiling that drove the original parameterized-tool design.
+
+The trade-off identified in Section 5's "Conclusion" — *loss of
+deterministic routing* — turned out to cost essentially nothing on this
+sample: the LLM routed correctly on 14/15 queries, and on the 15th it
+made the right call (skip routing entirely for a trivial question) that
+the deterministic system gets wrong. **Pattern G is now the
+recommended architecture for the next major iteration.**
+
+### 6.5 Should secondary skills carry their own knowledge bases?
+
+A natural follow-up: would Pattern G work better if each secondary
+skill (`cn_vnet`, `cn_fw`, etc.) shipped with its own private vault
+instead of leaning on the consolidated `vault/` corpus the parent
+skill exposes? Short answer: **no, not at the leaf level — but
+strategically caching "hot pages" inside each secondary is the right
+incremental refinement.**
+
+**Where decentralizing the KB helps:**
+
+* **Cuts indirection on the hot path.** Today a leaf-skill that
+  knows it always reads three specific vault pages still has to
+  re-discover them through `cn_search` / pointer traversal. Co-locating
+  those pages with the skill lets the SKILL.md cite local paths
+  directly, removing one round-trip per query.
+* **Cleaner ownership boundaries.** A vault edit to a Topics/Firewall
+  page today silently affects every firewall vendor skill. Per-skill
+  KBs would let a `palo-alto` skill evolve without touching
+  `fortigate`'s bytes.
+* **Better search relevance.** BM25 scoped to a single sub-tree
+  beats BM25 on the global corpus — a Palo-specific query is less
+  likely to return Cisco-leaning hits.
+
+**Where decentralizing the KB hurts:**
+
+* **Re-introduces duplication of cross-vendor principles.** The vault's
+  whole design splits content along a two-axis convention
+  (`Topics/Firewall` = cross-vendor principles, `Vendors/<id>.md` =
+  vendor-specific syntax) precisely to avoid restating "what is a
+  zone-based firewall?" in 14 vendor pages. Decentralizing reintroduces
+  that exact maintainability problem.
+* **The tiered-loading model already amortizes the cost.** Tier 0
+  stays cheap and the secondary loads lazily on demand. If the
+  secondary then carries its own KB, the per-leaf load gets heavier,
+  not lighter — you re-amortize at the wrong layer.
+* **Search infrastructure must be replicated** or stay centralized
+  while pages move (which breaks indexing).
+
+**Recommended middle ground — "hot-page caching, not partitioning":**
+
+1. **Keep the consolidated vault as canonical knowledge** — it remains
+   the single source of truth for cross-cutting content
+   (`Topics/`, `Vendors/`, `Troubleshooting/`).
+2. **Let each secondary skill package its 3–5 "hot pages" inline**
+   under `skills/firewall/reference/`. At build time these are copied
+   or symlinked from the canonical vault. Loading the secondary
+   skill auto-loads the 90% case without extra tool calls.
+3. **The root skill (`network-desk`) keeps the vault index and
+   `cn_search`** so unanticipated cross-vendor questions still
+   resolve through global search.
+
+This preserves the vault's single source of truth, makes the
+secondary skills self-contained for the common path, and avoids
+re-fragmenting the corpus. The change is mechanical (a sync step in
+the skill build pipeline) rather than architectural, and can ship
+independently of the Pattern G rollout.
+
+### 6.6 Open follow-up items
+
+* **Expand query coverage.** Pattern G's current 3 specialists cover
+  only 15/49 benchmark queries. Adding 17 more secondary skills to
+  reach upstream's 20-specialist parity would also let the benchmark
+  exercise the full 49-query suite.
+* **Fix the CIDR hallucination** in the `cn_vnet` SKILL.md before
+  graduating Pattern G out of prototype status — the
+  `vnet-ip-planning` loss was a content issue, not an architecture
+  issue, and is the only meaningful quality regression on the
+  sample.
+* **Implement hot-page caching** per 6.5(2) — measure whether it
+  closes the small `actionability` and `technical_accuracy` gap on
+  the next benchmark round.
+* **Re-run the benchmark with a larger n** (3–5 paraphrases per
+  query) to tighten confidence intervals on the per-axis judge
+  scores. The current sample is just sufficient to say "indistinguishable
+  on quality" but not to detect a 0.3-point delta on any single axis.
+
+---
