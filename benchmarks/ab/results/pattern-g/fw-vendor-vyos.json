@@ -1,0 +1,39 @@
+{
+  "id": "fw-vendor-vyos",
+  "variant": "pattern-g",
+  "query": "VyOS as a virtual router on Azure for BGP",
+  "expected_specialists": [
+    "cn_fw",
+    "cn_hyb"
+  ],
+  "category": "vendor-specific",
+  "exit_code": 0,
+  "metrics": {
+    "content": "## VyOS as a virtual router on Azure for BGP\n\nVyOS can run in Azure as a **Network Virtual Appliance (NVA)** to exchange BGP routes with peers such as on-prem routers, VPN appliances, SD-WAN edges, or other NVAs. It is useful when you need routing behavior Azure native gateways do not provide, such as custom route filtering, route maps, policy-based BGP decisions, or transit routing logic.\n\n### Typical design\n\nPlace VyOS in a dedicated **hub VNet** subnet:\n\n```text\nOn-prem / remote router\n        |\n   IPsec / GRE / tunnel\n        |\n Azure public IP / Load Balancer\n        |\n      VyOS VM\n        |\n Hub VNet route tables\n        |\n Spoke VNets / workloads\n```\n\n### Azure requirements\n\n| Item | Requirement |\n|---|---|\n| VM setting | Enable **IP forwarding** on VyOS NICs |\n| Routing | Use **UDRs** to send traffic to the VyOS private IP |\n| HA | Use two VyOS VMs behind Azure Standard Load Balancer or a routing failover design |\n| BGP transport | Usually over IPsec, GRE-over-IPsec, or direct private connectivity |\n| Azure native BGP | Azure Route Server can peer with NVAs using BGP |\n| Firewalling | NSGs must allow BGP TCP/179 and tunnel traffic |\n\n### Best Azure-native option\n\nIf the goal is to exchange BGP routes between VyOS and Azure VNets, consider using **Azure Route Server**:\n\n```text\nVyOS NVA <--> Azure Route Server <--> VNet effective routes\n```\n\nThis avoids manually injecting many UDRs and lets Azure learn routes dynamically from VyOS.\n\n### Basic VyOS BGP example\n\n```bash\nset protocols bgp system-as '65010'\nset protocols bgp neighbor 10.10.0.4 remote-as '65515'\nset protocols bgp neighbor 10.10.0.4 address-family ipv4-unicast\n\nset protocols bgp address-family ipv4-unicast network '10.20.0.0/16'\n\ncommit\nsave\n```\n\nFor Azure Route Server, the peer ASN is typically **65515**, and you peer with the two Route Server peer IPs.\n\n### Important caveats\n\n- Azure does **not** support arbitrary L2 adjacency; design for routed L3.\n- Disable source/destination checks equivalent by enabling **IP forwarding** on NICs.\n- Use UDRs unless Azure Route Server is distributing routes.\n- For production, deploy **two VyOS instances** across Availability Zones where possible.\n- Be careful with route propagation loops between VyOS, Route Server, VPN Gateway, and ExpressRoute.\n- Verify current Azure Route Server, Load Balancer, and VM networking limits in Microsoft documentation before deployment.",
+    "tool_calls": [
+      "report_intent",
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 938,
+    "api_duration_ms": 33179,
+    "session_duration_ms": 59992,
+    "wall_ms": 66016,
+    "premium_requests": 7.5,
+    "session_id": "10b762cf-36c6-4254-a359-b9038624a23f",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:41:14+00:00"
+}

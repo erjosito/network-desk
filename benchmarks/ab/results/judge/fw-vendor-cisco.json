@@ -1,0 +1,57 @@
+{
+  "id": "fw-vendor-cisco",
+  "query": "migrate Cisco ASA rule base to Azure Firewall policy",
+  "category": "vendor-specific",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "order": {
+    "A": "upstream",
+    "B": "pattern-g"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 8,
+      "completeness": 7,
+      "actionability": 7,
+      "clarity": 8,
+      "conciseness": 7
+    },
+    "B": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 8,
+      "clarity": 9,
+      "conciseness": 7
+    },
+    "winner": "B",
+    "reason": "B adds mandatory routing/UDR step, asymmetric routing risks, specific validation flows, and structured collection group design that A omits"
+  },
+  "winner_variant": "pattern-g",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":8,\"completeness\":7,\"actionability\":7,\"clarity\":8,\"conciseness\":7},\"B\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":8,\"clarity\":9,\"conciseness\":7},\"winner\":\"B\",\"reason\":\"B adds mandatory routing/UDR step, asymmetric routing risks, specific validation flows, and structured collection group design that A omits\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 848,
+    "api_duration_ms": 20636,
+    "session_duration_ms": 52372,
+    "wall_ms": 62750,
+    "premium_requests": 3.0,
+    "session_id": "8d00dc4b-4406-4daa-93d3-baec8acd4b48",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-02T13:21:47+00:00"
+}

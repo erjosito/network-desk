@@ -1,0 +1,57 @@
+{
+  "id": "hyb-dx-macsec",
+  "query": "AWS Direct Connect MACsec encryption support",
+  "category": "cloud-service",
+  "expected_specialists": [
+    "cn_hyb"
+  ],
+  "order": {
+    "A": "upstream",
+    "B": "pattern-g"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 8,
+      "completeness": 8,
+      "actionability": 8,
+      "clarity": 7,
+      "conciseness": 6
+    },
+    "B": {
+      "technical_accuracy": 8,
+      "completeness": 8,
+      "actionability": 8,
+      "clarity": 8,
+      "conciseness": 8
+    },
+    "winner": "B",
+    "reason": "Both technically equivalent; B is more focused without unnecessary routing preamble and disclaimer, adds practical detail about VIF coverage and IPsec overhead comparison"
+  },
+  "winner_variant": "pattern-g",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":8,\"completeness\":8,\"actionability\":8,\"clarity\":7,\"conciseness\":6},\"B\":{\"technical_accuracy\":8,\"completeness\":8,\"actionability\":8,\"clarity\":8,\"conciseness\":8},\"winner\":\"B\",\"reason\":\"Both technically equivalent; B is more focused without unnecessary routing preamble and disclaimer, adds practical detail about VIF coverage and IPsec overhead comparison\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 599,
+    "api_duration_ms": 21993,
+    "session_duration_ms": 89600,
+    "wall_ms": 124266,
+    "premium_requests": 3.0,
+    "session_id": "884ec308-f5e6-430f-8c6f-01982a047f8a",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-02T13:30:09+00:00"
+}

@@ -1,0 +1,40 @@
+{
+  "id": "fw-vendor-opnsense",
+  "variant": "upstream",
+  "query": "OPNsense vs pfSense for a small branch site firewall",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "category": "vendor-specific",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the right network-desk specialist first, then give a concise comparison.\n\n**Short answer:** for a small branch firewall, choose **pfSense** if you want the safer, more established appliance ecosystem; choose **OPNsense** if you value faster updates, a cleaner UI, and stronger built-in automation/API.\n\n| Area | OPNsense | pfSense |\n|---|---|---|\n| Best fit | Modern branch firewall with automation needs | Conservative branch firewall with broad community history |\n| UI/API | Cleaner UI, stronger REST API | Mature UI, less API-forward |\n| Updates | More frequent | More conservative, especially pfSense Plus |\n| Packages | Good plugin ecosystem | Strong packages like pfBlockerNG, Snort/Suricata |\n| HA | CARP/pfsync supported | CARP/pfsync supported; widely deployed |\n| Commercial path | Deciso support/appliances | Netgate pfSense Plus/appliances |\n| Operational risk | Faster change cadence may need more testing | More predictable for conservative ops |\n\n**Recommendation:** for a typical small branch doing WAN edge, NAT, site-to-site VPN, VLAN segmentation, DHCP/DNS relay, and basic IDS/blocklists, I\u2019d default to **pfSense Plus on Netgate hardware** if supportability and stability matter most. I\u2019d pick **OPNsense** if you want open-source-first operations, API-driven management, or prefer its UI/update model.\n\nReference the official docs before deciding: [OPNsense documentation](https://docs.opnsense.org/) and [pfSense documentation](https://docs.netgate.com/pfsense/en/latest/).\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 634,
+    "api_duration_ms": 23258,
+    "session_duration_ms": 77729,
+    "wall_ms": 100640,
+    "premium_requests": 7.5,
+    "session_id": "99e47350-ce01-49d6-9f65-f1cb9c152224",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:57:37+00:00"
+}

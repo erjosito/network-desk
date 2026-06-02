@@ -1,0 +1,57 @@
+{
+  "id": "vnet-hub-spoke",
+  "query": "design a hub-spoke VNet topology across 3 Azure regions",
+  "category": "regex-easy",
+  "expected_specialists": [
+    "cn_vnet"
+  ],
+  "order": {
+    "A": "pattern-g",
+    "B": "upstream"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 8,
+      "clarity": 9,
+      "conciseness": 7
+    },
+    "B": {
+      "technical_accuracy": 9,
+      "completeness": 8,
+      "actionability": 9,
+      "clarity": 9,
+      "conciseness": 8
+    },
+    "winner": "tie",
+    "reason": "Both technically sound. A broader coverage (VWAN option, DDoS, DNS, NSGs); B more actionable subnet sizing. Trade-off is completeness vs conciseness."
+  },
+  "winner_variant": "tie",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":8,\"clarity\":9,\"conciseness\":7},\"B\":{\"technical_accuracy\":9,\"completeness\":8,\"actionability\":9,\"clarity\":9,\"conciseness\":8},\"winner\":\"tie\",\"reason\":\"Both technically sound. A broader coverage (VWAN option, DDoS, DNS, NSGs); B more actionable subnet sizing. Trade-off is completeness vs conciseness.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 1132,
+    "api_duration_ms": 26883,
+    "session_duration_ms": 139637,
+    "wall_ms": 161422,
+    "premium_requests": 3.0,
+    "session_id": "d22e833f-eba1-4701-a4bf-97df5acaa165",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-02T13:37:42+00:00"
+}

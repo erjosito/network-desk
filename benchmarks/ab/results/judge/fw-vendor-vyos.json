@@ -1,0 +1,58 @@
+{
+  "id": "fw-vendor-vyos",
+  "query": "VyOS as a virtual router on Azure for BGP",
+  "category": "vendor-specific",
+  "expected_specialists": [
+    "cn_fw",
+    "cn_hyb"
+  ],
+  "order": {
+    "A": "pattern-g",
+    "B": "upstream"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 9,
+      "clarity": 9,
+      "conciseness": 7
+    },
+    "B": {
+      "technical_accuracy": 9,
+      "completeness": 7,
+      "actionability": 6,
+      "clarity": 8,
+      "conciseness": 7
+    },
+    "winner": "A",
+    "reason": "A provides concrete CLI syntax, architecture diagram, and specific deployment steps making it significantly more actionable while maintaining equal technical accuracy."
+  },
+  "winner_variant": "pattern-g",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":9,\"clarity\":9,\"conciseness\":7},\"B\":{\"technical_accuracy\":9,\"completeness\":7,\"actionability\":6,\"clarity\":8,\"conciseness\":7},\"winner\":\"A\",\"reason\":\"A provides concrete CLI syntax, architecture diagram, and specific deployment steps making it significantly more actionable while maintaining equal technical accuracy.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 614,
+    "api_duration_ms": 16532,
+    "session_duration_ms": 73764,
+    "wall_ms": 95000,
+    "premium_requests": 3.0,
+    "session_id": "ce8ce2f2-936b-496f-830e-c2db9fc5bdad",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-02T13:26:32+00:00"
+}

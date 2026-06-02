@@ -1,0 +1,37 @@
+{
+  "id": "vnet-hub-spoke",
+  "variant": "pattern-g",
+  "query": "design a hub-spoke VNet topology across 3 Azure regions",
+  "expected_specialists": [
+    "cn_vnet"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "## Hub-spoke VNet topology across 3 Azure regions\n\n**Design:** Use one hub VNet per region, with application spokes peered only to their local regional hub. Connect the three hubs together using **Azure Virtual WAN** or **global VNet peering**.\n\n| Region | Hub VNet | Example spokes |\n|---|---|---|\n| East US | `hub-eastus-vnet` | `prod-eastus-spoke`, `shared-eastus-spoke` |\n| West Europe | `hub-westeurope-vnet` | `prod-weu-spoke`, `data-weu-spoke` |\n| Southeast Asia | `hub-seasia-vnet` | `prod-sea-spoke`, `dev-sea-spoke` |\n\n## Recommended topology\n\n- **Regional hub VNets** host shared network services:\n  - Azure Firewall or NVA\n  - VPN Gateway / ExpressRoute Gateway if needed\n  - Private DNS Resolver\n  - Bastion / jump access\n  - monitoring and logging endpoints\n\n- **Spoke VNets** host workloads:\n  - app subnets\n  - data subnets\n  - private endpoint subnets\n  - AKS / VM / PaaS integration subnets\n\n- **Traffic flow:**\n  - Spoke-to-spoke within a region routes through the regional hub firewall.\n  - Cross-region traffic routes hub-to-hub.\n  - Internet egress is centralized through the regional hub firewall.\n  - On-premises connectivity lands in one or more hubs, preferably with redundant ExpressRoute/VPN.\n\n## Addressing example\n\n| Network | CIDR |\n|---|---|\n| East US supernet | `10.10.0.0/16` |\n| West Europe supernet | `10.20.0.0/16` |\n| Southeast Asia supernet | `10.30.0.0/16` |\n| East US hub | `10.10.0.0/20` |\n| West Europe hub | `10.20.0.0/20` |\n| Southeast Asia hub | `10.30.0.0/20` |\n| Spokes | `/22` or `/24` per workload |\n\n## Routing model\n\n- Enable **Allow forwarded traffic** on hub-spoke peerings.\n- Use **UDRs** on spoke subnets:\n  - `0.0.0.0/0` \u2192 regional Azure Firewall\n  - remote regional CIDRs \u2192 regional hub firewall\n  - on-premises CIDRs \u2192 hub gateway/firewall path\n- Disable direct spoke-to-spoke peering unless there is a specific low-latency exception.\n\n## Preferred hub interconnect option\n\n**Use Azure Virtual WAN** if you need scalable multi-region transit, branch connectivity, central routing, or many spokes.\n\n**Use global VNet peering** if the design is smaller, simpler, and you want explicit hub-to-hub control without Virtual WAN.\n\n## Security baseline\n\n- Put Azure Firewall Premium or approved NVA in each hub.\n- Use NSGs on every subnet.\n- Use Private Endpoints for PaaS access.\n- Use Azure Private DNS zones linked through the hub DNS architecture.\n- Enable DDoS Network Protection for production VNets.\n- Send flow logs, firewall logs, and diagnostics to a central Log Analytics workspace.\n\n**Bottom line:** deploy three regional hubs, attach local spokes to each hub, interconnect hubs for regional transit, and force all north-south plus east-west traffic through controlled inspection points. Verify service limits, routing behavior, and regional feature availability against current Azure documentation before implementation.",
+    "tool_calls": [
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 827,
+    "api_duration_ms": 23542,
+    "session_duration_ms": 73681,
+    "wall_ms": 86358,
+    "premium_requests": 7.5,
+    "session_id": "2c54b2f8-bf50-4faa-84ed-33eb7fc6f3e8",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:25:12+00:00"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "vnet-subnet-math",
+  "variant": "pattern-g",
+  "query": "how many usable IPs are in a /27 subnet on Azure vs AWS",
+  "expected_specialists": [
+    "cn_vnet"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**Azure:** 27 usable IPs  \n**AWS:** 27 usable IPs\n\nA `/27` has **32 total IP addresses**. Both Azure and AWS reserve **5 IPs per subnet**, leaving **32 - 5 = 27 usable IPs**.",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 113,
+    "api_duration_ms": 6425,
+    "session_duration_ms": 37088,
+    "wall_ms": 55342,
+    "premium_requests": 7.5,
+    "session_id": "e5b27576-5841-423f-9378-eb363baa46c9",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:32:16+00:00"
+}

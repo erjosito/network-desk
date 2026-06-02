@@ -1,0 +1,39 @@
+{
+  "id": "fw-vendor-palo",
+  "variant": "upstream",
+  "query": "design Palo Alto NGFW high-availability cluster on Azure",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "category": "vendor-specific",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the right network-desk specialist and answer with an Azure NGFW HA design.\n\n## Recommended design: VM-Series HA \u201csandwich\u201d on Azure\n\nUse **two Palo Alto VM-Series firewalls across Availability Zones**, fronted and backed by **Azure Standard Load Balancers**. Prefer **active/active for Azure-native resilience and scale**; use active/passive only if policy/stateful requirements or licensing mandate it.\n\n| Layer | Design |\n|---|---|\n| **Placement** | Dedicated security VNet or hub VNet, one VM-Series per AZ |\n| **Interfaces** | `management`, `untrust`, `trust`; optional HA/control interface if using PAN-OS HA |\n| **Ingress** | Public or internal Standard Load Balancer to firewall `untrust` NICs |\n| **Egress / east-west** | Internal Standard Load Balancer to firewall `trust` NICs |\n| **Routing** | Spoke/subnet UDRs send default or selected prefixes to the internal LB frontend IP |\n| **Availability** | Azure LB health probes remove failed firewall from path |\n| **Scaling** | Add more VM-Series instances behind the same LB pair if throughput grows |\n| **Management** | Panorama for templates, device groups, logging, and consistent policy push |\n| **Logging** | Send traffic/threat logs to Panorama, Cortex Data Lake, Syslog/SIEM, or Azure Monitor integration as required |\n\n## Traffic flow\n\n1. **Inbound internet**: Internet \u2192 Azure Public LB \u2192 active VM-Series untrust NIC \u2192 inspection/NAT \u2192 trust NIC \u2192 app subnet or internal LB.\n2. **Outbound internet**: Workload subnet \u2192 UDR \u2192 internal LB \u2192 VM-Series trust NIC \u2192 inspection/SNAT \u2192 untrust NIC \u2192 Azure Internet path.\n3. **East-west**: Spoke/subnet UDRs steer selected prefixes through the internal LB so flows are inspected before reaching other spokes or tiers.\n\n## Key design choices\n\n- **Use Standard Load Balancer with HA ports** for broad TCP/UDP forwarding when the firewall must inspect many ports.\n- **Do not rely on L2 failover concepts** like gratuitous ARP or floating MACs; Azure networking is routed/L3 and LB-driven.\n- **Keep management out-of-band** on a dedicated management subnet with NSG restrictions and no direct public exposure unless tightly controlled.\n- **Enable Accelerated Networking** where supported by the selected VM-Series size.\n- **Use zone-redundant or zonal frontends intentionally**: zone-redundant for regional resiliency, zonal if traffic must stay pinned to a specific AZ design.\n- **Preserve symmetry**: return traffic must traverse the same firewall path, especially for stateful inspection and NAT.\n- **Automate bootstrap/config** using Panorama, Azure Marketplace bootstrap options, or IaC, but keep policy controlled centrally.\n\n## Active/active vs active/passive\n\n| Option | Use when | Notes |\n|---|---|---|\n| **Active/active behind Azure LBs** | Preferred cloud pattern; higher availability and throughput | Azure LB handles failure detection; scales horizontally |\n| **Active/passive PAN-OS HA** | Required by operational model or strict pair semantics | Failover may depend on Azure route/IP updates and is usually less cloud-native |\n\n## Minimum subnet model\n\n| Subnet | Purpose |\n|---|---|\n| `mgmt-subnet` | PAN-OS management and Panorama connectivity |\n| `untrust-subnet` | External-facing firewall NICs and public/internal ingress LB backend |\n| `trust-subnet` | Internal-facing firewall NICs and internal LB backend |\n| `protected-workload-subnets` | Application spokes/subnets with UDRs pointing to firewall path |\n\n## Operational checklist\n\n1. Define zones: `untrust`, `trust`, `dmz`, `shared-services`, `management`.\n2. Create least-privilege security policy using App-ID, threat prevention, URL filtering, WildFire, and logging.\n3. Configure UDRs so protected subnets use the internal LB frontend as next hop.\n4. Validate health probes, failover behavior, asymmetric routing, SNAT/DNAT, and session behavior.\n5. Manage policy through Panorama and keep Azure infrastructure changes under change control.\n\nReferences to verify: Palo Alto Networks **VM-Series on Azure Deployment Guide**, Palo Alto **VM-Series HA in Azure** guidance, Microsoft **Azure Standard Load Balancer**, **HA ports**, **UDR**, and **Availability Zones** documentation.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 1420,
+    "api_duration_ms": 59777,
+    "session_duration_ms": 123460,
+    "wall_ms": 155030,
+    "premium_requests": 7.5,
+    "session_id": "4868fde4-7a83-40c5-9569-01ce988d1e26",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:53:13+00:00"
+}

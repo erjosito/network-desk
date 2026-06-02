@@ -1,0 +1,57 @@
+{
+  "id": "vnet-peering-transitivity",
+  "query": "is VNet peering transitive and how do I work around it",
+  "category": "regex-easy",
+  "expected_specialists": [
+    "cn_vnet"
+  ],
+  "order": {
+    "A": "upstream",
+    "B": "pattern-g"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 9,
+      "completeness": 8,
+      "actionability": 7,
+      "clarity": 7,
+      "conciseness": 7
+    },
+    "B": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 8,
+      "clarity": 9,
+      "conciseness": 8
+    },
+    "winner": "B",
+    "reason": "B is better structured with actionable sub-steps, clearer formatting, and no wasted preamble about routing to a specialist."
+  },
+  "winner_variant": "pattern-g",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":9,\"completeness\":8,\"actionability\":7,\"clarity\":7,\"conciseness\":7},\"B\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":8,\"clarity\":9,\"conciseness\":8},\"winner\":\"B\",\"reason\":\"B is better structured with actionable sub-steps, clearer formatting, and no wasted preamble about routing to a specialist.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 621,
+    "api_duration_ms": 15568,
+    "session_duration_ms": 60017,
+    "wall_ms": 74953,
+    "premium_requests": 3.0,
+    "session_id": "66fc2843-25ab-4aa1-b241-b8862901d125",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-02T13:40:21+00:00"
+}

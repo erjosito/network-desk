@@ -1,0 +1,40 @@
+{
+  "id": "hyb-dx-macsec",
+  "variant": "upstream",
+  "query": "AWS Direct Connect MACsec encryption support",
+  "expected_specialists": [
+    "cn_hyb"
+  ],
+  "category": "cloud-service",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the right network-desk specialist first, then answer concisely.\n\n**AWS Direct Connect supports MACsec** for **dedicated Direct Connect connections** at supported locations, primarily **10 Gbps and 100 Gbps dedicated ports**. It is **not supported on hosted connections**.\n\nKey points:\n\n| Area | Support |\n|---|---|\n| Encryption type | Layer 2 MACsec, IEEE 802.1AE |\n| Use case | Encrypts traffic over the physical Direct Connect link |\n| Supported connection type | Dedicated connections only |\n| Typical speeds | 10 Gbps and 100 Gbps dedicated ports |\n| Hosted connections | Not supported |\n| Requirements | MACsec-capable AWS DX port, compatible customer router, MKA/CAK/CKN configuration |\n| Scope | Link-level encryption only; not end-to-end across AWS services |\n\nMACsec is useful when you need encryption on the private physical circuit itself. For end-to-end encryption, use IPsec VPN over Direct Connect, TLS, or application-layer encryption.\n\nAWS docs: https://docs.aws.amazon.com/directconnect/latest/UserGuide/MACsec.html\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 788,
+    "api_duration_ms": 22279,
+    "session_duration_ms": 158878,
+    "wall_ms": 200141,
+    "premium_requests": 7.5,
+    "session_id": "088afa21-d828-4359-84c7-465ae998015b",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 2,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T13:11:12+00:00"
+}

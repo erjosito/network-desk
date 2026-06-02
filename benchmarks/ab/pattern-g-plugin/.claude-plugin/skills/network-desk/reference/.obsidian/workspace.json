@@ -1,0 +1,221 @@
+{
+  "main": {
+    "id": "cb4104b66e46cdcf",
+    "type": "split",
+    "children": [
+      {
+        "id": "4fae695f5f1edda5",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "186cbbe956f1a69d",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Graph view"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "5d8b0de64ae7e45b",
+    "type": "split",
+    "children": [
+      {
+        "id": "9ebfe0c476adbe29",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "4302e72437289ca3",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "e604a1279a5c4263",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "bef1bf79dea1fe95",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "96636224fbee0e38",
+    "type": "split",
+    "children": [
+      {
+        "id": "17addabd3ecfcb34",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "0ba1b6994b75be0e",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Topics/Security/DDoS-Protection-Design.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for DDoS-Protection-Design"
+            }
+          },
+          {
+            "id": "7e104688e21937df",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Topics/Security/DDoS-Protection-Design.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from DDoS-Protection-Design"
+            }
+          },
+          {
+            "id": "c304e7ab5893798a",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "6361bd88a9d38c0a",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "b563cdaeae539777",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Topics/Security/DDoS-Protection-Design.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of DDoS-Protection-Design"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "186cbbe956f1a69d",
+  "lastOpenFiles": [
+    "Services/AWS/AWS-Application-Load-Balancer.md",
+    "Services/AWS/AWS-Network-Load-Balancer.md",
+    "Services/AWS/AWS-NAT-Gateway.md",
+    "Services/GCP/Cloud-Armor.md",
+    "Services/GCP/Cloud-CDN.md",
+    "Services/GCP/Cloud-Load-Balancing.md",
+    "Services/GCP/Cloud-DNS.md",
+    "Services/GCP/Cloud-NAT.md",
+    "Services/GCP/Cloud-Router.md",
+    "Services/GCP/Network-Connectivity-Center.md",
+    "Services/GCP/HA-VPN.md",
+    "Services/AWS/AWS-WAF.md",
+    "Services/AWS/NAT-Gateway.md",
+    "Services/AWS/Application-Load-Balancer.md",
+    "Services/AWS/Network-Load-Balancer.md",
+    "Services/AWS/CloudFront.md",
+    "Services/AWS/Route-53.md",
+    "Services/AWS/Cloud-WAN.md",
+    "Services/AWS/Site-to-Site-VPN.md",
+    "Services/AWS/Transit-Gateway.md",
+    "Services/Azure/Private-Link-Service.md.new",
+    "Services/GCP/Service-Attachment.md",
+    "Services/AWS/PrivateLink.md",
+    "Services/Azure/Private-Endpoint.md.new",
+    "Services/GCP/Private-Service-Connect.md",
+    "Services/AWS/VPC-Endpoint.md",
+    "Services/Azure/ExpressRoute.md.new",
+    "Services/GCP/Cloud-Interconnect.md",
+    "Services/AWS/Direct-Connect.md",
+    "Services/GCP",
+    "Services/AWS",
+    "_migrated/vnet-architect",
+    "_migrated/sase-sse",
+    "_migrated/vwan-sdwan",
+    "_migrated/multi-cloud-net",
+    "_migrated/report-builder"
+  ]
+}

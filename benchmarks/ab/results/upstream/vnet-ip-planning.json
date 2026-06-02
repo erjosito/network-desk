@@ -1,0 +1,40 @@
+{
+  "id": "vnet-ip-planning",
+  "variant": "upstream",
+  "query": "plan a non-overlapping CIDR address scheme for prod, dev, and test environments",
+  "expected_specialists": [
+    "cn_vnet"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**Assumptions:** single-region baseline, no existing on-prem/cloud CIDRs provided, using RFC1918 `10.64.0.0/12` reserved for these environments.\n\n| Environment | CIDR | Purpose |\n|---|---:|---|\n| Prod | `10.64.0.0/16` | Production workloads |\n| Dev | `10.65.0.0/16` | Development workloads |\n| Test | `10.66.0.0/16` | Test/QA workloads |\n| Reserved | `10.67.0.0/16` - `10.79.0.0/16` | Future environments, regions, or expansion |\n\nSuggested per-environment subnet pattern:\n\n| Subnet | Prod | Dev | Test |\n|---|---:|---:|---:|\n| Web | `10.64.10.0/24` | `10.65.10.0/24` | `10.66.10.0/24` |\n| App | `10.64.20.0/24` | `10.65.20.0/24` | `10.66.20.0/24` |\n| Data | `10.64.30.0/24` | `10.65.30.0/24` | `10.66.30.0/24` |\n| Management | `10.64.40.0/24` | `10.65.40.0/24` | `10.66.40.0/24` |\n| Private Endpoints | `10.64.50.0/24` | `10.65.50.0/24` | `10.66.50.0/24` |\n| Reserved | remaining `/24`s | remaining `/24`s | remaining `/24`s |\n\nThis keeps environments non-overlapping, easy to summarize by `/16`, and leaves substantial space for growth. Before adopting, confirm these ranges do not overlap with on-premises, VPN, partner, or existing cloud networks.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 830,
+    "api_duration_ms": 27631,
+    "session_duration_ms": 49687,
+    "wall_ms": 57280,
+    "premium_requests": 7.5,
+    "session_id": "2be045c5-93ad-4e86-bd7a-2b4f7e171722",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:46:32+00:00"
+}

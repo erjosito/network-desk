@@ -1,0 +1,38 @@
+{
+  "id": "hyb-dx-macsec",
+  "variant": "pattern-g",
+  "query": "AWS Direct Connect MACsec encryption support",
+  "expected_specialists": [
+    "cn_hyb"
+  ],
+  "category": "cloud-service",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**AWS Direct Connect supports MACsec** for Layer 2 encryption on **dedicated Direct Connect connections**, typically **10 Gbps and 100 Gbps** ports at supported locations. It encrypts traffic only across the physical DX link between your router and the AWS Direct Connect device.\n\nKey points:\n\n| Area | Support |\n|---|---|\n| **Connection type** | Dedicated connections only |\n| **Hosted connections** | Not supported |\n| **Encryption scope** | Layer 2 link encryption on the DX circuit |\n| **Traffic covered** | All VIF traffic on that physical connection |\n| **Keying** | MACsec CKN/CAK configured between your device and AWS |\n| **Device requirement** | Customer router must support MACsec and compatible cipher suites |\n| **End-to-end encryption** | Not provided; use TLS/IPsec/app encryption if required beyond the DX link |\n\nMACsec is useful when you need encryption without the throughput and operational overhead of IPsec tunnels, especially for high-bandwidth private connectivity. Verify current speed, location, and cipher support in the official AWS Direct Connect MACsec documentation before ordering or enabling it.",
+    "tool_calls": [
+      "report_intent",
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1003,
+    "api_duration_ms": 26283,
+    "session_duration_ms": 47350,
+    "wall_ms": 53579,
+    "premium_requests": 7.5,
+    "session_id": "1251b45f-2c34-47e2-88f1-79c2f791b611",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:44:17+00:00"
+}

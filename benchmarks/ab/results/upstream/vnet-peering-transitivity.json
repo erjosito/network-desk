@@ -1,0 +1,40 @@
+{
+  "id": "vnet-peering-transitivity",
+  "variant": "upstream",
+  "query": "is VNet peering transitive and how do I work around it",
+  "expected_specialists": [
+    "cn_vnet"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the right network-desk specialist first, then answer directly.\n\n**No. Azure VNet peering is not transitive.** If VNet A peers with Hub, and Hub peers with VNet B, A cannot reach B through the Hub automatically.\n\n**Workarounds:**\n\n1. **Direct peering:** Peer every VNet that must talk directly. Simple, but does not scale well.\n2. **Hub-spoke with NVA/Azure Firewall:** Route spoke-to-spoke traffic through the hub using UDRs, enable **Allow forwarded traffic** on peerings, and ensure firewall/NVA routing allows return traffic.\n3. **Azure Virtual WAN:** Use a managed hub for scalable transitive connectivity between VNets, branches, VPN, and ExpressRoute.\n4. **Gateway transit:** Useful for spokes reaching on-premises through a hub VPN/ExpressRoute gateway, but it is not general-purpose spoke-to-spoke transitive peering.\n\nSee Azure VNet peering and Virtual WAN docs for exact feature limits and routing behavior.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 534,
+    "api_duration_ms": 21368,
+    "session_duration_ms": 50443,
+    "wall_ms": 58172,
+    "premium_requests": 7.5,
+    "session_id": "7a3b5d88-e68c-45ce-84d9-118b3bf7be83",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:48:30+00:00"
+}

@@ -1,0 +1,38 @@
+{
+  "id": "vnet-ip-planning",
+  "variant": "pattern-g",
+  "query": "plan a non-overlapping CIDR address scheme for prod, dev, and test environments",
+  "expected_specialists": [
+    "cn_vnet"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**Assumption:** `10.0.0.0/8` is available and does not overlap with on-prem, partner, VPN, or existing cloud ranges.\n\n| Environment | CIDR block | Purpose |\n|---|---:|---|\n| **Prod** | `10.0.0.0/12` | Production workloads |\n| **Dev** | `10.16.0.0/12` | Developer and integration workloads |\n| **Test** | `10.32.0.0/12` | QA, staging, performance testing |\n| **Reserved** | `10.48.0.0/12`+ | Future environments, DR, acquisitions, labs |\n\n**Recommended hierarchy:**\n\n```text\nEnvironment: /12\nRegion:      /16\nVNet/VPC:    /20 or /21\nSubnet:      /24 to /27\n```\n\n**Example prod regional split:**\n\n| Region | CIDR |\n|---|---:|\n| Prod East | `10.0.0.0/16` |\n| Prod West | `10.1.0.0/16` |\n| Prod Central | `10.2.0.0/16` |\n| Prod DR | `10.3.0.0/16` |\n\n**Subnet pattern per VNet/VPC:**\n\n| Subnet | Example |\n|---|---:|\n| App | `10.x.y.0/24` |\n| Data | `10.x.y.1.0/24` |\n| Private endpoints | `10.x.y.2.0/24` |\n| Management | `10.x.y.3.0/26` |\n| Firewall / gateway | `10.x.y.4.0/26` |\n\nKeep prod, dev, and test fully routeable but non-overlapping; reserve unused space between major blocks for future expansion. Verify against current cloud-provider reserved IP rules before implementation.",
+    "tool_calls": [
+      "report_intent",
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 849,
+    "api_duration_ms": 24212,
+    "session_duration_ms": 91444,
+    "wall_ms": 111452,
+    "premium_requests": 7.5,
+    "session_id": "08684fbc-733c-42be-8f31-96b9e6ef4ede",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:31:20+00:00"
+}

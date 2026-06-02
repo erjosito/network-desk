@@ -1,0 +1,38 @@
+{
+  "id": "hyb-gcp-interconnect",
+  "variant": "pattern-g",
+  "query": "GCP Dedicated Interconnect with HA VPN failover",
+  "expected_specialists": [
+    "cn_hyb"
+  ],
+  "category": "cloud-service",
+  "exit_code": 0,
+  "metrics": {
+    "content": "## Recommended design\n\nUse **Dedicated Interconnect as the primary path** and **HA VPN as a dynamic BGP backup**, both terminating on **Cloud Router**.\n\n**Topology in words:**\n\n`On-prem routers \u2192 Dedicated Interconnect VLAN attachments \u2192 Cloud Router \u2192 VPC`\n\n`On-prem VPN gateways \u2192 HA VPN tunnels \u2192 Cloud Router \u2192 VPC`\n\n## Key design points\n\n- Use **at least two Dedicated Interconnect connections** in separate edge availability domains/metros where possible.\n- Use **HA VPN with two interfaces and four tunnels** for high availability.\n- Run **BGP on both Interconnect and HA VPN**.\n- Advertise the **same on-prem prefixes** over Interconnect and VPN.\n- Prefer Interconnect by BGP policy:\n  - For **GCP-to-on-prem**, make on-prem advertise better attributes over Interconnect than VPN.\n  - For **on-prem-to-GCP**, set Cloud Router advertised priorities so Interconnect-learned VPC routes are preferred over VPN.\n- Keep VPN as **standby**, not active/active, unless you intentionally want ECMP or load sharing.\n- Ensure firewall rules allow IPsec/IKE and application traffic during failover.\n- Validate MTU because Interconnect and VPN paths may differ.\n\n## Failover behavior\n\nIf Dedicated Interconnect or its BGP session fails, Cloud Router withdraws Interconnect-learned routes and the HA VPN BGP routes become active. Failover is typically BGP convergence-driven, so expect seconds to tens of seconds depending on timers and device behavior.\n\n## Important caveats\n\n- **Cloud Router does not act as a transit router** between arbitrary networks unless routes are explicitly exchanged and allowed.\n- Avoid overlapping prefixes between on-prem and VPC.\n- Test asymmetric routing, especially if firewalls or NAT devices sit on either path.\n- Size HA VPN for failover traffic; it may not match Interconnect bandwidth.\n- Verify current limits, route selection behavior, and SLA details against official Google Cloud documentation before deployment.",
+    "tool_calls": [
+      "report_intent",
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1235,
+    "api_duration_ms": 28934,
+    "session_duration_ms": 54391,
+    "wall_ms": 61343,
+    "premium_requests": 7.5,
+    "session_id": "a5bec128-2ad8-4abf-b08f-c9ecd73d94d3",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:45:19+00:00"
+}

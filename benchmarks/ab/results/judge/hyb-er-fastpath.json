@@ -1,0 +1,57 @@
+{
+  "id": "hyb-er-fastpath",
+  "query": "ExpressRoute FastPath limits and when it bypasses the gateway",
+  "category": "cloud-service",
+  "expected_specialists": [
+    "cn_hyb"
+  ],
+  "order": {
+    "A": "upstream",
+    "B": "pattern-g"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 8,
+      "completeness": 9,
+      "actionability": 8,
+      "clarity": 8,
+      "conciseness": 7
+    },
+    "B": {
+      "technical_accuracy": 7,
+      "completeness": 6,
+      "actionability": 6,
+      "clarity": 8,
+      "conciseness": 7
+    },
+    "winner": "A",
+    "reason": "A provides concrete IP limits, SKU thresholds, ER Direct vs provider distinctions, and specific fallback scenarios\u2014all verifiable against docs. B is accurate but lacks actionable detail."
+  },
+  "winner_variant": "upstream",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":8,\"completeness\":9,\"actionability\":8,\"clarity\":8,\"conciseness\":7},\"B\":{\"technical_accuracy\":7,\"completeness\":6,\"actionability\":6,\"clarity\":8,\"conciseness\":7},\"winner\":\"A\",\"reason\":\"A provides concrete IP limits, SKU thresholds, ER Direct vs provider distinctions, and specific fallback scenarios\u2014all verifiable against docs. B is accurate but lacks actionable detail.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 717,
+    "api_duration_ms": 22779,
+    "session_duration_ms": 112070,
+    "wall_ms": 192063,
+    "premium_requests": 3.0,
+    "session_id": "e7e2dd36-ae61-42e7-8a75-73865bc8afbb",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-02T13:33:22+00:00"
+}

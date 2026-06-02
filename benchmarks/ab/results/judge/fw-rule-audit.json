@@ -1,0 +1,57 @@
+{
+  "id": "fw-rule-audit",
+  "query": "audit my Azure Firewall rules for shadowed or overly-broad entries",
+  "category": "regex-easy",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "order": {
+    "A": "upstream",
+    "B": "pattern-g"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 9,
+      "completeness": 8,
+      "actionability": 9,
+      "clarity": 9,
+      "conciseness": 7
+    },
+    "B": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 7,
+      "clarity": 8,
+      "conciseness": 7
+    },
+    "winner": "A",
+    "reason": "A is more actionable: specifies exact input fields needed, names correct structured log tables (AZFWNetworkRule), and gives prioritized remediation order. B broader but less concrete."
+  },
+  "winner_variant": "upstream",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":9,\"completeness\":8,\"actionability\":9,\"clarity\":9,\"conciseness\":7},\"B\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":7,\"clarity\":8,\"conciseness\":7},\"winner\":\"A\",\"reason\":\"A is more actionable: specifies exact input fields needed, names correct structured log tables (AZFWNetworkRule), and gives prioritized remediation order. B broader but less concrete.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 836,
+    "api_duration_ms": 19776,
+    "session_duration_ms": 67157,
+    "wall_ms": 78844,
+    "premium_requests": 3.0,
+    "session_id": "abb2f6fd-5248-4cea-83ec-e22e10d8b6c5",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-02T13:20:44+00:00"
+}

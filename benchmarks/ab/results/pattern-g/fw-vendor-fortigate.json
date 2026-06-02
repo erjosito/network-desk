@@ -1,0 +1,40 @@
+{
+  "id": "fw-vendor-fortigate",
+  "variant": "pattern-g",
+  "query": "FortiGate active-active cluster sync best practices",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "category": "vendor-specific",
+  "exit_code": 0,
+  "metrics": {
+    "content": "## FortiGate Active-Active HA Sync Best Practices\n\n- Use **dedicated, redundant HA heartbeat links**; avoid sharing HA sync with production traffic.\n- Match **hardware model, FortiOS version, licenses, interface mapping, VDOM mode, and security fabric settings** across members.\n- Enable **session pickup** for stateful failover, especially for TCP-heavy workloads.\n- Use **HA override cautiously**; prefer stable priority settings to avoid unnecessary failbacks.\n- Keep **configuration sync enabled**, and regularly verify `get system ha status` and checksum consistency.\n- Avoid asymmetric routing: active-active load distribution can break flows if return traffic lands on a different unit without proper session sync.\n- Size links and CPUs for realistic load; active-active improves distribution but does **not** double all inspection capacity.\n- Synchronize **UTM/security profiles, certificates, routing, SD-WAN, IPsec, and dynamic routing configs** carefully.\n- Use **monitored interfaces** so failures trigger HA decisions based on real forwarding health.\n- Log HA events centrally and alert on split-brain, checksum mismatch, heartbeat loss, and member role changes.\n- Before upgrades, confirm the Fortinet-recommended **HA upgrade path**, back up configs, and upgrade during a maintenance window.\n\n**Key caution:** FortiGate active-active is usually best when traffic distribution is well understood. For simpler, more predictable firewall HA, **active-passive is often safer**. Verify exact behavior and limits against current Fortinet documentation for your FortiOS release and hardware model.",
+    "tool_calls": [
+      "skill",
+      "report_intent",
+      "view",
+      "view"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 653,
+    "api_duration_ms": 27180,
+    "session_duration_ms": 48003,
+    "wall_ms": 54954,
+    "premium_requests": 7.5,
+    "session_id": "6ae5a0bb-f023-4404-985f-4c5906346fc8",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:38:18+00:00"
+}

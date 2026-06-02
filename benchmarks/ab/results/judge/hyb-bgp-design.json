@@ -1,0 +1,57 @@
+{
+  "id": "hyb-bgp-design",
+  "query": "BGP route preferences across dual ExpressRoute and VPN",
+  "category": "regex-easy",
+  "expected_specialists": [
+    "cn_hyb"
+  ],
+  "order": {
+    "A": "pattern-g",
+    "B": "upstream"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 8,
+      "completeness": 7,
+      "actionability": 7,
+      "clarity": 8,
+      "conciseness": 8
+    },
+    "B": {
+      "technical_accuracy": 8,
+      "completeness": 8,
+      "actionability": 8,
+      "clarity": 8,
+      "conciseness": 7
+    },
+    "winner": "B",
+    "reason": "B provides specific local-pref values, explicit failover test steps, valid doc links, and clearer inbound/outbound separation making it more actionable"
+  },
+  "winner_variant": "upstream",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":8,\"completeness\":7,\"actionability\":7,\"clarity\":8,\"conciseness\":8},\"B\":{\"technical_accuracy\":8,\"completeness\":8,\"actionability\":8,\"clarity\":8,\"conciseness\":7},\"winner\":\"B\",\"reason\":\"B provides specific local-pref values, explicit failover test steps, valid doc links, and clearer inbound/outbound separation making it more actionable\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 749,
+    "api_duration_ms": 24649,
+    "session_duration_ms": 78746,
+    "wall_ms": 92092,
+    "premium_requests": 3.0,
+    "session_id": "7679845d-2e91-4bb8-87ff-230b12f73c5f",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-02T13:28:04+00:00"
+}

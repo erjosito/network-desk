@@ -1,0 +1,41 @@
+{
+  "id": "fw-vendor-fortigate",
+  "variant": "upstream",
+  "query": "FortiGate active-active cluster sync best practices",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "category": "vendor-specific",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the appropriate Network Desk specialist, then answer with best-practice guidance only.\n\n### FortiGate active-active HA sync best practices\n\n- **Use active-active only when justified.** Fortinet FGCP active-active mainly helps distribute security/UTM processing; for simpler failover and lower operational risk, active-passive is often preferred.\n- **Keep cluster members identical:** same FortiGate model, FortiOS build, licenses, VDOM mode, interface mappings, transceivers where possible, and comparable performance capacity.\n- **Use dedicated HA heartbeat links:** at least two physical HA links, isolated from production traffic, with high priority on the most reliable interfaces.\n- **Enable session synchronization deliberately:** use session pickup for stateful failover; enable UDP/ICMP/expectation/NAT-related session sync only when the traffic profile requires it, because extra sync increases HA overhead.\n- **Monitor critical interfaces:** include WAN, LAN, transit, and core uplinks in HA link monitoring so a partially failed unit does not remain preferred.\n- **Avoid split-brain:** isolate HA heartbeat, avoid L2 instability, use redundant heartbeat paths, and confirm switch/STP/LACP behavior is HA-safe.\n- **Control failback behavior:** avoid aggressive automatic failback unless operationally required; unexpected role changes can disrupt sessions.\n- **Synchronize management changes through the primary:** make policy, routing, object, and system changes from the active primary or FortiManager, then verify config checksum/state is synchronized.\n- **Validate routing symmetry:** active-active clusters are sensitive to asymmetric flows; ensure upstream/downstream paths return through the cluster consistently.\n- **Test failover regularly:** include TCP, UDP, IPsec, SSL VPN, NAT, and UTM-inspected flows in tests, not just ping.\n- **Monitor HA health:** track HA state, checksums, heartbeat loss, session table sync, CPU, NP/ASIC offload, and log synchronization in FortiAnalyzer/FortiManager where available.\n\nUseful Fortinet references: FortiGate HA Administration Guide and FortiOS CLI Reference on `config system ha`, session pickup, heartbeat interfaces, and HA cluster operation.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "cn_route",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 991,
+    "api_duration_ms": 49386,
+    "session_duration_ms": 108522,
+    "wall_ms": 162264,
+    "premium_requests": 7.5,
+    "session_id": "58ac9434-56c0-4764-b6cb-8fa8f0ddf069",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:55:55+00:00"
+}

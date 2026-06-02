@@ -1,0 +1,40 @@
+{
+  "id": "vnet-hub-spoke",
+  "variant": "upstream",
+  "query": "design a hub-spoke VNet topology across 3 Azure regions",
+  "expected_specialists": [
+    "cn_vnet"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "## 3-Region Azure Hub-Spoke VNet Design\n\n**Assumptions:** regions are `eastus`, `westus2`, and `westeurope`; no overlapping on-premises CIDRs; centralized inspection is required.\n\n| Region | Hub VNet | Spoke Range | Purpose |\n|---|---:|---:|---|\n| East US | `10.0.0.0/16` | `10.1.0.0/16` - `10.15.0.0/16` | Primary workloads |\n| West US 2 | `10.16.0.0/16` | `10.17.0.0/16` - `10.31.0.0/16` | DR / regional apps |\n| West Europe | `10.32.0.0/16` | `10.33.0.0/16` - `10.47.0.0/16` | EU workloads / residency |\n\n**Per-region hub services:**\n- `AzureFirewallSubnet`: `/26`\n- `GatewaySubnet`: `/27` for VPN/ExpressRoute gateway\n- `AzureBastionSubnet`: `/26`\n- DNS/private resolver subnet: `/27`\n- Shared services subnet: `/24`\n- Management/jumpbox subnet: `/24`\n\n**Topology:**\n- Deploy **one hub VNet per Azure region**.\n- Peer each regional spoke only to its local hub.\n- Use **global VNet peering between hubs** for inter-region traffic.\n- Route spoke-to-spoke, internet egress, and cross-region flows through **Azure Firewall** using UDRs.\n- Use hub gateways for hybrid connectivity; enable gateway transit where needed.\n- Keep production, non-production, and regulated workloads in separate spokes.\n\n**Routing model:**\n- Spoke subnets route `0.0.0.0/0` to the regional Azure Firewall.\n- Spoke-to-spoke traffic routes through the firewall, not direct spoke peering.\n- Inter-region traffic routes: `Spoke \u2192 local hub firewall \u2192 global hub peering \u2192 remote hub firewall \u2192 remote spoke`.\n- Avoid overlapping CIDRs; Azure VNet peering requires non-overlapping address spaces.\n\n**Recommended spoke subnet pattern:**\n| Subnet | Example CIDR | Purpose |\n|---|---:|---|\n| Web | `/24` | App Gateway, frontend VMs, ingress tier |\n| App | `/24` | Application services |\n| Data | `/24` | Databases/private data tier |\n| Private Endpoints | `/24` | Azure Private Link endpoints |\n| AKS/App delegated | `/22` or larger | Container/app platform growth |\n| Reserved | `/23`+ | Future expansion |\n\nDocs: [Azure Virtual Network](https://learn.microsoft.com/azure/virtual-network/), [VNet peering](https://learn.microsoft.com/azure/virtual-network/virtual-network-peering-overview), [Azure Firewall](https://learn.microsoft.com/azure/firewall/overview).\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 1091,
+    "api_duration_ms": 30951,
+    "session_duration_ms": 77558,
+    "wall_ms": 105218,
+    "premium_requests": 7.5,
+    "session_id": "764710b2-8893-449b-9056-fe5881b0e51d",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:27:25+00:00"
+}

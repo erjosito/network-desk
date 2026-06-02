@@ -1,0 +1,44 @@
+{
+  "id": "fw-rule-audit",
+  "variant": "upstream",
+  "query": "audit my Azure Firewall rules for shadowed or overly-broad entries",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the right network-desk specialist and load its guidance before giving the audit checklist.\n\nI can audit the rules once you paste the Azure Firewall Policy export or a normalized table with: **RCG priority, collection priority/type, rule name, source, destination/FQDN, protocol/port, action, and 30\u201390 day hit counts**.\n\nUse this audit logic:\n\n| Check | What to flag | Risk |\n|---|---|---|\n| **Shadowed rules** | Later allow/deny rules fully covered by an earlier rule with same rule type and broader source, destination, protocol, and port | **High** |\n| **Any-to-any allow** | `source=*`, `destination=*`, `protocol/port=*`, action `Allow` | **Critical** |\n| **Broad source** | `Internet`, `*`, large CIDRs like `/8`, `/12`, `/16`, or whole hub/spoke ranges where app-specific subnets exist | **High** |\n| **Broad destination** | `*`, large RFC1918 ranges, all Azure services, or all FQDNs where specific targets are known | **High** |\n| **Broad service** | `Any`, wide port ranges, or risky admin ports like `22/3389` from non-admin sources | **High** |\n| **Unused rules** | Zero hits over at least 30 days | **Medium** |\n| **Missing logging context** | Rule names/descriptions do not identify owner, app, ticket, or expiry | **Info/Medium** |\n\nAzure Firewall evaluates policy by **Rule Collection Group priority**, then **Rule Collection priority**, with DNAT, Network, and Application rule behavior documented by Microsoft. For shadow analysis, compare each lower-priority rule against all higher-priority rules of the same effective traffic class; if every packet the lower rule could match is already matched above, it is shadowed.\n\nRecommended remediation order: remove or constrain **critical any/any allows**, split broad rules into app-specific source/destination/service rules, disable zero-hit rules during a monitored hold period, then delete after change approval. Use Azure Monitor structured logs such as `AZFWNetworkRule` and `AZFWApplicationRule` for hit-count evidence.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role",
+      "cn_orchestrate",
+      "cn_skill"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 1025,
+    "api_duration_ms": 32325,
+    "session_duration_ms": 57906,
+    "wall_ms": 65983,
+    "premium_requests": 7.5,
+    "session_id": "11d28372-3ae6-44df-ba9e-4f198049b1ad",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role",
+      "cn_orchestrate",
+      "cn_skill"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:49:36+00:00"
+}

@@ -1,0 +1,37 @@
+{
+  "id": "fw-vendor-cisco",
+  "variant": "pattern-g",
+  "query": "migrate Cisco ASA rule base to Azure Firewall policy",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "category": "vendor-specific",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**ASA to Azure Firewall Policy migration approach**\n\n1. **Inventory ASA objects and rules**\n   - Export `access-list`, `object`, `object-group`, `nat`, `route`, and interface/security-zone mappings.\n   - Identify unused, shadowed, duplicate, expired, and overly broad rules before migration.\n\n2. **Map ASA constructs to Azure Firewall**\n   | Cisco ASA | Azure Firewall Policy |\n   |---|---|\n   | Network object / object-group | IP Group |\n   | Service object-group | Application/Network rule ports |\n   | ACL permit TCP/UDP/ICMP | Network rule collection |\n   | FQDN/web rules | Application rule collection |\n   | Static/dynamic NAT | DNAT rule collection or Azure routing/NAT design |\n   | Interface ACL direction | Source/destination zone model via routing through firewall |\n\n3. **Normalize rule intent**\n   - Convert rules into: **source**, **destination**, **protocol**, **port**, **action**, **description**, **business owner**.\n   - Prefer named IP Groups over embedded IPs.\n   - Split rules where ASA object-groups combine protocols or mixed services in ways Azure Firewall cannot express cleanly.\n\n4. **Design Azure Firewall Policy structure**\n   - Use collection groups such as:\n     - `DNAT`\n     - `Infrastructure`\n     - `Shared Services`\n     - `Application Access`\n     - `Internet Egress`\n     - `Deny / Cleanup`\n   - Put specific allow rules before broad rules.\n   - Keep a final implicit deny; add explicit deny rules only where logging or intent clarity is needed.\n\n5. **Handle NAT carefully**\n   - ASA NAT behavior does **not** translate 1:1.\n   - Use Azure Firewall DNAT for inbound publishing.\n   - For outbound, Azure Firewall SNAT is automatic for internet-bound traffic; private RFC1918-to-RFC1918 traffic generally should not be SNATed unless explicitly required.\n\n6. **Routing changes are mandatory**\n   - Ensure UDRs force protected subnet traffic through Azure Firewall.\n   - Validate asymmetric routing risks, especially for hybrid traffic over VPN/ExpressRoute.\n   - Confirm return paths from on-premises and Azure spokes route back through the firewall.\n\n7. **Validation plan**\n   - Compare ASA hit counts with Azure Firewall logs after cutover.\n   - Test top business flows first: DNS, AD, app-to-db, internet egress, inbound published apps, management access.\n   - Run in parallel where possible, then migrate by application or subnet waves.\n\n**Key caution:** Azure Firewall is policy-and-route driven, while ASA is interface/security-level/ACL/NAT driven. The safest migration is not a raw rule conversion; it is a cleanup and intent-based rebuild using ASA rules as source evidence.\n\nReferences to verify before implementation: Microsoft Azure Firewall Policy, IP Groups, DNAT, rule processing, and routing documentation.",
+    "tool_calls": [
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 765,
+    "api_duration_ms": 22276,
+    "session_duration_ms": 58730,
+    "wall_ms": 65530,
+    "premium_requests": 7.5,
+    "session_id": "01e581a8-7cad-47b1-8c5c-dc59c5664e23",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:40:07+00:00"
+}

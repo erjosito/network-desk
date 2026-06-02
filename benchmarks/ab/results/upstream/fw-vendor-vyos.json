@@ -1,0 +1,41 @@
+{
+  "id": "fw-vendor-vyos",
+  "variant": "upstream",
+  "query": "VyOS as a virtual router on Azure for BGP",
+  "expected_specialists": [
+    "cn_fw",
+    "cn_hyb"
+  ],
+  "category": "vendor-specific",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the right network-desk specialist first, then answer with concise guidance.\n\n**Recommended pattern:** run VyOS as an Azure NVA and peer it with **Azure Route Server** for BGP route exchange. Use UDRs only where you need deterministic next-hop control; don\u2019t expect Azure VNet fabric to speak BGP directly to a VM without Route Server, VPN Gateway, or ExpressRoute Gateway.\n\n**Typical design:**\n\n| Component | Purpose |\n|---|---|\n| VyOS VM | BGP router / NVA, usually with IP forwarding enabled |\n| Azure Route Server | BGP control-plane integration with Azure |\n| UDRs | Force spoke/subnet traffic to VyOS when needed |\n| Azure VPN/ER Gateway | Optional hybrid routing path |\n| Azure Load Balancer | Optional HA front end for multiple VyOS NVAs |\n\n**Key points:**\n\n1. Enable **IP forwarding** on VyOS NICs and in Azure NIC settings.\n2. Peer VyOS with both Azure Route Server BGP peer IPs.\n3. Use a non-conflicting ASN for VyOS; Azure Route Server commonly uses ASN **65515**.\n4. Advertise only intended prefixes from VyOS; filter aggressively.\n5. For HA, prefer **two VyOS instances** with Azure Load Balancer / Route Server peering rather than relying on VRRP-style floating IP behavior.\n6. Azure does not support traditional L2 adjacency, gratuitous ARP failover, or appliance HA patterns exactly like on-prem networks.\n7. Validate MTU, asymmetric routing, SNAT/NAT behavior, and return-path routing before production use.\n\n**Best use cases:** dynamic routing between spokes, lab/advanced routing, BGP route filtering, transit NVA patterns, or custom VPN/BGP scenarios.\n\n**Caution:** for production hub-and-spoke routing, compare VyOS against Azure Firewall, Azure Virtual WAN, managed VPN/ER Gateway, or commercial NVAs depending on support, HA, logging, and operational ownership requirements.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 1137,
+    "api_duration_ms": 41772,
+    "session_duration_ms": 98887,
+    "wall_ms": 122422,
+    "premium_requests": 7.5,
+    "session_id": "b26a30e2-4452-4c2f-94e2-c834e953f84b",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T13:01:55+00:00"
+}

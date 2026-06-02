@@ -1,0 +1,42 @@
+{
+  "id": "fw-vendor-palo",
+  "variant": "pattern-g",
+  "query": "design Palo Alto NGFW high-availability cluster on Azure",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "category": "vendor-specific",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll ground the design in the firewall specialist guidance and HA reference, then answer directly.\n\n## Palo Alto VM-Series NGFW HA design on Azure\n\nUse a **hub-and-spoke firewall sandwich** with **two or more Palo Alto VM-Series firewalls across Availability Zones**, fronted by Azure Standard Load Balancers.\n\n### Recommended topology\n\n| Layer | Design |\n|---|---|\n| **VNet model** | Hub VNet with spoke VNets peered to the hub |\n| **Firewall tier** | 2+ VM-Series firewalls, one per Availability Zone where possible |\n| **Ingress** | Public Standard Load Balancer or Application Gateway/Front Door \u2192 firewall untrust interfaces |\n| **Egress / east-west** | Internal Standard Load Balancer \u2192 firewall trust interfaces |\n| **Routing** | UDRs on spoke subnets point `0.0.0.0/0` and required private prefixes to the internal firewall load balancer |\n| **Management** | Dedicated management subnet, no direct internet admin access; use Bastion, VPN, or jump host |\n| **HA model** | Prefer **active/active load-balanced cluster** on Azure; use active/passive only when strict stateful failover behavior is required and slower failover is acceptable |\n\n### Subnets\n\nUse separate subnets for:\n\n1. **Management** \u2014 Panorama, SSH/HTTPS management, updates, logging.\n2. **Untrust** \u2014 internet-facing or upstream-facing firewall interfaces.\n3. **Trust** \u2014 internal/spoke-facing firewall interfaces.\n4. **HA / sync** \u2014 if using Palo Alto HA pair features.\n5. **Optional DMZ** \u2014 for published workloads or inspection tiers.\n\n### Traffic flows\n\n**Outbound from spokes**\n\n`Spoke subnet \u2192 UDR \u2192 Internal Load Balancer \u2192 active VM-Series firewall \u2192 NAT policy \u2192 Azure Internet / upstream`\n\n**Inbound from internet**\n\n`Internet \u2192 Public Load Balancer / App Gateway / Front Door \u2192 VM-Series untrust \u2192 security/NAT policy \u2192 internal workload`\n\n**East-west**\n\n`Spoke A \u2192 UDR \u2192 Internal Load Balancer \u2192 VM-Series \u2192 Spoke B`\n\n### Key Azure design points\n\n- Use **Standard Load Balancer**, not Basic.\n- Enable **IP forwarding** on firewall NICs.\n- Disable or avoid relying on Azure source/destination checks equivalent behavior by using NVA-supported routing.\n- Associate UDRs consistently to all protected spoke subnets.\n- Use **zone-redundant or zonal load balancers** depending on regional support and failure-domain requirements.\n- Use **NAT Gateway only where it does not bypass inspection**; generally outbound should egress through the firewalls if security inspection is required.\n- Avoid asymmetric routing: ensure return paths also traverse the same firewall tier.\n\n### Palo Alto design points\n\n- Manage policy centrally with **Panorama**.\n- Use **dedicated templates/device groups** for Azure VM-Series.\n- Use **dynamic address groups** with Azure tags where possible.\n- Enable threat prevention, URL filtering, WildFire, DNS security, and decryption only where sized for throughput.\n- Size VM-Series based on **threat prevention throughput**, not raw NIC bandwidth.\n- Send logs to Panorama, Cortex Data Lake, or a SIEM.\n\n### HA recommendation\n\nFor most Azure designs, choose:\n\n**Active/active load-balanced VM-Series cluster**\n\nBenefits:\n- Better cloud-native resiliency.\n- Easier horizontal scaling.\n- Avoids dependence on L2 failover mechanisms Azure does not provide.\n- Works well with Azure Load Balancer health probes.\n\nUse **active/passive HA** only if the environment specifically requires Palo Alto session synchronization semantics. Expect failover to depend on Azure control-plane updates or route convergence, so it is usually slower than traditional appliance HA.\n\n### Minimum production baseline\n\n- 2 VM-Series firewalls across zones.\n- Internal and external Standard Load Balancers.\n- Hub-and-spoke routing with UDRs.\n- Panorama management.\n- Azure Monitor + Palo Alto log forwarding.\n- Availability Zones where supported.\n- Explicit failover testing for firewall, zone, load balancer, and route failure cases.\n\nVerify final limits and supported HA modes against current **Palo Alto VM-Series for Azure** and **Microsoft Azure Load Balancer/NVA routing** documentation before deployment.",
+    "tool_calls": [
+      "skill",
+      "report_intent",
+      "view",
+      "view",
+      "view",
+      "view"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1629,
+    "api_duration_ms": 43733,
+    "session_duration_ms": 77087,
+    "wall_ms": 84672,
+    "premium_requests": 7.5,
+    "session_id": "a64f5a34-78e0-4903-88ca-a550a9c69a5b",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:37:23+00:00"
+}

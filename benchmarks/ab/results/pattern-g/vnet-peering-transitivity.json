@@ -1,0 +1,37 @@
+{
+  "id": "vnet-peering-transitivity",
+  "variant": "pattern-g",
+  "query": "is VNet peering transitive and how do I work around it",
+  "expected_specialists": [
+    "cn_vnet"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**No \u2014 Azure VNet peering is not transitive.** If VNet A peers with Hub and Hub peers with VNet B, A cannot reach B through the Hub by peering alone.\n\n**Workarounds:**\n\n1. **Hub-and-spoke with routing appliance**\n   - Deploy **Azure Firewall** or an **NVA** in the hub.\n   - Add **UDRs** in spokes pointing other spoke prefixes to the firewall/NVA.\n   - Enable **Allow forwarded traffic** on the relevant peerings.\n\n2. **Azure Virtual WAN**\n   - Use a **Virtual WAN hub** for managed transitive routing between VNets, branches, VPN, and ExpressRoute.\n\n3. **Full mesh peering**\n   - Peer every VNet directly with every other VNet that needs connectivity.\n   - Simple for small environments, operationally painful at scale.\n\n4. **Gateway transit**\n   - Lets spoke VNets use a hub VPN/ExpressRoute gateway for on-premises connectivity.\n   - It does **not** make spoke-to-spoke VNet peering transitive by itself.\n\n**Typical recommendation:** use a hub-and-spoke design with Azure Firewall/NVA for controlled spoke-to-spoke traffic, or Azure Virtual WAN if you want Microsoft-managed transit at scale. Verify exact limits and behavior against current Azure documentation before applying.",
+    "tool_calls": [
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 419,
+    "api_duration_ms": 13699,
+    "session_duration_ms": 48952,
+    "wall_ms": 56453,
+    "premium_requests": 7.5,
+    "session_id": "eace51e7-bf7e-4b6f-a9a6-4a62e209de03",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:33:12+00:00"
+}

@@ -1,0 +1,46 @@
+{
+  "id": "fw-vendor-cisco",
+  "variant": "upstream",
+  "query": "migrate Cisco ASA rule base to Azure Firewall policy",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "category": "vendor-specific",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the right network-desk specialist and use that guidance to give a concise migration approach.\n\n**Recommended migration path:** export the ASA running config, normalize ACLs/objects/NAT into a neutral rule table, then rebuild them as **Azure Firewall Policy** rule collection groups with explicit priorities.\n\n1. **Pre-clean ASA first:** remove unused, shadowed, duplicate, expired, and broad `any any` rules using hit counts and change records.\n2. **Map ASA constructs:**\n\n| Cisco ASA | Azure Firewall Policy |\n|---|---|\n| `object network`, `object-group network` | IP Groups |\n| `object-group service` | Network rule protocols/ports |\n| Interface ACLs | Rule collections by traffic direction/zone intent |\n| Permit TCP/UDP/ICMP ACLs | Network rules |\n| HTTP/S FQDN rules | Application rules |\n| Static NAT / port-forward | DNAT rules |\n| Dynamic PAT / internet egress | Azure Firewall SNAT behavior |\n| Explicit deny ACLs | Usually rely on default deny; keep logged denies only when needed |\n\n3. **Preserve intent, not syntax:** ASA is interface/ACL-centric; Azure Firewall is centralized policy with UDR-steered traffic. Build around flows such as `onprem \u2192 spoke`, `spoke \u2192 internet`, `internet \u2192 published service`.\n4. **Handle NAT carefully:** ASA twice-NAT, NAT exemption, and VPN-related NAT often need manual redesign. Validate Azure SNAT private range behavior for hybrid traffic.\n5. **Use priorities deliberately:** separate DNAT, network, and application rules into clear priority bands; keep most-specific rules above broad rules.\n6. **Test before cutover:** replay critical flows with Azure Firewall logs, Connection Troubleshoot, packet captures at workload NICs, and ASA `packet-tracer` comparisons.\n7. **Cut over safely:** deploy Azure Firewall in parallel where possible, steer a small set of routes first, monitor denies, then expand. Keep ASA rollback routing ready.\n\nPrimary references: Azure Firewall Policy rule processing and rule types, Azure Firewall NAT/SNAT behavior, Azure Firewall logs, and Cisco ASA ACL/NAT configuration guides.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role",
+      "report_intent",
+      "read_powershell",
+      "cn_orchestrate",
+      "cn_skill"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 1451,
+    "api_duration_ms": 53095,
+    "session_duration_ms": 96712,
+    "wall_ms": 134797,
+    "premium_requests": 7.5,
+    "session_id": "5ea7ec09-7861-4995-8e05-b70ca9994e1f",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role",
+      "cn_orchestrate",
+      "cn_skill"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:59:52+00:00"
+}

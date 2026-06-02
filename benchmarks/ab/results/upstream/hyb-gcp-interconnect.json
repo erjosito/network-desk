@@ -1,0 +1,41 @@
+{
+  "id": "hyb-gcp-interconnect",
+  "variant": "upstream",
+  "query": "GCP Dedicated Interconnect with HA VPN failover",
+  "expected_specialists": [
+    "cn_hyb"
+  ],
+  "category": "cloud-service",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the right network-desk specialist, then answer from that specialist context.\n\nRouting didn\u2019t auto-match, so I\u2019m engaging the hybrid connectivity specialist directly for Dedicated Interconnect plus HA VPN failover.\n\n**Recommended pattern:** use **Dedicated Interconnect as primary** and **HA VPN over internet as backup**, with **Cloud Router/BGP** controlling failover.\n\n**Design outline**\n- Deploy redundant Dedicated Interconnect connectivity: ideally two circuits in different edge availability domains/metros where possible.\n- Create VLAN attachments to the VPC and terminate them on Cloud Router.\n- Deploy HA VPN with two interfaces and dynamic routing via Cloud Router.\n- Use BGP route preference so Interconnect is preferred and HA VPN is backup.\n- Advertise the same on-prem prefixes over both paths, but make VPN less preferred using BGP attributes such as lower local preference on-prem, higher MED, or AS-path prepending depending on direction and device support.\n\n**Failover behavior**\n- If Interconnect/VLAN attachment/BGP fails, Cloud Router withdraws routes learned over Interconnect.\n- Backup routes learned over HA VPN become active.\n- Return traffic depends on your on-prem BGP policy; ensure on-prem also prefers Interconnect and only uses VPN when Interconnect routes disappear or become less preferred.\n- Convergence is BGP-driven; tune timers carefully, and test application impact.\n\n**Key considerations**\n- HA VPN is encrypted; Dedicated Interconnect is private transport but not inherently encrypted. If encryption over Interconnect is required, consider VPN-over-Interconnect patterns or application-layer encryption.\n- Avoid asymmetric routing by making path preference consistent on both GCP and on-prem.\n- Size HA VPN for backup throughput; it may not match Interconnect bandwidth.\n- Use route filtering and prefix summarization to avoid leaking unintended routes.\n- Monitor Cloud Router BGP sessions, VLAN attachment status, VPN tunnel status, packet loss, latency, and route changes.\n\n**Useful GCP references**\n- Dedicated Interconnect: https://cloud.google.com/network-connectivity/docs/interconnect/concepts/dedicated-overview\n- HA VPN: https://cloud.google.com/network-connectivity/docs/vpn/concepts/topologies\n- Cloud Router: https://cloud.google.com/network-connectivity/docs/router/concepts/overview\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "report_intent",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 790,
+    "api_duration_ms": 29751,
+    "session_duration_ms": 93239,
+    "wall_ms": 114109,
+    "premium_requests": 7.5,
+    "session_id": "f58d9c71-3c13-47b7-81c6-b24d07faf8e7",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T13:17:44+00:00"
+}

@@ -1,0 +1,43 @@
+{
+  "id": "hyb-er-fastpath",
+  "variant": "upstream",
+  "query": "ExpressRoute FastPath limits and when it bypasses the gateway",
+  "expected_specialists": [
+    "cn_hyb"
+  ],
+  "category": "cloud-service",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the right Network Desk specialist and use that guidance for a concise answer.\n\nI have the hybrid connectivity role loaded; I\u2019m checking the official Azure wording for current FastPath behavior and limits.\n\n## ExpressRoute FastPath: limits and gateway bypass\n\nFastPath **does not remove the ExpressRoute virtual network gateway**. The gateway is still required for **route exchange/control plane**, but supported traffic bypasses the gateway **data path** and goes directly between on-premises and Azure resources.\n\n### Requirements / limits\n\n| Area | Limit / requirement |\n|---|---|\n| Gateway SKU | **Ultra Performance**, **ErGw3AZ**, or **ErGwScale with at least 10 scale units** |\n| Provider circuits | FastPath to hub VNet, **IPv4 only** |\n| ExpressRoute Direct | Hub VNet FastPath; supports more features including VNet peering, UDRs, Private Link scenarios, and IPv6 in supported cases |\n| IP capacity | Provider circuit: **25,000 IPs**; ER Direct 10 Gbps: **100,000 IPs**; ER Direct 100/400 Gbps: **200,000 IPs** |\n| Circuit connections | FastPath-capable gateways support up to **16 circuits** on Ultra Performance/ErGw3AZ; ErGwScale reaches 16 at 10+ scale units |\n\n### When FastPath bypasses the gateway\n\nFastPath bypasses the gateway data path for supported traffic such as:\n\n- On-premises to VMs/resources in the **hub VNet**\n- On-premises to **same-region peered VNets** with ExpressRoute Direct FastPath\n- Supported **UDR over FastPath** scenarios with ExpressRoute Direct\n- Supported **Private Link/private endpoint** scenarios with ExpressRoute Direct limited GA\n\n### When traffic still goes through the gateway\n\nTraffic falls back through the ExpressRoute gateway when FastPath is unsupported, unavailable, or exceeds limits, including:\n\n- FastPath IP limit is reached\n- Cross-region VNet, private endpoint, or Private Link traffic\n- Global VNet peering\n- Internal load balancers or PaaS services in **spoke VNets**\n- Azure Firewall or DNS Private Resolver deployed in **spoke VNets**\n- Provider circuits needing IPv6, VNet peering FastPath, UDR FastPath, or Private Link FastPath\n\nDocs: [ExpressRoute FastPath](https://learn.microsoft.com/en-us/azure/expressroute/about-fastpath), [ExpressRoute gateway SKUs and limits](https://learn.microsoft.com/en-us/azure/expressroute/expressroute-about-virtual-network-gateways)\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role",
+      "report_intent",
+      "web_fetch",
+      "web_fetch"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 1287,
+    "api_duration_ms": 38732,
+    "session_duration_ms": 136822,
+    "wall_ms": 170672,
+    "premium_requests": 7.5,
+    "session_id": "de9c6fdb-43ff-45bd-8efc-362255b43298",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T13:04:46+00:00"
+}

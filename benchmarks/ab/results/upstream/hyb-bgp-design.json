@@ -1,0 +1,40 @@
+{
+  "id": "hyb-bgp-design",
+  "variant": "upstream",
+  "query": "BGP route preferences across dual ExpressRoute and VPN",
+  "expected_specialists": [
+    "cn_hyb"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the relevant Network Desk specialist and answer from that context.\n\n**Recommended preference model:** make both ExpressRoute circuits primary/active, and keep VPN as backup only.\n\n| Path | On-prem outbound preference | Inbound influence from Azure/cloud |\n|---|---:|---|\n| ExpressRoute primary | Highest BGP local preference, e.g. `200` | Advertise normal AS path |\n| ExpressRoute secondary | Same or slightly lower, e.g. `180\u2013200` | Use equal attributes for active/active, or light prepend for standby |\n| VPN backup | Lower local preference, e.g. `100` | AS-path prepend on VPN advertisements |\n\nKey rules:\n\n1. **Longest prefix wins first.** Do not advertise more-specific prefixes over VPN unless you intentionally want VPN to win.\n2. **Use local preference for outbound control.** Higher local-pref on your routers makes traffic leave via ExpressRoute before VPN.\n3. **Use AS-path prepending for inbound control.** Prepend on VPN routes so Azure/on-prem peers prefer ExpressRoute when the same prefix exists.\n4. **For dual ExpressRoute, prefer active/active unless you need deterministic primary/secondary.** Equal prefixes and equal attributes usually allow ECMP or provider-side balancing depending on platform and configuration.\n5. **Avoid route leaks.** Use prefix-lists/route-maps so VPN backup advertises only the same approved on-prem prefixes, not accidental more-specifics.\n6. **Validate failover.** Test ER1 down, ER2 down, both ER down, then restore order; confirm convergence and that VPN does not remain preferred after ER recovers.\n\nUseful references: Azure ExpressRoute routing requirements and BGP behavior: https://learn.microsoft.com/azure/expressroute/expressroute-routing and Azure VPN Gateway BGP: https://learn.microsoft.com/azure/vpn-gateway/vpn-gateway-bgp-overview\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 1075,
+    "api_duration_ms": 39374,
+    "session_duration_ms": 166033,
+    "wall_ms": 185468,
+    "premium_requests": 7.5,
+    "session_id": "6faa91b6-d5b3-413e-a496-973de19c11d8",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T13:07:51+00:00"
+}

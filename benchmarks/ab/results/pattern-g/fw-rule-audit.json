@@ -1,0 +1,41 @@
+{
+  "id": "fw-rule-audit",
+  "variant": "pattern-g",
+  "query": "audit my Azure Firewall rules for shadowed or overly-broad entries",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll use the firewall specialist guidance and keep this to an analysis-only audit checklist since no rule export was provided.\n\n**I can\u2019t identify specific shadowed rules without the Azure Firewall Policy rule export or rule list.** With no rules provided and no live-infra access, the audit is limited to what to check.\n\n**Audit focus for Azure Firewall:**\n\n| Risk | What to flag |\n|---|---|\n| **Shadowed rules** | Lower-priority rules fully covered by an earlier rule with broader source, destination, protocol, and port scope. |\n| **Broad allow before narrow deny** | Any `Allow` rule using `Any`, `*`, `Internet`, `0.0.0.0/0`, `1-65535`, or wide RFC1918 ranges before more specific deny rules. |\n| **Redundant rules** | Later rules with the same action and narrower match criteria already allowed/denied by an earlier rule. |\n| **Overly broad egress** | Internal sources allowed to `Internet` or `AzureCloud` on `Any` protocol/port. Prefer explicit FQDNs, service tags, or required ports. |\n| **Management exposure** | RDP, SSH, WinRM, SQL, SMB, Kubernetes API, or admin ports allowed from broad source ranges. |\n| **Spoke-to-spoke overreach** | Rules allowing entire VNet/subnet ranges laterally instead of workload-specific flows. |\n| **Application rule wildcards** | Broad FQDNs like `*.com`, `*.windows.net`, or large category-based allows without business justification. |\n| **DNAT overlap** | DNAT rules where an earlier public IP/port match makes a later DNAT rule unreachable. |\n\n**Recommended rule review order:** evaluate Rule Collection Group priority first, then Rule Collection priority, then rule match specificity. Treat earlier broad matches as potential blockers for later narrow rules.\n\n**Best-practice target:** default-deny posture, narrow source/destination scopes, explicit ports/protocols, separate admin access from app flows, document every broad allow with owner/expiry, and verify behavior against current Microsoft Azure Firewall documentation before changing policy.",
+    "tool_calls": [
+      "report_intent",
+      "skill",
+      "report_intent",
+      "view",
+      "view"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1734,
+    "api_duration_ms": 47966,
+    "session_duration_ms": 83656,
+    "wall_ms": 92358,
+    "premium_requests": 7.5,
+    "session_id": "3fd97806-4742-439b-8f99-c6e1b324cf81",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:34:45+00:00"
+}

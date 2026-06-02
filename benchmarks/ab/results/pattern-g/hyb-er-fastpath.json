@@ -1,0 +1,37 @@
+{
+  "id": "hyb-er-fastpath",
+  "variant": "pattern-g",
+  "query": "ExpressRoute FastPath limits and when it bypasses the gateway",
+  "expected_specialists": [
+    "cn_hyb"
+  ],
+  "category": "cloud-service",
+  "exit_code": 0,
+  "metrics": {
+    "content": "## ExpressRoute FastPath: what it bypasses\n\n**FastPath bypasses the ExpressRoute virtual network gateway in the data plane** for eligible private traffic between on-premises and Azure VNets. The gateway is still required for **control plane / BGP route exchange**, connection management, and as the configured ExpressRoute gateway resource.\n\nTraffic path with FastPath:\n\n`On-premises \u2192 ExpressRoute circuit \u2192 Microsoft edge \u2192 Azure VNet resource`\n\nInstead of:\n\n`On-premises \u2192 ExpressRoute circuit \u2192 ExpressRoute virtual network gateway \u2192 Azure VNet resource`\n\n## When FastPath applies\n\nFastPath can apply to traffic destined for:\n\n- Azure VMs in the connected VNet\n- Supported resources behind private IPs\n- Some peered VNet scenarios, depending on gateway SKU and feature support\n- Private Endpoint traffic when FastPath Private Link support is enabled/supported\n\n## Common limits and caveats\n\n- Requires a supported ExpressRoute virtual network gateway SKU, commonly **UltraPerformance** or **ErGw3AZ**.\n- The ExpressRoute gateway is **not removed**; it remains required for routing/control plane.\n- Not all traffic bypasses the gateway. Unsupported flows fall back to the normal gateway data path.\n- Gateway-level inspection, forced tunneling, or routing assumptions may change because eligible traffic no longer traverses the gateway datapath.\n- Network Virtual Appliances or Azure Firewall in a hub are **not automatically in path** unless routing is explicitly designed to steer traffic through them.\n- Feature support varies for **VNet peering**, **Private Link**, and SKU/region combinations.\n\n## Practical design implication\n\nUse FastPath when you need higher throughput or lower latency from on-premises to Azure, but validate the security path carefully. If your design depends on the ExpressRoute gateway, hub firewall, or NVA seeing all traffic, FastPath may bypass that expectation unless routing is explicitly engineered.\n\nVerify current SKU, region, peering, and Private Link support against the latest Azure ExpressRoute FastPath documentation before deploying.",
+    "tool_calls": [
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1093,
+    "api_duration_ms": 28035,
+    "session_duration_ms": 57035,
+    "wall_ms": 70265,
+    "premium_requests": 7.5,
+    "session_id": "344cdadb-e310-40f8-b678-94b4c1ba4454",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:42:24+00:00"
+}

@@ -1,0 +1,37 @@
+{
+  "id": "fw-ha",
+  "variant": "pattern-g",
+  "query": "active-passive firewall HA configuration patterns",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "## Active-passive firewall HA patterns\n\n**1. Stateful HA pair**\n- One firewall actively forwards traffic; standby receives config/session/state sync.\n- Requires HA heartbeat links, state-sync link, identical policy/NAT/routing config.\n- Best for minimizing dropped sessions during failover.\n\n**2. Floating IP / virtual MAC**\n- Inside/outside interfaces use shared virtual IPs, sometimes virtual MACs.\n- On failover, standby assumes the shared addresses.\n- Common on physical firewalls and some virtual appliances.\n\n**3. Dynamic routing failover**\n- Both firewalls peer with upstream/downstream routers, but only active advertises preferred routes.\n- Use BGP local-pref, MED, AS-path prepending, route withdrawal, or conditional advertisement.\n- Better for routed designs than relying only on L2 adjacency.\n\n**4. Cloud route-table failover**\n- Active firewall is next hop in cloud route tables.\n- On failover, automation updates UDR/static routes to point to standby firewall NIC.\n- Common for NVAs in Azure/AWS/GCP where floating IP or L2 failover is limited.\n\n**5. Load balancer front-ended HA**\n- Internal/external load balancers steer traffic only to the healthy active firewall.\n- Health probes detect active role, not just interface reachability.\n- Useful in cloud designs, but must preserve symmetric flows.\n\n**6. Dual-arm vs single-arm**\n- **Dual-arm**: separate trust/untrust interfaces; simpler policy and routing separation.\n- **Single-arm / bump-in-the-wire**: firewall receives and returns traffic on same interface/VLAN/subnet; useful for insertion but more routing-sensitive.\n\n**7. HA zones / fault domains**\n- Place active and passive firewalls in separate racks, AZs, fault domains, or availability sets.\n- Ensure state-sync latency is supported by the vendor before stretching HA across sites/AZs.\n\n## Key design rules\n\n- Keep traffic **symmetric** through the same active firewall.\n- Monitor more than device health: interfaces, upstream reachability, BGP peers, license status, dataplane health, and critical probes.\n- Sync policies, objects, certificates, NAT state, VPN state, and sessions where supported.\n- Avoid split-brain with dedicated HA links, quorum/priority rules, and preemption settings.\n- Test failover for north-south, east-west, VPN, NAT, and long-lived sessions.\n- Verify vendor-specific limits and cloud HA behavior against current official documentation before implementation.",
+    "tool_calls": [
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 639,
+    "api_duration_ms": 21318,
+    "session_duration_ms": 65738,
+    "wall_ms": 73781,
+    "premium_requests": 7.5,
+    "session_id": "73b3a975-f3ff-4af0-8834-531b3cb36dd4",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:35:58+00:00"
+}

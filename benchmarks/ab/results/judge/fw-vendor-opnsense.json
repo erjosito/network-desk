@@ -1,0 +1,57 @@
+{
+  "id": "fw-vendor-opnsense",
+  "query": "OPNsense vs pfSense for a small branch site firewall",
+  "category": "vendor-specific",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "order": {
+    "A": "pattern-g",
+    "B": "upstream"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 8,
+      "completeness": 7,
+      "actionability": 8,
+      "clarity": 8,
+      "conciseness": 7
+    },
+    "B": {
+      "technical_accuracy": 8,
+      "completeness": 8,
+      "actionability": 8,
+      "clarity": 7,
+      "conciseness": 6
+    },
+    "winner": "A",
+    "reason": "Both technically sound; A is cleaner and more concise. B adds API/HA detail but opening filler and extra verbosity hurt clarity/conciseness."
+  },
+  "winner_variant": "pattern-g",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":8,\"completeness\":7,\"actionability\":8,\"clarity\":8,\"conciseness\":7},\"B\":{\"technical_accuracy\":8,\"completeness\":8,\"actionability\":8,\"clarity\":7,\"conciseness\":6},\"winner\":\"A\",\"reason\":\"Both technically sound; A is cleaner and more concise. B adds API/HA detail but opening filler and extra verbosity hurt clarity/conciseness.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 1066,
+    "api_duration_ms": 23552,
+    "session_duration_ms": 48147,
+    "wall_ms": 55547,
+    "premium_requests": 3.0,
+    "session_id": "f817d56a-86ea-4767-9c07-e45da99b42b7",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-02T13:23:44+00:00"
+}

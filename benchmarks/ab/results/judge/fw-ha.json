@@ -1,0 +1,57 @@
+{
+  "id": "fw-ha",
+  "query": "active-passive firewall HA configuration patterns",
+  "category": "regex-easy",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "order": {
+    "A": "pattern-g",
+    "B": "upstream"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 8,
+      "completeness": 8,
+      "actionability": 7,
+      "clarity": 8,
+      "conciseness": 7
+    },
+    "B": {
+      "technical_accuracy": 8,
+      "completeness": 8,
+      "actionability": 8,
+      "clarity": 8,
+      "conciseness": 7
+    },
+    "winner": "B",
+    "reason": "B's table maps patterns to use cases for faster decision-making; numbered checklist with preemption/rollback guidance is more operationally actionable"
+  },
+  "winner_variant": "upstream",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":8,\"completeness\":8,\"actionability\":7,\"clarity\":8,\"conciseness\":7},\"B\":{\"technical_accuracy\":8,\"completeness\":8,\"actionability\":8,\"clarity\":8,\"conciseness\":7},\"winner\":\"B\",\"reason\":\"B's table maps patterns to use cases for faster decision-making; numbered checklist with preemption/rollback guidance is more operationally actionable\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 1169,
+    "api_duration_ms": 24023,
+    "session_duration_ms": 62459,
+    "wall_ms": 75875,
+    "premium_requests": 3.0,
+    "session_id": "8bccf68b-ec18-44b1-982d-86c41ebc295b",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-02T13:19:25+00:00"
+}

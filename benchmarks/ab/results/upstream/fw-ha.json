@@ -1,0 +1,40 @@
+{
+  "id": "fw-ha",
+  "variant": "upstream",
+  "query": "active-passive firewall HA configuration patterns",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the firewall specialist, then answer with HA pattern guidance only.\n\n### Active-passive firewall HA patterns\n\n| Pattern | Best fit | Key design points |\n|---|---|---|\n| **Shared virtual IP / floating IP** | On-prem pairs, appliance clusters | Passive node takes over gateway IP/MAC during failover using VRRP, CARP, HSRP-like, or vendor HA protocols. |\n| **Dedicated HA links** | Most physical/virtual firewall pairs | Use separate links for heartbeat, config sync, and session/state sync. Avoid sharing with production traffic. |\n| **Stateful failover** | Low-disruption environments | Synchronize connection/session tables so existing flows survive failover where supported. Still test long-lived TCP, VPN, NAT, and TLS-inspected sessions. |\n| **Config-sync primary/secondary** | Managed firewall pairs | Treat active node as config authority; sync policies, objects, NAT, certificates, and routing config to passive peer. |\n| **Upstream/downstream dynamic routing** | Routed firewall designs | Use BGP/OSPF with health tracking so routes withdraw from failed active node and reconverge to passive. |\n| **Cloud NVA behind load balancer** | Azure/AWS/GCP virtual appliances | Use internal/external load balancers or route-table automation because cloud fabrics usually do not support traditional L2 floating MAC/IP. |\n| **Firewall-as-a-service HA** | Azure Firewall, AWS Network Firewall | Prefer native managed HA; design across availability zones/subnets instead of appliance-level failover. |\n\n### Practical configuration checklist\n\n1. Use **identical interface mappings**, software versions, licenses, certificates, and security profiles on both peers.\n2. Separate **management**, **heartbeat**, **state sync**, and **data-plane** traffic where possible.\n3. Decide whether failover is triggered by **node health**, **interface failure**, **path monitoring**, **route loss**, or **service checks**.\n4. Synchronize **NAT state** and validate inbound DNAT/port-forward behavior after failover.\n5. Avoid asymmetric routing; both directions of a flow should traverse the same active firewall.\n6. Define preemption behavior carefully: automatic failback can cause unnecessary second outages.\n7. Test failure modes: active node power-off, interface failure, upstream loss, downstream loss, route withdrawal, and config-sync failure.\n8. Document rollback and maintenance mode procedures so patching one peer does not trigger uncontrolled failover.\n\n### Vendor references to verify\n\nCheck the current HA documentation for your platform: Palo Alto HA, FortiGate HA, Check Point ClusterXL, Cisco ASA/FTD failover, Juniper SRX chassis cluster, pfSense/OPNsense CARP+pfsync, Azure Firewall availability zones, AWS Network Firewall multi-AZ deployment.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 862,
+    "api_duration_ms": 32510,
+    "session_duration_ms": 55103,
+    "wall_ms": 61781,
+    "premium_requests": 7.5,
+    "session_id": "44265cb8-6ef5-41fb-9c4d-18a8bd92e317",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:50:38+00:00"
+}

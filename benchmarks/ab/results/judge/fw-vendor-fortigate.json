@@ -1,0 +1,57 @@
+{
+  "id": "fw-vendor-fortigate",
+  "query": "FortiGate active-active cluster sync best practices",
+  "category": "vendor-specific",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "order": {
+    "A": "pattern-g",
+    "B": "upstream"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 8,
+      "completeness": 7,
+      "actionability": 7,
+      "clarity": 8,
+      "conciseness": 8
+    },
+    "B": {
+      "technical_accuracy": 9,
+      "completeness": 8,
+      "actionability": 8,
+      "clarity": 8,
+      "conciseness": 7
+    },
+    "winner": "B",
+    "reason": "B is more precise (FGCP, NP/ASIC offload, granular session-sync control, correct CLI path) and more actionable with specific test scenarios and operational guidance."
+  },
+  "winner_variant": "upstream",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":8,\"completeness\":7,\"actionability\":7,\"clarity\":8,\"conciseness\":8},\"B\":{\"technical_accuracy\":9,\"completeness\":8,\"actionability\":8,\"clarity\":8,\"conciseness\":7},\"winner\":\"B\",\"reason\":\"B is more precise (FGCP, NP/ASIC offload, granular session-sync control, correct CLI path) and more actionable with specific test scenarios and operational guidance.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 961,
+    "api_duration_ms": 22036,
+    "session_duration_ms": 51082,
+    "wall_ms": 60843,
+    "premium_requests": 3.0,
+    "session_id": "521a658a-d781-4191-a7b4-fc048e3aca5c",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-02T13:22:48+00:00"
+}

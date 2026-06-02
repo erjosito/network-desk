@@ -23,3 +23,10 @@ tools/reports/
 # instructions in benchmarks/results-tier3.md.
 benchmarks/runs/
 benchmarks/.tier3-state.json
+
+# A/B benchmark working dirs (clones of upstream repo, smoke probes, etc.)
+# — bulky, machine-specific. Regenerate with benchmarks/ab/copilot_bench.py.
+benchmarks/ab/temp/
+benchmarks/ab/smoke/
+benchmarks/ab/__pycache__/
+_probe.jsonl

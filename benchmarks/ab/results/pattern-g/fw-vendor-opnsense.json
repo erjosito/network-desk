@@ -1,0 +1,37 @@
+{
+  "id": "fw-vendor-opnsense",
+  "variant": "pattern-g",
+  "query": "OPNsense vs pfSense for a small branch site firewall",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "category": "vendor-specific",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**Recommendation:** For a small branch site firewall, choose **OPNsense** unless you specifically need pfSense ecosystem familiarity, existing pfSense skills, or Netgate support/hardware.\n\n| Area | OPNsense | pfSense |\n|---|---|---|\n| **Best fit** | Small/medium sites wanting clean UI and frequent updates | Sites already standardized on pfSense/Netgate |\n| **UI/operations** | More modern, easier day-to-day UX | Functional but older-feeling |\n| **Updates** | Predictable, frequent community releases | Strong, but community vs Plus split matters |\n| **VPN** | Strong IPsec, WireGuard, OpenVPN | Strong IPsec, WireGuard, OpenVPN |\n| **Plugins/packages** | Good plugin model | Larger historical package ecosystem |\n| **Commercial support** | Available via Deciso partners | Stronger official Netgate support path |\n| **Hardware options** | Works well on generic x86 appliances | Best supported on Netgate appliances |\n| **Licensing/community** | Fully open-source orientation | Community Edition plus commercial Plus edition |\n\n**Pick OPNsense if** you want a modern admin experience, transparent open-source posture, easy branch firewalling, VPN, VLANs, DHCP/DNS, IDS/IPS, and good reporting without vendor lock-in.\n\n**Pick pfSense if** your team already knows it, you want Netgate appliance/support alignment, or you rely on a specific pfSense package/integration.\n\nFor a typical small branch \u2014 dual WAN optional, site-to-site VPN, VLANs for users/voice/guest/IoT, basic IDS/IPS \u2014 **OPNsense is usually the cleaner default**. Verify current hardware compatibility, VPN throughput, and support terms against the latest vendor documentation before buying.",
+    "tool_calls": [
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 430,
+    "api_duration_ms": 16944,
+    "session_duration_ms": 37695,
+    "wall_ms": 43859,
+    "premium_requests": 7.5,
+    "session_id": "35c27031-b168-40cd-a6e9-f53e7cddb9f5",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:39:02+00:00"
+}

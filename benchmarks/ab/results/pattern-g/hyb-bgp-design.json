@@ -1,0 +1,37 @@
+{
+  "id": "hyb-bgp-design",
+  "variant": "pattern-g",
+  "query": "BGP route preferences across dual ExpressRoute and VPN",
+  "expected_specialists": [
+    "cn_hyb"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**Azure preference is normally: longest prefix match first, then route source/path preference.** For the same on-prem prefix learned via both ExpressRoute and site-to-site VPN, Azure prefers **ExpressRoute** over VPN, so VPN acts as failover when ER routes are withdrawn.\n\nTypical design:\n\n| Path | Role | How to influence |\n|---|---|---|\n| ExpressRoute 1 | Primary | Advertise normal prefixes; prefer it on-prem with higher local preference |\n| ExpressRoute 2 | Secondary/active-active | Advertise same prefixes; use local-pref/AS-path policy if you want standby instead of ECMP-like sharing |\n| VPN | Backup | Advertise same or less-preferred prefixes; Azure should use it only when ER routes disappear |\n\nKey cautions:\n\n- **More-specific routes win.** A `/24` over VPN beats a `/16` over ExpressRoute, even if ER is preferred generally.\n- **Azure-to-on-prem and on-prem-to-Azure are controlled differently.** Use on-prem BGP policy for outbound traffic; use AS-path prepending/route advertisement strategy to influence Azure\u2019s return path.\n- **Avoid static UDRs to \u201cforce\u201d failover** unless you have automation, because static routes do not withdraw automatically like BGP.\n- **For Virtual WAN**, check hub routing preferences/routing intent because vWAN can alter ER vs VPN behavior compared with classic VNet gateways.\n\nRecommended pattern: advertise identical aggregate prefixes over both ER circuits and VPN, make ER the normal path, use BGP withdrawal for failover, and avoid accidentally advertising more-specific VPN prefixes unless intentional. Verify exact behavior against current Microsoft ExpressRoute/VPN Gateway documentation before applying.",
+    "tool_calls": [
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1128,
+    "api_duration_ms": 28665,
+    "session_duration_ms": 52866,
+    "wall_ms": 59858,
+    "premium_requests": 7.5,
+    "session_id": "757931e1-fd7b-4083-9f23-85cb09fbb7fe",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-02T12:43:24+00:00"
+}
