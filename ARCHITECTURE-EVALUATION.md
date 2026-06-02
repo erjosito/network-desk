@@ -4,7 +4,7 @@ This document explains the architectural choices behind Network Desk, surveys
 the alternative approaches that were considered, and backs the comparison with
 measurements from the benchmark harness in `benchmarks/`.
 
-It covers three things:
+It covers four things:
 
 1. **[PSKB architecture](#1-pskb-per-skill-knowledge-base--dmausernetwork-desk)** — how
    [`dmauser/network-desk`](https://github.com/dmauser/network-desk) is built today,
@@ -15,6 +15,10 @@ It covers three things:
 3. **[CKB architecture and the comparison with PSKB](#3-ckb-consolidated-knowledge-base--this-fork)** —
    the consolidated knowledge vault + BM25 search layer, head-to-head against
    PSKB on the three benchmark tiers.
+4. **[Alternative architectures](#4-alternative-architectures-under-consideration)** —
+   Tiered Skills (G), Hybrid Extension + Skills (H), Single Flat Skill (I),
+   Agent-of-Agents (J), and Prompt Library (K) — including the recommended
+   next evolution toward Pattern G.
 
 > **Naming conventions used in this document and the linked benchmark reports:**
 > - **PSKB** = *Per-Skill Knowledge Base* — the upstream design at
@@ -868,11 +872,323 @@ hybrid-connectivity, vwan-sdwan).
 
 ---
 
-## 4. Conclusion
+## 4. Alternative architectures under consideration
+
+Beyond the PSKB → CKB evolution already implemented, several additional
+architectural directions are worth evaluating — particularly those that
+would change the **delivery format** from a Copilot CLI extension to
+something lighter (a skill, a set of skills, or a prompt-only
+distribution).
+
+### 4.1 Pattern G — Tiered Skills (hierarchical on-demand loading)
+
+The most promising unexplored option. Instead of a **Copilot CLI
+extension** with custom JavaScript tooling (`extension.mjs`, hook
+callbacks, parameterized tools), restructure the entire module as a
+**hierarchical skill set** where:
+
+* A **root skill** (`network-desk`) is the entry point — loaded once per
+  session, stays in context as long as the user works on networking.
+* **Secondary skills** (one per specialist domain) are loaded on demand
+  only when the conversation routes to that domain.
+* Optionally, a **tertiary tier** for deep reference content (vendor
+  pages, protocol details) is loaded only when the secondary skill's
+  workflow explicitly calls for it.
+
+```mermaid
+flowchart TB
+    subgraph Tier0["Always in context"]
+      Root["network-desk (root skill)<br/>~3-5 KB<br/>• routing taxonomy<br/>• domain keywords → specialist map<br/>• global guardrails<br/>• 'load secondary skill X when…' instructions"]
+    end
+    subgraph Tier1["Loaded on demand (one at a time)"]
+      FW["firewall-engineer<br/>~2-4 KB<br/>• persona + workflow<br/>• output format<br/>• 'load tertiary Y when…'"]
+      VN["vnet-architect<br/>~2-4 KB"]
+      HY["hybrid-connectivity<br/>~2-4 KB"]
+      DOT["… (17 more)"]
+    end
+    subgraph Tier2["Loaded on demand (deep reference)"]
+      PAN["Vendors/PAN-OS<br/>~8 KB"]
+      EXPR["Services/Azure/ExpressRoute<br/>~6 KB"]
+      ASYM["Topics/Routing/Asymmetric-Routing<br/>~4 KB"]
+      DOTV["… (160+ vault pages)"]
+    end
+    Root -->|"user asks firewall Q"| FW
+    Root -->|"user asks VNet Q"| VN
+    Root -->|"user asks hybrid Q"| HY
+    FW -->|"needs PAN-OS details"| PAN
+    HY -->|"needs ExpressRoute details"| EXPR
+    VN -->|"needs routing theory"| ASYM
+```
+
+#### How it maps to the Copilot skill model
+
+In the Copilot CLI / Copilot Chat skill system, a "skill" is a
+markdown file (typically `SKILL.md`) that the model loads into context
+when invoked. The tiered approach works as follows:
+
+| Tier | Content | Size target | When loaded |
+|---|---|---|---|
+| **0 — Root** | Routing map (keyword → specialist), global guardrails, meta-instructions for when/how to load Tier 1 | 3–5 KB | Session start (always in context) |
+| **1 — Specialist** | Persona, workflow recipe, output format, skill catalog as pointers to Tier 2 | 2–4 KB each | When the user's question matches a domain |
+| **2 — Reference** | Deep technical content (vault pages, vendor syntax, protocol specs) | 4–12 KB each | When the specialist workflow says "load X for this step" |
+
+The key insight: **the LLM itself performs the routing** — no regex
+hooks, no JavaScript extension, no `extension.mjs` at all. The root
+skill contains instructions like:
+
+```markdown
+## When to load specialist skills
+
+- If the user asks about firewalls, security rules, NAT, or ACLs
+  → load `firewall-engineer` skill
+- If the user asks about VNet design, address planning, peering, hub-spoke
+  → load `vnet-architect` skill
+- ...
+```
+
+And each specialist skill contains:
+
+```markdown
+## When to load reference pages
+
+- If you need PAN-OS syntax → load `Vendors/PAN-OS`
+- If you need FortiGate syntax → load `Vendors/FortiGate`
+- If the topic involves asymmetric routing → load `Topics/Routing/Asymmetric-Routing`
+```
+
+#### Comparison with current architectures
+
+| Aspect | Extension (F'/CKB) | Tiered Skills (G) |
+|---|---|---|
+| **Delivery format** | Copilot CLI extension (Node.js) | Pure markdown skill files (no code) |
+| **Installation** | `node bin/cli.mjs init` | Drop files into `.github/copilot/skills/` or `~/.copilot/skills/` |
+| **Runtime code** | 900+ LOC JavaScript, MiniSearch dep | Zero — model does all routing |
+| **128-tool limit** | Sidestepped by parameterized tools (6 tools) | N/A — skills aren't tools, they're context |
+| **Routing mechanism** | Regex hooks + BM25 search | LLM reads the root skill taxonomy and decides |
+| **Routing accuracy** | Deterministic regex: 83.7%, BM25 fallback: 98% | Non-deterministic; depends on model quality; likely 90-95% with good taxonomy |
+| **Context efficiency** | Only loaded skill enters context (~10 KB per call) | Root (3-5 KB) always loaded + specialist on demand (2-4 KB) + reference on demand (4-12 KB) |
+| **Latency** | Sub-ms tool calls (readFile) | No tool calls — but model must decide what to load, adding 1-2 reasoning steps |
+| **Cross-specialist queries** | Requires multiple cn_skill calls | Model can load multiple specialists or skip to reference pages directly |
+| **Maintenance** | Edit markdown + potentially extension.mjs | Edit markdown only |
+| **Portability** | Copilot CLI only | Any system that supports hierarchical prompt injection (Copilot Chat, VS Code, CLI, custom agents) |
+| **Update mechanism** | Git pull + re-init | Git pull (files are the distribution) |
+
+#### Advantages of tiered skills
+
+1. **Zero runtime code.** No `extension.mjs`, no MiniSearch, no Node.js
+   dependency. The entire system is pure markdown that any Copilot-compatible
+   surface can consume.
+2. **Portable across surfaces.** Works in Copilot CLI, VS Code Copilot Chat,
+   GitHub.com Copilot, or any agent framework that supports skill/prompt
+   loading. Not locked to the extension API.
+3. **Simpler distribution.** A git repo of `.md` files, installable by
+   symlink or copy. No `npm install`, no package.json dependency resolution.
+4. **Model-native routing.** The LLM understands the taxonomy natively (it
+   reads the root skill) and routes by comprehension, not regex. This handles
+   paraphrased queries better than regex (no "regex miss" failure mode) at the
+   cost of non-determinism.
+5. **Natural hierarchy depth.** If 2 tiers isn't enough (e.g., a vendor page
+   needs sub-pages for specific platform versions), add a Tier 3 — the pattern
+   scales arbitrarily without code changes.
+6. **Lower token cost per simple query.** A quick DNS question only loads
+   Root (4 KB) + dns-specialist (3 KB) = 7 KB. In the extension model, the
+   same query pays for tool-catalog tokens + role load + skill load.
+
+#### Risks and trade-offs
+
+1. **Non-deterministic routing.** Without regex, routing accuracy depends on
+   the model's reading comprehension of the taxonomy. Weaker models may
+   misroute. Mitigation: the root skill taxonomy is explicit and keyword-rich;
+   empirically strong models (GPT-5.x, Claude Opus) route well from taxonomies.
+2. **No search fallback.** CKB's BM25 search (`cn_search`) catches the 16%
+   of queries that regex misses. Tiered skills have no equivalent — the model
+   either correctly interprets the taxonomy or misses. Mitigation: make the
+   root taxonomy comprehensive, include aliases and alternate phrasings.
+3. **Context accumulation.** If the model doesn't unload previous specialists
+   when switching topics, context can grow across a long session. In the
+   extension model, each tool call is stateless. Mitigation: explicit
+   instructions in the root skill to "replace the current specialist" rather
+   than accumulate.
+4. **No capability discovery tool.** Users can't ask "what can you do?" and
+   get a dynamic list — or rather, they can, but only by reading the root
+   skill (which is always loaded). Mitigation: the root skill includes a
+   human-readable capability summary.
+5. **Platform dependency on skill-loading semantics.** The exact mechanism
+   for "load skill X on demand" varies across Copilot surfaces (CLI vs Chat
+   vs custom). The architecture assumes a reasonably capable skill-loading
+   primitive exists. If the surface only supports static skill loading
+   (everything at session start), the tiered approach degrades to Pattern A
+   (system-prompt stuffing) for Tier 1+2.
+
+#### Feasibility assessment
+
+The tiered-skills approach is **feasible today** for Copilot CLI (which
+supports dynamic skill invocation via `@skill` syntax and SKILL.md
+loading), and increasingly feasible for VS Code Copilot Chat (which
+supports workspace-level skills). The main uncertainty is whether the
+model reliably self-routes without deterministic tooling — this is
+testable with the existing Tier 2 benchmark by replacing the regex/BM25
+routing with a prompt-only taxonomy and measuring specialist accuracy.
+
+### 4.2 Pattern H — Hybrid Extension + Tiered Skills
+
+A compromise: keep the extension for what it does best (deterministic
+routing, BM25 search as fallback) but restructure the knowledge content
+as tiered skills that the extension loads dynamically.
+
+```mermaid
+flowchart TB
+    subgraph Ext["Minimal extension (< 200 LOC)"]
+      Route["cn_route (regex)"]
+      Search["cn_search (BM25)"]
+    end
+    subgraph Skills["Skill files (pure markdown)"]
+      Root["Root skill (always loaded)"]
+      Spec["Specialist skills (loaded by cn_route result)"]
+      Ref["Reference pages (loaded by cn_search result)"]
+    end
+    LLM -->|tool call| Route
+    LLM -->|tool call| Search
+    Route -->|"load specialist"| Spec
+    Search -->|"load reference"| Ref
+    Root -.->|always in context| LLM
+```
+
+This keeps deterministic routing (regex) and search (BM25) while
+getting the content-management benefits of tiered skills (single
+source of truth, no duplication, thin specialists). The extension
+shrinks from 900 LOC to ~200 LOC (just the routing + search tools).
+
+| Aspect | Current CKB (F') | Hybrid H |
+|---|---|---|
+| Extension complexity | 900+ LOC | ~200 LOC |
+| Content duplication | 14 HEAVY, 34 MODERATE | Zero (vault is only source) |
+| Routing accuracy | 83.7% regex + 98% BM25 | Same |
+| Portability | CLI-only | CLI extension + skills portable to other surfaces |
+| Maintenance | Edit 2 places for overlapping content | Edit 1 place always |
+
+### 4.3 Pattern I — Single Flat Skill with Embedded Taxonomy
+
+The simplest possible architecture: a **single large SKILL.md** that
+contains the routing taxonomy, global guardrails, and pointers to
+reference files the model can request via standard `@file` references.
+
+```
+network-desk/
+├── SKILL.md              (root: taxonomy + workflows, ~15-20 KB)
+├── references/
+│   ├── firewall/         (vendor configs, syntax)
+│   ├── routing/          (BGP, OSPF, asymmetric routing)
+│   ├── services/         (Azure, AWS, GCP service pages)
+│   └── ...
+```
+
+| Aspect | Single Flat Skill (I) |
+|---|---|
+| Setup cost | Trivial |
+| Context budget | Root skill dominates (~15-20 KB always loaded) |
+| Recall | Depends on model reading the taxonomy + requesting the right reference file |
+| Latency | Zero tool calls for routing; file-read for references |
+| Maintenance | Single taxonomy file + independent reference pages |
+| Best when | Total specialist count is small (< 8) or workflows are very uniform |
+| Breaks when | Taxonomy > ~20 KB (overwhelms the model) or workflows differ significantly across domains |
+
+For 20 specialists this is borderline — 20 workflow recipes × ~500 bytes
+each = ~10 KB just for the recipes, plus the taxonomy map, plus guardrails.
+Likely pushes the root to 20+ KB, which is heavy for "always loaded."
+The tiered approach (G) is strictly better at this scale because it
+only loads what's needed.
+
+### 4.4 Pattern J — Agent-of-Agents (Copilot Extensions calling each other)
+
+If Copilot's extension model evolves to support inter-extension
+communication, each specialist could be its own lightweight extension
+(or "agent") that a coordinator extension dispatches to. This is
+Pattern E (router + workers) but implemented natively within the Copilot
+ecosystem rather than via LangGraph/CrewAI.
+
+| Aspect | Agent-of-Agents (J) |
+|---|---|
+| Setup cost | High (20 extensions to maintain, coordinate, version) |
+| Context budget | Each agent has its own context slice |
+| Routing | Coordinator extension does the dispatch |
+| Latency | Multiple extension invocations per query |
+| Maintenance | Each specialist is independently deployable |
+| Best when | Specialists need different models, different tool sets, or different security boundaries |
+| Breaks when | Questions are single-domain (most cloud networking) — the dispatch overhead is wasted |
+
+Not recommended for the current use case. Included for completeness and
+for scenarios where specialists genuinely need isolation (e.g., one
+specialist calls a paid API, another accesses confidential data).
+
+### 4.5 Pattern K — Prompt-Library Distribution (no extension, no skill API)
+
+The most minimal approach: distribute the knowledge as a curated set of
+markdown files that users manually include in their prompts (via
+`@file`, workspace context, or copy-paste into system prompts).
+
+| Aspect | Prompt Library (K) |
+|---|---|
+| Setup cost | Zero (just download the repo) |
+| Context budget | User decides what to include |
+| Routing | Manual (user picks the right file) |
+| Recall | Depends on user's familiarity with the library |
+| Maintenance | Edit files, git pull |
+| Best when | Power users who know what they need; integration with diverse AI tools beyond Copilot |
+| Breaks when | Users don't know which file to pick; no automation, no discovery |
+
+This is the "Obsidian vault as a prompt library" approach — the vault
+already has this structure. It could be published as a standalone
+resource independent of any Copilot-specific machinery.
+
+### 4.6 Comparison matrix — all patterns including new candidates
+
+| Pattern | Code required | Context cost | Routing quality | Portability | Maintenance burden | Best for |
+|---|---|---|---|---|---|---|
+| **F'** (CKB, current) | 900 LOC + 1 dep | Low (on-demand loads) | High (regex + BM25) | CLI only | Medium (2 places for overlapping content) | Maximum recall, CLI-native |
+| **G** (Tiered Skills) | Zero | Low (hierarchical on-demand) | Medium-High (model-driven) | **Any Copilot surface** | **Low** (single source of truth) | Portability, simplicity, maintainability |
+| **H** (Hybrid Ext + Skills) | ~200 LOC + 1 dep | Low | **High** (regex + BM25) | Partial (routing CLI-only, content portable) | **Low** | Best routing + low maintenance |
+| **I** (Single Flat Skill) | Zero | Medium (large root always loaded) | Medium (single taxonomy) | Any surface | Low | Small specialist counts (< 8) |
+| **J** (Agent-of-Agents) | High (20 extensions) | Low (isolated contexts) | High (dedicated dispatch) | CLI only | **High** | Isolation needs, different security boundaries |
+| **K** (Prompt Library) | Zero | User-controlled | Low (manual) | **Universal** | **Lowest** | Power users, non-Copilot tools |
+
+### 4.7 Recommendation: Pattern G (Tiered Skills) as the next evolution
+
+Based on the goals stated (latency, token efficiency, answer quality,
+maintainability), **Pattern G (Tiered Skills)** represents the most
+promising next step:
+
+1. **Maintainability** improves dramatically — zero code to maintain,
+   single source of truth for all content, no duplication between
+   specialists and vault.
+2. **Token efficiency** improves — only the active tier is in context;
+   no tool-catalog overhead, no hook injection tokens.
+3. **Portability** unlocks new surfaces — the same skill set works in
+   VS Code Copilot Chat, GitHub.com, or any agent framework.
+4. **Latency** should improve — no tool-call round trips for routing;
+   the model routes inline from the taxonomy.
+5. **Answer quality** is the main risk — deterministic routing (regex)
+   is lost, and BM25 search fallback is lost. The taxonomy must be
+   comprehensive enough that model-native routing achieves ≥ 90%
+   specialist accuracy.
+
+The recommended validation path:
+
+1. **Prototype** the root skill taxonomy and 2-3 specialist skills
+2. **Run Tier 2 benchmark** — measure routing accuracy with model-only
+   routing vs regex+BM25
+3. If routing accuracy ≥ 90%, proceed with full conversion
+4. If routing accuracy < 90%, fall back to **Pattern H** (keep extension
+   for routing, restructure content as skills)
+
+---
+
+## 5. Conclusion
 
 If you are building an expert-agent system on the Copilot CLI today, the
 **parameterized-loader + lexical-search hybrid (Pattern F')** is, on the
-evidence collected here, the right starting point:
+evidence collected here, the right starting point for **maximum recall within
+the CLI extension model**:
 
 * It sidesteps the **128-tool limit** without losing per-skill granularity.
 * It avoids **vector-DB ops overhead** in a domain where BM25 wins on
@@ -885,6 +1201,14 @@ evidence collected here, the right starting point:
 The benchmark harness in `benchmarks/` is reusable: drop in a different
 domain (security desk, data desk, devops desk), regenerate the vault, and
 the same three-tier comparison runs.
+
+However, if the goals shift toward **portability, maintainability, and
+zero-code distribution**, Pattern G (Tiered Skills) or Pattern H (Hybrid)
+from [section 4](#4-alternative-architectures-under-consideration) deserve
+serious evaluation. The tiered-skills approach eliminates the extension
+runtime entirely, makes the content portable across Copilot surfaces, and
+resolves the content-duplication problem by construction. The trade-off is
+the loss of deterministic routing — an empirically testable risk.
 
 #### Known open work in this fork
 
