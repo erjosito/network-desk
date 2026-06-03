@@ -30,10 +30,37 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SPECIALISTS_DIR = REPO_ROOT / "skills" / "network-desk" / "specialists"
-REFERENCE_DIR = REPO_ROOT / "skills" / "network-desk" / "reference"
+SKILL_ROOT = REPO_ROOT / "skills" / "network-desk"
+SKILL_MD = SKILL_ROOT / "SKILL.md"
+SPECIALISTS_DIR = SKILL_ROOT / "specialists"
+REFERENCE_DIR = SKILL_ROOT / "reference"
 
 REFERENCE_LINK_RE = re.compile(r"`(reference/[^`]+?\.md)`")
+TAXONOMY_FILE_RE = re.compile(r"`([a-z0-9\-]+\.md)`")
+
+
+def check_taxonomy() -> tuple[int, int, list[str]]:
+    """Verify SKILL.md taxonomy table file references match specialists/ on disk.
+
+    Returns (declared_count, missing_count, missing_or_extra_messages).
+    """
+    if not SKILL_MD.exists():
+        return 0, 0, [f"ERROR: SKILL.md not found at {SKILL_MD}"]
+
+    text = SKILL_MD.read_text(encoding="utf-8")
+    # Pull just the taxonomy section (between "## Specialist Taxonomy" and the next "---").
+    m = re.search(r"## Specialist Taxonomy(.*?)\n---", text, re.S)
+    section = m.group(1) if m else text
+    declared = set(TAXONOMY_FILE_RE.findall(section))
+    on_disk = {p.name for p in SPECIALISTS_DIR.glob("*.md")}
+    missing = sorted(declared - on_disk)
+    extra = sorted(on_disk - declared)
+    msgs: list[str] = []
+    for f in missing:
+        msgs.append(f"DECLARED IN SKILL.md BUT MISSING ON DISK: {f}")
+    for f in extra:
+        msgs.append(f"PRESENT ON DISK BUT NOT IN TAXONOMY: {f}")
+    return len(declared), len(missing) + len(extra), msgs
 
 
 def check_file(path: Path) -> tuple[int, int, list[str]]:
@@ -89,7 +116,21 @@ def main(argv: list[str]) -> int:
 
     print(f"\nsummary: {total_links - total_broken}/{total_links} valid "
           f"across {len(files)} file(s); {failing_files} file(s) failing")
-    return 0 if total_broken == 0 else 1
+
+    # Only run the taxonomy cross-check on a full sweep (no filter args).
+    taxonomy_failed = 0
+    if not names:
+        print("\nlink_check: verifying SKILL.md taxonomy vs specialists/ on disk")
+        declared, mismatches, msgs = check_taxonomy()
+        if mismatches == 0:
+            print(f"  [OK  ] {declared} entries declared, all match")
+        else:
+            taxonomy_failed = 1
+            print(f"  [FAIL] {declared} entries declared, {mismatches} mismatch(es):")
+            for msg in msgs:
+                print(f"          {msg}")
+
+    return 0 if total_broken == 0 and taxonomy_failed == 0 else 1
 
 
 if __name__ == "__main__":
