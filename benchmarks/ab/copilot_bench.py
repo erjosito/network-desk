@@ -42,8 +42,13 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 QUERIES_FILE = REPO_ROOT / "benchmarks" / "queries.json"
 AB_DIR = REPO_ROOT / "benchmarks" / "ab"
 RESULTS_DIR = AB_DIR / "results"
-PATTERN_G_PLUGIN = AB_DIR / "pattern-g-plugin"
-PATTERN_G_SKILL_SRC = PATTERN_G_PLUGIN / ".claude-plugin" / "skills" / "network-desk"
+# The Pattern G skill lives at the canonical location skills/network-desk/
+# at the repo root. The harness used to maintain a duplicate under
+# benchmarks/ab/pattern-g-plugin/.claude-plugin/skills/network-desk/, but
+# that mirror has been removed to enforce a single source of truth (the
+# `.claude-plugin` wrapper was unused — Copilot CLI loads skills by
+# directory name from ~/.copilot/skills/, not by plugin manifest).
+PATTERN_G_SKILL_SRC = REPO_ROOT / "skills" / "network-desk"
 USER_SKILLS_DIR = Path.home() / ".copilot" / "skills"
 USER_SKILL_DST = USER_SKILLS_DIR / "network-desk"
 UPSTREAM_WORKTREE = AB_DIR / "temp" / "upstream"

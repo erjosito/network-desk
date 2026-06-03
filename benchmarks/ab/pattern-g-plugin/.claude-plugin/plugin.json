@@ -1,7 +1,0 @@
-{
-  "name": "network-desk-pattern-g",
-  "version": "0.0.1",
-  "description": "Pattern G tiered-skills prototype for network-desk (benchmark harness wrapper)",
-  "author": { "name": "network-desk contributors" },
-  "skills": "skills"
-}

@@ -1261,8 +1261,8 @@ extension**, both invoked through the same `copilot` subprocess.
 * **Harness:** `benchmarks/ab/copilot_bench.py` — three subcommands
   (`run`, `judge`, `report`).
 * **Variants:**
-  * **Pattern G** — `benchmarks/ab/pattern-g-plugin/.claude-plugin/skills/network-desk/`
-    installed to `~/.copilot/skills/network-desk/` for each run, removed
+  * **Pattern G** — `skills/network-desk/` at the repo root, installed to
+    `~/.copilot/skills/network-desk/` for each run, removed
     after. Three specialist sub-skills (`cn_vnet`, `cn_fw`, `cn_hyb`).
   * **Upstream** — `dmauser/network-desk @ 86a81ad` checked out as a git
     worktree under `benchmarks/ab/temp/upstream/` and installed via
