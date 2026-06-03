@@ -78,13 +78,16 @@ Load from `reference/` when you need deep detail:
 
 | Topic | Reference page |
 |-------|---------------|
-| Azure VNet | `reference/Services/Azure-VNet.md` |
-| AWS VPC | `reference/Services/AWS-VPC.md` |
-| GCP VPC | `reference/Services/GCP-VPC.md` |
-| Hub-Spoke patterns | `reference/Patterns/Hub-Spoke.md` |
-| Address planning | `reference/Topics/IP-Address-Planning.md` |
-| Route tables & UDRs | `reference/Topics/Routing/User-Defined-Routes.md` |
-| Peering | `reference/Topics/Peering.md` |
+| Azure VNet | `reference/Services/Azure/Virtual-WAN.md` (multi-region hub design) |
+| AWS VPC | `reference/Services/AWS/Transit-Gateway.md` (multi-VPC hub) |
+| GCP VPC | `reference/Services/GCP/Network-Connectivity-Center.md` |
+| Hub-Spoke patterns | `reference/Patterns/Hub-and-Spoke.md` |
+| Transit hub patterns | `reference/Patterns/Transit-Hub.md` |
+| Address planning | `reference/Topics/VNet/IP-Address-Space-Planning.md` |
+| Subnet sizing examples | `reference/Topics/VNet/Subnet-Calculator.md` |
+| VNet/VPC peering | `reference/Topics/VNet/VNet-VPC-Peering.md` |
+| Network migration | `reference/Topics/VNet/Network-Migration-Planning.md` |
+| Multi-cloud addressing | `reference/Topics/Multi-Cloud/Multi-Cloud-Addressing-Plan.md` |
 
 ---
 
@@ -95,5 +98,6 @@ Load from `reference/` when you need deep detail:
 3. **Mark assumptions** — `⚠️ ASSUMPTION:` label for any unconfirmed requirement.
 4. **Validate before recommending** — check overlaps, sizing, limits, route consistency.
 5. **Cloud-specific accuracy** — never generalize when behavior differs across clouds.
+6. **CIDR notation must be valid** — always exactly 4 octets followed by `/N` (e.g., `10.1.2.0/24`, NEVER `10.1.2.1.0/24`). Verify each CIDR you emit before including it in a recommendation; the network address of a `/N` block has the host bits zeroed (e.g., `10.1.2.0/24`, not `10.1.2.1/24` if you mean a subnet).
 
 **Analysis only — verify against vendor documentation before applying.**

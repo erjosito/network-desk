@@ -88,15 +88,18 @@ Load from `reference/` when you need deep detail:
 
 | Topic | Reference page |
 |-------|---------------|
-| ExpressRoute | `reference/Services/Azure-ExpressRoute.md` |
-| Azure VPN Gateway | `reference/Services/Azure-VPN-Gateway.md` |
-| AWS Direct Connect | `reference/Services/AWS-Direct-Connect.md` |
-| AWS Site-to-Site VPN | `reference/Services/AWS-Site-to-Site-VPN.md` |
-| GCP Cloud Interconnect | `reference/Services/GCP-Cloud-Interconnect.md` |
-| GCP Cloud VPN | `reference/Services/GCP-Cloud-VPN.md` |
-| BGP fundamentals | `reference/Topics/Routing/BGP.md` |
-| IPsec/IKE | `reference/Topics/VPN/IPsec-IKE.md` |
-| High availability | `reference/Patterns/HA-Connectivity.md` |
+| Azure ExpressRoute | `reference/Services/Azure/ExpressRoute.md` |
+| Azure VPN Gateway | `reference/Services/Azure/VPN-Gateway.md` |
+| AWS Direct Connect | `reference/Services/AWS/Direct-Connect.md` |
+| AWS Site-to-Site VPN | `reference/Services/AWS/Site-to-Site-VPN.md` |
+| GCP Cloud Interconnect | `reference/Services/GCP/Cloud-Interconnect.md` |
+| GCP HA VPN | `reference/Services/GCP/HA-VPN.md` |
+| GCP Cloud Router (BGP) | `reference/Services/GCP/Cloud-Router.md` |
+| BGP design | `reference/Topics/Hybrid/BGP-Design.md` |
+| BGP routing policies | `reference/Topics/Hybrid/BGP-Routing-Policies.md` |
+| Bandwidth planning | `reference/Topics/Hybrid/Hybrid-Bandwidth-Planning.md` |
+| Failover design | `reference/Topics/Hybrid/Hybrid-Failover-Design.md` |
+| Troubleshooting | `reference/Topics/Hybrid/Hybrid-Connectivity-Troubleshooting.md` |
 
 ---
 

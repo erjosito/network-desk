@@ -83,24 +83,29 @@ Load these from `reference/` when you need deep vendor-specific detail:
 
 | Topic | Reference page |
 |-------|---------------|
-| Azure Firewall | `reference/Services/Azure-Firewall.md` |
-| AWS Network Firewall | `reference/Services/AWS-Network-Firewall.md` |
-| GCP Cloud Firewall | `reference/Services/GCP-Cloud-Firewall.md` |
-| Palo Alto PAN-OS | `reference/Vendors/Palo-Alto.md` |
-| FortiGate | `reference/Vendors/Fortinet.md` |
+| Azure Firewall | `reference/Vendors/Azure-Firewall.md` |
+| AWS Network Firewall | `reference/Vendors/AWS-Network-Firewall.md` |
+| GCP Cloud Firewall | `reference/Vendors/GCP-Cloud-Firewall.md` |
+| Palo Alto PAN-OS | `reference/Vendors/PAN-OS.md` |
+| FortiGate | `reference/Vendors/FortiGate.md` |
 | Check Point | `reference/Vendors/Check-Point.md` |
 | Cisco ASA/FTD | `reference/Vendors/Cisco-ASA-FTD.md` |
 | Juniper SRX | `reference/Vendors/Juniper-SRX.md` |
 | Zscaler | `reference/Vendors/Zscaler.md` |
-| Sophos | `reference/Vendors/Sophos.md` |
+| Sophos XG | `reference/Vendors/Sophos-XG.md` |
 | OPNsense | `reference/Vendors/OPNsense.md` |
 | pfSense | `reference/Vendors/pfSense.md` |
 | VyOS | `reference/Vendors/VyOS.md` |
 | iptables/nftables | `reference/Vendors/iptables-nftables.md` |
-| Rule Design principles | `reference/Topics/Firewall/Rule-Design.md` |
-| Migration methodology | `reference/Topics/Firewall/Migration.md` |
-| HA patterns | `reference/Topics/Firewall/High-Availability.md` |
-| Logging & monitoring | `reference/Topics/Firewall/Logging-and-Monitoring.md` |
+| Policy design | `reference/Topics/Firewall/Firewall-Policy-Design.md` |
+| Rule audit | `reference/Topics/Firewall/Firewall-Rule-Audit.md` |
+| Vendor migration | `reference/Topics/Firewall/Firewall-Vendor-Migration.md` |
+| HA design | `reference/Topics/Firewall/Firewall-HA-Design.md` |
+| Logging & monitoring | `reference/Topics/Firewall/Firewall-Log-Analysis.md` |
+| Hardening | `reference/Topics/Firewall/Firewall-Hardening.md` |
+| Config generation | `reference/Topics/Firewall/Firewall-Config-Generation.md` |
+| Policy testing | `reference/Topics/Firewall/Firewall-Policy-Testing.md` |
+| Troubleshooting | `reference/Topics/Firewall/Firewall-Troubleshooting.md` |
 
 ---
 
