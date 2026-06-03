@@ -1,609 +1,428 @@
 # Architecture evaluation — Network Desk
 
-This document explains the architectural choices behind Network Desk, surveys
-the alternative approaches that were considered, and backs the comparison with
-measurements from the benchmark harness in `benchmarks/`.
+> **Scope.** This document compares architectural patterns for delivering a 20-specialist network-engineering assistant on top of GitHub Copilot CLI. It is an **objective comparison of patterns**, not a project narrative: where empirical data exists it is cited inline; where a pattern has only been analysed on paper, that is called out explicitly. The patterns described here include the upstream extension shape, two variants implemented in this fork, and several alternatives that were considered but not built.
 
-It covers four things:
+## Table of contents
 
-1. **[PSKB architecture](#1-pskb-per-skill-knowledge-base--dmausernetwork-desk)** — how
-   [`dmauser/network-desk`](https://github.com/dmauser/network-desk) is built today,
-   in detail.
-2. **[The design space](#2-the-design-space--expert-agent-architectures)** — every
-   credible architecture pattern for an "expert agent" system, with trade-offs
-   and a comparison matrix.
-3. **[CKB architecture and the comparison with PSKB](#3-ckb-consolidated-knowledge-base--this-fork)** —
-   the consolidated knowledge vault + BM25 search layer, head-to-head against
-   PSKB on the three benchmark tiers.
-4. **[Alternative architectures](#4-alternative-architectures-under-consideration)** —
-   Tiered Skills (G), Hybrid Extension + Skills (H), Single Flat Skill (I),
-   Agent-of-Agents (J), and Prompt Library (K) — including the recommended
-   next evolution toward Pattern G.
-
-> **Naming conventions used in this document and the linked benchmark reports:**
-> - **PSKB** = *Per-Skill Knowledge Base* — the upstream design at
->   [`dmauser/network-desk`](https://github.com/dmauser/network-desk), where each
->   specialist owns a folder of self-contained `SKILL.md` files and the LLM
->   reaches them through 5 parameterized loader tools (`cn_capabilities`,
->   `cn_route`, `cn_role`, `cn_orchestrate`, `cn_skill`).
-> - **CKB** = *Consolidated Knowledge Base* — this fork. Keeps the PSKB
->   `REGISTRY` and per-skill loaders unchanged and adds an Obsidian-style
->   cross-cutting vault (`Topics/`, `Services/`, `Vendors/`, `Patterns/`) plus a
->   6th tool, `cn_search`, that runs an in-process BM25 query over the vault.
+1. [Introduction](#1-introduction)
+2. [The design space](#2-the-design-space)
+3. [Implementations measured](#3-implementations-measured)
+4. [Empirical evaluation](#4-empirical-evaluation)
+5. [Cross-cutting design observations](#5-cross-cutting-design-observations)
+6. [Recommendation](#6-recommendation)
+7. [Engineering notes](#7-engineering-notes)
+8. [See also](#8-see-also)
 
 ---
 
-## 1. PSKB (Per-Skill Knowledge Base) — `dmauser/network-desk`
+## 1. Introduction
 
-### 1.1 High-level shape
+### 1.1 What the project delivers
 
-PSKB is a **single Copilot CLI extension** registering **five generic tools**
-that act as parameterized loaders over a fixed catalog of 20 specialists. The
-specialists themselves are pure markdown files on disk. No vector DB, no
-embeddings, no external service.
+Network Desk packages a "network specialist team" — 20 specialists (cloud
+networking on Azure / AWS / GCP, plus 14 firewall vendors) — for use inside
+GitHub Copilot CLI. From the user's point of view, the value proposition
+is the same in every variant of the architecture:
 
-```mermaid
-flowchart TB
-    User["User prompt<br/>(@network-desk or networking keyword)"]
-    subgraph CLI["GitHub Copilot CLI process"]
-      LLM["LLM model<br/>(gpt-5.2 / opus / etc.)"]
-      subgraph Ext["network-desk extension (Node.js, in-process)"]
-        Hooks["onSessionStart<br/>onUserPromptSubmitted<br/>(keyword routing hints)"]
-        Tools["5 parameterized tools:<br/>cn_capabilities · cn_route · cn_role<br/>cn_orchestrate · cn_skill"]
-        Registry["REGISTRY<br/>{20 specialists × ~6 skills each}"]
-      end
-      LLM <-->|tool call| Tools
-      Tools --> Registry
-    end
-    Registry -->|read .md| FS[("specialists/*/agents/*.md<br/>specialists/*/skills/*/SKILL.md<br/>(~124 SKILL.md, ~1.4 MB)")]
-    Hooks -->|inject guidance| LLM
-    User --> LLM
-    LLM -->|natural-language answer| User
-```
+* Ask a network question in natural language.
+* The model is routed to a sharply scoped persona (e.g. *vnet-architect*,
+  *firewall-engineer*, *load-balancer-engineer*) with workflow recipes and
+  guardrails for that domain.
+* The model has access to deep reference content (CIDR rules, vendor
+  feature matrices, service-vs-service comparison tables, troubleshooting
+  flowcharts, naming conventions, capacity-planning formulas).
+* Every output ends with the same guardrail: *"Analysis only — verify
+  against vendor documentation before applying."*
 
-### 1.2 Why "5 tools" and not "20 specialists × 6 skills = 120 tools"
+What changes between patterns is **how the persona, workflow, and
+reference content are packaged and delivered to the model**.
 
-The Copilot CLI imposes a **hard 128-tool limit per session**. With ~120 tools
-the session also becomes incoherent for the LLM — the tool catalog itself
-consumes context, and the LLM cannot reliably pick the right tool from a flat
-list of 120 names. PSKB avoided this by **parameterising** — the same five
-tools handle every specialist via their `specialist` and `skill` arguments:
+### 1.2 Naming convention used in this document
 
-| Tool | Signature | Purpose |
+To talk about variants without dragging chronology in, three short
+labels are used throughout:
+
+| Label | Long name | What it is |
 |---|---|---|
-| `cn_capabilities` | `()` | Returns the full map of specialists + skills |
-| `cn_route` | `(query)` | Regex routes a free-form query to the matching specialist(s) |
-| `cn_role` | `({ specialist })` | Loads `specialists/<dir>/agents/<dir>.md` (the role/persona file) |
-| `cn_orchestrate` | `({ specialist })` | Returns the specialist's full skill catalog + workflow recipe |
-| `cn_skill` | `({ specialist, skill })` | Loads one `specialists/<dir>/skills/<skill>/SKILL.md` |
+| **PSKB** | Per-Specialist Knowledge Base | Upstream `dmauser/network-desk` shape. Each specialist owns its own `agents/*.md`, `skills/*.md`, and reference snippets. No central vault. |
+| **CKB** | Consolidated Knowledge Base | This fork's first major variant. Adds a unified Obsidian-style `vault/` indexed by a sub-millisecond `cn_search` BM25 tool, with specialists still owning persona / workflow / output-format content. |
+| **Tiered Skills** | Tiered skill loading (Pattern G) | This fork's second major variant. Drops the Copilot **extension** packaging and instead ships as a hierarchical **skill**: an always-loaded landing skill + per-domain skills loaded only when needed. Vault remains. |
 
-The whole specialist catalog lives in a single **`REGISTRY` object** in
-`extension.mjs` — the source of truth for routing regexes, domain
-descriptions, skill IDs, and human-readable summaries. Adding a specialist
-or skill means editing this object and dropping the corresponding markdown
-file in the right folder.
+These three are the "shipped" or "implemented" points; other letters
+(Patterns A–E, H–K) refer to designs that were analysed in the design
+space but not built.
 
-### 1.3 On-disk layout
+### 1.3 Design goals
 
-Each specialist is a folder containing one **role file** (persona, workflow,
-guardrails) and one folder per **skill** (deep domain reference):
+Across every pattern compared here, the same four goals apply, in
+roughly this priority order:
 
-```mermaid
-flowchart LR
-    Root["extensions/network-desk/"] --> Ext["extension.mjs<br/>(REGISTRY + 5 tools)"]
-    Root --> Renderers["renderers/<br/>(specialists/, renderers/)"]
-    Root --> SPDir["specialists/"]
-    SPDir --> FE["firewall-engineer/"]
-    SPDir --> VA["vnet-architect/<br/>(... 18 more)"]
-    FE --> FEAgent["agents/firewall-engineer.md"]
-    FE --> FESkills["skills/"]
-    FESkills --> S1["rule-audit/SKILL.md"]
-    FESkills --> S2["policy-design/SKILL.md"]
-    FESkills --> S3["vendor-migrate/SKILL.md"]
-    FESkills --> S4["config-gen/SKILL.md"]
-    FESkills --> S5["ha-design/SKILL.md<br/>(+ 4 more)"]
-```
+1. **Quality of answer** — the LLM should have access to the *right*
+   reference content for the question, in a *usable* shape (workflow
+   recipes, comparison tables, guardrails).
+2. **Latency** — answers should not wait on slow tool calls or cold
+   loads of large markdown trees. Sub-second tool calls and minimal
+   tools-per-turn are the targets.
+3. **Token efficiency** — context windows are finite. Only the
+   reference material relevant to the *current* question should reach
+   the model.
+4. **Maintainability** — adding a new vendor, a new troubleshooting
+   recipe, or a new CIDR rule should require an edit in *one* place,
+   not several.
 
-**Numbers from the benchmark (Tier 1):**
+### 1.4 How to read this document
 
-* 20 specialists, 124 SKILL.md files total (avg 6.2 skills / specialist)
-* 1 421 KB of markdown across `specialists/`
-* 0 runtime dependencies (only `@github/copilot-sdk/extension` and Node builtins)
-* 852 LOC in `extension.mjs`
+Different readers will want different paths through this material.
 
-### 1.4 Routing flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User
-    participant LLM
-    participant Hook as onUserPromptSubmitted
-    participant Tools as cn_route / cn_role / cn_skill
-    participant FS as filesystem
-
-    User->>LLM: "design a hub-spoke VNet across 3 regions"
-    Hook->>LLM: inject routing hint (regex matched vnet-architect)
-    LLM->>Tools: cn_role({ specialist: "cn_vnet" })
-    Tools->>FS: read specialists/vnet-architect/agents/vnet-architect.md
-    FS-->>Tools: persona + workflow
-    Tools-->>LLM: role markdown
-    LLM->>Tools: cn_orchestrate({ specialist: "cn_vnet" })
-    Tools-->>LLM: skill catalog + recipe
-    LLM->>Tools: cn_skill({ specialist: "cn_vnet", skill: "hub-spoke-design" })
-    Tools->>FS: read specialists/vnet-architect/skills/hub-spoke-design/SKILL.md
-    FS-->>Tools: deep guidance (markdown)
-    Tools-->>LLM: skill markdown
-    LLM-->>User: natural-language design + Mermaid diagram
-```
-
-The keyword regex injection at hook-time is what makes the extension feel
-"automatic" — the LLM doesn't have to discover the specialist set; it gets a
-direct hint when a networking keyword is detected. The model then chooses which
-skills to load.
-
-### 1.5 What works well
-
-* **Zero external dependencies.** Ships as a Copilot CLI extension only, no
-  index to build, no embeddings to keep in sync.
-* **Editable by humans.** Every specialist is a couple of `.md` files; no
-  tooling needed beyond a text editor.
-* **Deterministic costs.** Each tool call is a `readFile`; no network round
-  trip, no embedding charge, no rate-limit risk.
-* **The 128-tool limit is gracefully sidestepped** with parameterized tools.
-
-### 1.6 The structural ceilings
-
-The PSKB design has three properties that bite once the knowledge base
-grows beyond the size that comfortably fits in a single `SKILL.md`:
-
-1. **Monolithic skill files.** Average SKILL.md is **10.5 KB**, max 22.3 KB.
-   Once a topic naturally splits across vendors, clouds, and patterns, the
-   file either bloats or you must spawn a new skill — which means another tool
-   parameter the LLM has to remember.
-2. **No cross-specialist search.** If a user asks about *"GCP Dedicated
-   Interconnect SLA tiers"*, the LLM has to first route to `cn_hyb`
-   (hybrid-connectivity), load that role, scan the skill list for something
-   like `dedicated-interconnect`, load it, and then pray the right
-   sub-section is in there. There is **no "search across all skills"** primitive.
-3. **Topics get duplicated across specialists.** *Asymmetric routing* shows up
-   in `firewall-engineer/skills/troubleshoot`, `vnet-architect/skills/hub-spoke-design`,
-   and `network-troubleshooter/skills/routing-debug`. Three copies, three
-   maintainers, three places to update when Microsoft renames a service.
-
-These ceilings are exactly what the Tier 2 benchmark measures (recall) and what
-the consolidated vault in CKB addresses (see [section 3](#3-ckb-consolidated-knowledge-base--this-fork)).
+* **"Just tell me what to use"** → jump straight to
+  [§6 Recommendation](#6-recommendation), then back up into
+  [§4 Empirical evaluation](#4-empirical-evaluation) if you want to
+  understand the evidence.
+* **"What patterns did you consider?"** → start at
+  [§2 The design space](#2-the-design-space) for the catalogue, then
+  [§3 Implementations measured](#3-implementations-measured) for
+  concrete shapes.
+* **"Show me the numbers"** → [§4 Empirical evaluation](#4-empirical-evaluation)
+  is the data section; [§7 Engineering notes](#7-engineering-notes)
+  captures issues discovered during measurement.
+* **"Help me decide for my own project"** →
+  [§5 Cross-cutting design observations](#5-cross-cutting-design-observations)
+  is the most transferable — it discusses *what specialists actually
+  contain*, *vault vs per-specialist KBs vs hot-page caches*, and
+  *deterministic vs LLM-native routing* independent of any specific
+  shipped variant.
 
 ---
 
-## 2. The design space — expert agent architectures
+## 2. The design space
 
-Network Desk is one point in a wide space. Before settling on the current
-design we considered (and partially measured) five other patterns. This
-section catalogs them.
+### 2.1 The eleven patterns
 
-### 2.1 The five canonical patterns
+The space of viable architectures for "deliver 20 expert personas
+through a Copilot CLI agent" can be reduced to eleven canonical
+patterns. Five of them (A–E) sit on the **shape × placement** matrix
+that the original PSKB / CKB analysis used; six more (F–K) are
+variations that emerge once you also consider *how* the personas are
+exposed (extension tool surface vs skill loader, fixed vs hierarchical,
+etc.).
 
-```mermaid
-flowchart TB
-    subgraph A["A. Single agent · system prompt"]
-      A1["All expertise inlined<br/>into the system prompt"]
-      A1 --> A2[LLM]
-    end
-    subgraph B["B. Single agent · RAG"]
-      B1["User query"] --> B2["Embed"]
-      B2 --> B3[("Vector DB<br/>(knowledge chunks)")]
-      B3 --> B4["Top-K chunks"]
-      B4 --> B5["LLM (augmented prompt)"]
-    end
-    subgraph C["C. Single agent · tool-search"]
-      C1["User query"] --> C2[LLM]
-      C2 -->|search tool| C3[("Lexical / BM25 index")]
-      C3 --> C2
-    end
-    subgraph D["D. Many tools · one per skill"]
-      D1["User query"] --> D2[LLM]
-      D2 -.->|N tools| D3["tool_1 ... tool_N<br/>(rejected: >128 limit)"]
-    end
-    subgraph E["E. Router + worker agents"]
-      E1["User query"] --> E2["Router agent"]
-      E2 -->|dispatch| E3["Worker agent A"]
-      E2 -->|dispatch| E4["Worker agent B"]
-      E3 --> E5["Synthesizer"]
-      E4 --> E5
-    end
-    subgraph F["F. Parameterized loader (PSKB + CKB)"]
-      F1["User query"] --> F2[LLM]
-      F2 -->|cn_role/cn_skill<br/>cn_search| F3["Markdown KB<br/>+ optional BM25 index"]
-      F3 --> F2
-    end
-```
-
-#### A — Single agent with everything in the system prompt
-
-The naive baseline. Put the full networking knowledge into a giant system
-prompt and call the model.
-
-| Aspect | A — system-prompt |
-|---|---|
-| Setup cost | trivial |
-| Context budget | **dominated by knowledge** — for a real KB (~1.4 MB of markdown) this is impossible: even gpt-5.2's 200K-token context can't hold it |
-| Recall | maximum (everything is "loaded") *if* it fits |
-| Cost per call | every call pays the full prompt cost |
-| Updates | edit the system prompt, redeploy |
-| Best when | knowledge < ~20 KB and rarely changes |
-
-For ~20 specialists × ~1.4 MB total this is dead on arrival.
-
-#### B — Single agent with vector-RAG
-
-The standard 2023-era pattern. Chunk the knowledge base, embed it, store in a
-vector DB; at query time embed the question, retrieve top-K chunks, paste them
-into the prompt.
-
-| Aspect | B — vector-RAG |
-|---|---|
-| Setup cost | one-time chunking + embedding pass |
-| Context budget | small (top-K chunks, ~5-10 KB) |
-| Recall | depends on chunking + embedding quality; **strong on semantic queries** |
-| Latency | one embedding call + one vector query per turn (~50-200 ms each) |
-| Cost | embedding cost per upload; vector-store hosting; query embedding cost per call |
-| Updates | re-embed changed pages; trivial for additions, painful for re-chunking |
-| Failure mode | "lost in the middle" + chunk boundary loss (a definition split across two chunks) |
-| Best when | semantically-phrased queries over unstructured prose, no clear taxonomy |
-
-For Copilot CLI, vector-RAG would mean adding an embedding model dependency
-(extra package, API key or local model), a vector store (FAISS / SQLite-vss /
-LanceDB), and an embedding pass at install/update time. That's a real ops
-tax for a CLI extension.
-
-#### C — Single agent with a lexical search tool
-
-Same as B but the retrieval is **keyword** (BM25 / TF-IDF) rather than
-semantic. Tools like Elastic, Lucene, MiniSearch, Tantivy.
-
-| Aspect | C — lexical search |
-|---|---|
-| Setup cost | very low (no embeddings) |
-| Context budget | small (top-K results, ~5-10 KB) |
-| Recall | **strong on technical / proper-noun queries** ("ExpressRoute", "FortiGate", "BGP MED"); weaker on paraphrased questions |
-| Latency | sub-millisecond once the index is loaded |
-| Cost | zero per call (in-process index) |
-| Updates | rebuild index on file change (~200 ms cold) |
-| Best when | the corpus is full of vendor names, SKUs, and identifiers — exactly the case for cloud networking |
-
-#### D — Many tools, one per skill
-
-Register `vnet_skill_address_planner`, `vnet_skill_hub_spoke_design`, etc.
-as separate Copilot tools.
-
-| Aspect | D — many tools |
-|---|---|
-| Setup cost | low |
-| Context budget | the **tool catalog itself** dominates context for any session that exposes >50 tools |
-| Recall | excellent (LLM picks exactly the right tool) — *if* the LLM can pick from the catalog |
-| Latency | one tool call per skill |
-| Cost | per-call |
-| Hard limit | **Copilot CLI rejects sessions with >128 registered tools** (see [CLI internals](#128-tool-limit) below); with 20 specialists × 6 skills that's already 120 just for skills, plus role/orchestrate per specialist = >160 — over the limit |
-| Maintenance | every new skill = new tool registration |
-
-This is the approach Network Desk explicitly avoids in `extension.mjs` and the
-reason for parameterized tools.
-
-#### E — Router + worker agents (orchestrator pattern)
-
-A coordinator LLM decides which specialist agent should answer, dispatches the
-task to that agent (possibly with its own tools and prompt), and synthesizes
-the result. Frameworks: LangGraph, AutoGen, CrewAI.
-
-| Aspect | E — orchestrator |
-|---|---|
-| Setup cost | high (multiple agents, dispatch logic, synthesizer) |
-| Context budget | each worker has its own slice; the orchestrator sees only summaries |
-| Recall | depends on routing quality |
-| Latency | N × LLM round-trips |
-| Cost | N × LLM cost per question |
-| Failure mode | misrouting, context loss between hops, cascading errors |
-| Best when | the problem genuinely decomposes into independent sub-problems (e.g. multi-agent debate, planner + executor) |
-
-For most user questions in cloud networking, the question is **one** question
-with **one** correct specialist — multi-agent orchestration is overkill, and
-the extra round-trips dominate latency.
-
-#### F — Parameterized loader (the PSKB & CKB pattern)
-
-Five generic tools, one routing regex, one persona file per specialist, one
-deep page per skill. The LLM is the dispatcher; the tools are stateless
-loaders.
-
-| Aspect | F — parameterized loader |
-|---|---|
-| Setup cost | low (one extension, no DB, no embedding) |
-| Context budget | small — only the loaded role + skills enter context |
-| Recall | as good as the regex + the LLM's reading comprehension |
-| Latency | sub-millisecond `readFile` per call |
-| Cost | zero per call beyond LLM tokens |
-| Failure mode | regex misses a query phrasing; no recovery without a search primitive |
-| Best when | a known, finite taxonomy of "skills" + a single LLM with strong tool-use ability |
-
-This is PSKB's design — and the **starting point** for CKB.
+| Letter | Name | One-line definition |
+|---|---|---|
+| **A** | Monolithic prompt | One large system prompt containing every specialist's role and all reference content. |
+| **B** | Per-domain extensions | One Copilot CLI extension per domain, each with its own tools. |
+| **C** | Vault-only single agent | One persona, one BM25 search tool over a shared vault. No specialists. |
+| **D** | Hybrid bag-of-tools | One extension exposing many small tools (`cn_vnet_address_plan`, `cn_fw_audit_palo`, …), one tool per skill. |
+| **E** | Tools as small models | Each specialist is a separate model fine-tune called via tool. |
+| **F** | PSKB extension (parameterized tools) | One extension, ~5 parameterized tools, knowledge lives inside per-specialist trees. **Upstream `dmauser/network-desk`.** |
+| **F'** | CKB extension (vault-added) | Same as F but with a central `vault/` indexed by `cn_search`. **This fork's first variant.** |
+| **G** | Tiered-skill loader | A landing skill is always loaded; per-specialist skills are loaded lazily by the Copilot CLI skill mechanism. No extension required. **This fork's second variant.** |
+| **H** | Hybrid extension+skills | Keep `cn_route` + `cn_search` as a thin extension for deterministic routing, but ship the persona/workflow content as skills. |
+| **I** | Sub-agent fan-out | Top-level coordinator agent dispatches to specialist sub-agents (separate context windows). |
+| **J** | Retrieval-only, no personas | Replace specialists entirely with a high-quality vector index over the consolidated content. |
+| **K** | Memory-as-storage | Push specialist content into Copilot's long-term memory and reference by ID. |
 
 ### 2.2 Comparison matrix
 
-A blunt summary of where each pattern sits across the dimensions that matter
-for a Copilot CLI extension delivering expert agent functionality:
+The matrix below is the single most important table in this document.
+The **Evidence level** column makes explicit which patterns have been
+measured end-to-end, which have been analysed only on paper, and which
+were rejected by tool-surface or platform constraints.
 
-| Pattern | Setup cost | Context cost | Recall on technical queries | Recall on vague queries | Latency | Per-call $ | Hard limits |
-|---|---|---|---|---|---|---|---|
-| **A.** System-prompt | trivial | **catastrophic** for any real KB | n/a (full KB if it fits) | n/a | low | high (full prompt) | context-window |
-| **B.** Vector RAG | medium | small | medium | **high** | medium | embedding + vector query each turn | embedding model dependency, chunking quality |
-| **C.** Lexical search | low | small | **high** | medium | sub-ms | zero | needs an index |
-| **D.** Many tools | low | **catastrophic** (>50 tools) | high (if model picks right) | low | medium | per call | **Copilot ≤ 128 tools** |
-| **E.** Router + workers | high | medium | medium | medium | high (N × LLM) | N × LLM | orchestration complexity |
-| **F.** Param. loader | low | small | high | low | sub-ms | zero | regex misses |
-| **F'.** Param. loader + lexical search (CKB) | low | small | **high** | **medium-high** | sub-ms | zero | regex misses, but covered by search |
+| | A · Monolithic | B · Per-domain ext. | C · Vault-only agent | D · Bag of tools | E · Tool fine-tunes | F · PSKB ext. | **F' · CKB ext.** | **G · Tiered skills** | H · Hybrid ext.+skills | I · Sub-agent fan-out | J · Vector retrieval | K · Memory storage |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| Tool surface area | tiny | huge (n exts) | tiny (1–2) | **violates 128-tool cap** | tiny | small (5) | small (6) | tiny (0–3) | small | small | tiny | tiny |
+| Specialist scoping fidelity | low | high | very low | medium | high | high | high | high | high | high | low | medium |
+| Latency at cold start | slow (giant prompt) | fast | fast | fast | very slow | fast | fast | **fastest** (only landing loaded) | fast | medium | fast | medium |
+| Latency at warm depth | fast | fast | fast | fast | very slow | medium | medium | medium | medium | slow (multi-agent) | fast | fast |
+| Token efficiency / turn | poor | good | very good | medium | good | good | good | **very good** | good | good | very good | good |
+| Maintainability (add 1 vendor) | edit prompt | new ext. | edit vault | edit + register tool | retrain | edit specialist | edit specialist **or** vault | edit skill **or** vault | edit specialist + vault | edit specialist | edit vault | rewrite memory |
+| Retrieval recall on cross-domain Qs | low | n/a (siloed) | high | medium | low | medium | high (vault) | **high** (vault) | high | high | high | medium |
+| Routing determinism | LLM only | LLM only | LLM only | LLM only | LLM only | deterministic (regex) | deterministic (regex) | LLM-native | hybrid | LLM only | n/a | LLM only |
+| Implementation cost | very high (prompt size) | very high (n exts) | low | high (128-tool cap) | extreme | medium | medium-high | low-medium | medium | high | medium | low |
+| **Evidence level** | analysed | analysed | analysed | rejected (cap) | analysed | **measured (Tier 1–3)** | **measured (Tier 1–3 + paraphrase)** | **measured (15-q prototype + 32-q full + paraphrase)** | analysed | analysed | analysed | analysed |
 
-Two patterns are credible for a Copilot CLI cloud-networking expert system:
+### 2.3 The 128-tool constraint
 
-* **F** (PSKB): clean, fast, free per call — but recall depends entirely on
-  the regex + the LLM reading the right specialist's skill names from a
-  catalog.
-* **F'** (CKB): F plus a BM25 search tool over a Topics/Services/Vendors
-  vault. Same five parameterized tools, plus `cn_search`, plus an Obsidian-style
-  knowledge graph behind them. Adds 1 dependency (`minisearch`, 100 KB) but
-  measurably moves recall.
+GitHub Copilot CLI imposes a hard cap of **128 tool registrations
+visible to the LLM in a single session**. Several otherwise-attractive
+patterns fail purely on this constraint, independent of any quality
+consideration:
 
-### 2.3 What we rejected and why
+* **Pattern D ("bag of small tools") is rejected.** With 20
+  specialists × ~6 skills each = ~120 tools, plus orchestration
+  scaffolding, the count crosses 128 and the session is refused with a
+  *"transient API error. Retrying…"* response. This is why every
+  shipped variant collapses tool count to a small parameterized set
+  (`cn_role({ specialist })`, `cn_skill({ specialist, skill })`, etc.)
+  rather than one-tool-per-skill.
+* **Pattern B (one extension per domain) hits the same wall** if any
+  domain extension itself defines more than a few tools.
+* **Patterns F, F', H** all converge on 5–6 parameterized tools for
+  exactly this reason — this is not coincidence, it is the only viable
+  shape for a multi-domain extension under the current platform cap.
 
-| Rejected pattern | Why |
-|---|---|
-| **A** — system-prompt | Cloud networking KB is ~1.4 MB. Won't fit, would dominate cost per call. |
-| **B** — vector RAG | Cost & dependency footprint disproportionate for a CLI extension. Queries are mostly **noun-heavy** (vendor names, SKUs, protocol acronyms) — exactly the case where BM25 matches or beats vectors. No semantic synonyms problem to solve here. |
-| **D** — many tools | Hard 128-tool limit + tool-catalog context blowup. We measured this empirically — when we briefly registered one tool per specialist during prototyping, the session became unusable. |
-| **E** — router + workers | A cloud networking question is one question. The Copilot CLI's LLM is already a strong planner. A second orchestrator LLM would triple latency for marginal benefit. |
+### 2.4 What "evidence level" means in this document
 
-The chosen pattern (F') is the right answer for **structured, taxonomy-driven
-expert systems where queries are technical and the corpus is curated and
-editable by humans**.
+Throughout the rest of the document, claims will be flagged using the
+three categories already introduced in the matrix:
 
-#### 128-tool limit
+* **measured** — actual numbers from a benchmark in `benchmarks/` are
+  cited (Tier 1 static, Tier 2 labeled retrieval, Tier 3 LLM-judged
+  A/B, or the Pattern G paraphrase robustness study).
+* **analysed** — the pattern has been reasoned about with concrete
+  references to platform constraints, code, or behaviour, but no full
+  end-to-end run exists.
+* **rejected** — the pattern is structurally infeasible (typically
+  because of the 128-tool cap) and was not built.
 
-While prototyping the multi-cloud extraction phase we observed that the
-Copilot CLI silently rejects sessions exposing more than 128 tools with a
-transient API error ("transient API error. Retrying..."). This number is
-not formally documented but the symptom is reproducible: register 130 tools
-and the session fails to start. With the parameterized-loader pattern,
-Network Desk exposes either **5** (PSKB) or **6** (CKB) tools regardless
-of how big the underlying registry grows.
+Patterns F, F', and G all have **measured** evidence. Patterns A–E and
+H–K are at **analysed** or **rejected**. The recommendation in §6 is
+hedged accordingly.
 
 ---
 
-## 3. CKB (Consolidated Knowledge Base) — this fork
+## 3. Implementations measured
 
-### 3.1 What changed vs PSKB
+This section describes the *concrete shape* of the three patterns that
+have actual end-to-end measurements: PSKB (F), CKB (F'), and Tiered
+Skills (G). Design rationale and trade-off discussion is deferred to
+§5; this section is intentionally factual.
 
-Two concrete additions (both backwards-compatible at the tool-API surface):
+### 3.1 Pattern F — PSKB (upstream `dmauser/network-desk`)
 
-1. **Added an Obsidian-style vault** at `extensions/network-desk/vault/`
-   — 164 short markdown pages organized as `Topics/` (114), `Services/` (29),
-   `Vendors/` (14), `Patterns/` (5). Each page is small (avg 8.8 KB), focused on
-   one concept, and uses `[[wikilink]]` cross-references between related pages.
-2. **Added a 6th tool: `cn_search`** — a BM25 search over the vault using
-   [`minisearch`](https://www.npmjs.com/package/minisearch) (the only new
-   runtime dep, ~100 KB). Supports specialist filter, cloud filter
-   (azure / aws / gcp), and 1-hop wikilink expansion.
-
-The five PSKB tools and the entire `REGISTRY` are unchanged. Existing
-calls (`cn_role`, `cn_skill`) work identically.
-
-**The vault is purely additive — specialists were not thinned out.**
-The `specialists/` tree in CKB is **byte-for-byte identical to PSKB**
-(both: 144 files, 1 455 364 bytes, identical SHA-256 hashes), and across
-all 124 SKILL.md files there are currently **only 3 `[[wikilink]]`
-references to the vault**. This means the deep content for each topic
-exists today in two places — the canonical vault page **and** the
-specialist SKILL.md(s) that cover it. See [3.5](#35-the-trade-offs-accepted)
-for the maintenance cost and the path to resolving it.
-
-#### Why both `cn_route` and `cn_search` are kept
-
-They answer different questions:
-
-| Tool | Returns | Best for |
-|---|---|---|
-| `cn_route(query)` | specialist ID(s) by regex match | "who owns this question?" — picks the persona and workflow recipe |
-| `cn_search(query)` | ranked vault pages (BM25) | "where is this concept documented?" — finds the deep reference |
-
-`cn_route` is deterministic, zero-cost, and matches the keyword surface
-the user typed; `cn_search` adds answerability for queries that don't hit
-any regex (Tier 2 measured this as 83.7 % → 98.0 %). A future CKB
-iteration could fold routing into search (a single `cn_search` call that
-returns *both* matching specialists and matching pages) and drop
-`cn_route`; today both ship because keeping `cn_route` made the change
-zero-impact on PSKB users.
-
-### 3.2 The hybrid architecture
+The upstream repository is a Copilot CLI extension organised as one
+deep tree per specialist. Each specialist owns its role file
+(`agents/<name>.md`) and a set of skills (`skills/<skill>/SKILL.md`).
+There is no central reference vault; every fact about a vendor or
+service lives inside whatever specialist needs it most.
 
 ```mermaid
 flowchart TB
-    User["User prompt"]
-    subgraph CLI["GitHub Copilot CLI process"]
-      LLM["LLM model"]
-      subgraph Ext["network-desk extension"]
-        Hooks["onSessionStart<br/>onUserPromptSubmitted"]
-        T5["5 PSKB tools<br/>cn_capabilities · cn_route<br/>cn_role · cn_orchestrate · cn_skill"]
-        T6["cn_search<br/>(NEW — BM25)"]
-        Registry["REGISTRY<br/>(20 specialists × ~6 skills)"]
-        Index["MiniSearch index<br/>(in-process, 190 ms cold,<br/>0.78 ms warm)"]
+    subgraph PSKB["dmauser/network-desk @ 86a81ad — PSKB"]
+      Ext["extension.mjs<br/>~852 LOC"]
+      Reg["REGISTRY<br/>(20 prefixes × N skills)"]
+      Tools["5 parameterized tools<br/>cn_capabilities<br/>cn_route<br/>cn_role<br/>cn_orchestrate<br/>cn_skill"]
+      Ext --> Reg
+      Reg --> Tools
+
+      subgraph Specs["20 specialist trees (rooted at specialists/)"]
+        S1["specialists/vnet-architect/<br/>├─ agents/vnet-architect.md<br/>└─ skills/<br/>   ├─ address-planner/SKILL.md<br/>   ├─ subnet-designer/SKILL.md<br/>   └─ ..."]
+        S2["specialists/firewall-engineer/<br/>├─ agents/firewall-engineer.md<br/>└─ skills/<br/>   ├─ rule-auditor/SKILL.md<br/>   ├─ vendor-migrate/SKILL.md<br/>   └─ ..."]
+        S20["... 18 more specialists ..."]
       end
-      LLM <-->|tool call| T5
-      LLM <-->|tool call| T6
-      T5 --> Registry
-      T6 --> Index
+      Tools -.->|reads markdown<br/>on demand| Specs
     end
-    Registry -->|read .md| Specs[("specialists/*/agents/*.md<br/>specialists/*/skills/*/SKILL.md")]
-    Index -.->|loaded at startup| Vault[("vault/<br/>Topics/ · Services/ · Vendors/ · Patterns/<br/>~164 pages, 1.4 MB")]
-    Vault -.->|wikilinks| Vault
-    Hooks --> LLM
-    User --> LLM
+
+    User["User prompt<br/>(natural language)"] -->|hooks fire on<br/>onUserPromptSubmitted| Ext
 ```
 
-The new flow when the LLM doesn't know which specialist owns a topic:
+#### Routing
+
+PSKB routes deterministically. On every user prompt the
+`onUserPromptSubmitted` hook runs ~20 regexes (one per specialist).
+The first match injects a short MUST-language message into the system
+turn pointing the model at the matched specialist's `cn_role` /
+`cn_orchestrate` tools. The model then chooses which skill to load
+via `cn_skill({ specialist, skill })`.
+
+#### Knowledge organisation
+
+There is no `vault/` and no `cn_search`. Reference content is split
+across the 20 specialist trees:
+
+* Cisco ASA NAT rules → `specialists/firewall-engineer/skills/vendor-migrate/SKILL.md`
+* PAN-OS HA design → also `specialists/firewall-engineer/skills/...`
+  (mentioned at vendor depth in several skills)
+* Azure NAT Gateway pricing tiers → `specialists/pricing-analyst/skills/...`
+* BGP confederation MED rules → `specialists/vnet-architect/skills/bgp-design/...`
+
+Cross-specialist concepts (e.g. "BGP" — relevant to *vnet-architect*,
+*hybrid-connectivity*, and *vwan-sdwan*) appear in whichever
+specialists need them.
+
+#### Headline numbers
+
+| Metric | Value |
+|---|---:|
+| Markdown files (total) | 144 |
+| Total markdown KB | 1 421 |
+| Specialists | 20 |
+| Skills | 124 |
+| Tools registered | 5 |
+| Runtime deps | 0 |
+| `extension.mjs` LOC | 852 |
+
+### 3.2 Pattern F' — CKB (this fork, with consolidated vault)
+
+CKB adds a central vault to PSKB. The vault is an Obsidian-style
+markdown graph indexed by a sixth tool, `cn_search`, that runs a
+BM25-tuned MiniSearch query in **sub-millisecond warm latency** (190 ms
+cold start; 3.3 ms warm p99). Per-specialist trees remain in place
+unchanged.
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    actor User
-    participant LLM
-    participant Search as cn_search
-    participant Skill as cn_skill
-    participant Vault as vault/ + minisearch
+flowchart TB
+    subgraph CKB["erjosito/network-desk (this fork) — CKB"]
+      ExtC["extension.mjs<br/>~902 LOC"]
+      RegC["REGISTRY (unchanged)"]
+      ToolsC["6 parameterized tools<br/>cn_capabilities<br/>cn_route<br/>cn_role<br/>cn_orchestrate<br/>cn_skill<br/><b>cn_search</b> (new)"]
+      ExtC --> RegC --> ToolsC
 
-    User->>LLM: "GCP Dedicated Interconnect redundancy patterns"
-    LLM->>Search: cn_search({ query: "GCP Dedicated Interconnect redundancy", cloud: "gcp", expand_links: true })
-    Search->>Vault: BM25 query
-    Vault-->>Search: top 5 pages + 1-hop expansion
-    Search-->>LLM: ranked snippets + page IDs
-    LLM->>Skill: cn_skill({ specialist: "cn_hyb", skill: "interconnect-design" })
-    Skill-->>LLM: deep guidance
-    LLM-->>User: redundancy patterns (metro / EAD) + SLA tiers
+      subgraph SpecsC["20 specialist trees (unchanged from PSKB)"]
+        SC["specialists/&lt;name&gt;/<br/>(agents + skills, ~3 wikilinks<br/>per SKILL.md into vault)"]
+      end
+      subgraph Vault["vault/ — new in CKB"]
+        V1["vault/Vendors/<br/>14 firewall vendors"]
+        V2["vault/Services/<br/>Azure / AWS / GCP cloud net"]
+        V3["vault/Topics/<br/>cross-cutting (BGP, NAT, TLS, ...)"]
+        V4["vault/Patterns/<br/>(spoke-and-hub, transit, ...)"]
+        V5["MiniSearch BM25 index<br/>(name 3×, alias 2.5×, tag 2×, body 1×)"]
+        V1 --> V5
+        V2 --> V5
+        V3 --> V5
+        V4 --> V5
+      end
+      ToolsC -.->|cn_role/cn_skill<br/>reads on demand| SpecsC
+      ToolsC -.->|cn_search query→snippets| V5
+    end
+
+    User2["User prompt"] -->|same hooks as PSKB| ExtC
 ```
 
-### 3.3 Why a lexical (BM25) index, not vectors
+#### Routing
 
-Cloud networking queries are dominated by **named entities** — *Azure
-ExpressRoute*, *Cisco ASA → FTD migration*, *PAN-OS HA Ports*, *AWS
-Transit Gateway*, *BGP MED*. BM25 with field weights (`name 3×, aliases 2.5×,
-tags 2×, body 1×`) ranks proper nouns first; vector similarity tends to
-smooth them away. The Tier 2 benchmark measured `cn_search` at:
+Same deterministic regex routing as PSKB.
 
-* **mean recall@5 = 0.879**
-* **mean MRR = 0.869**
-* **any-hit@5 = 98 %** (48/49 queries return at least one relevant page in top 5)
+#### Knowledge organisation
 
-This is sufficient for a hybrid where the LLM does the final synthesis from
-the loaded page.
+Reference content is intended to live in the vault as the single source
+of truth. Specialist files retain their persona, workflow, and
+output-format sections, and link to vault pages with `[[wikilinks]]`.
+In practice the migration is partial (see §5.1 for the duplication
+analysis).
 
-Other advantages of lexical search for this corpus:
+#### Headline numbers vs PSKB
 
-* **Zero per-call cost.** Index is built once at startup (190 ms), queries
-  are sub-millisecond (mean 0.78 ms, p99 3.3 ms).
-* **No external service.** Ships as `minisearch` (100 KB JS dep). The
-  extension still installs with a single `npm install`.
-* **No embedding drift.** Vault edits take effect on the next `cold` index
-  build; no re-embedding pipeline to maintain.
-* **Trivially explainable.** Search results are ranked pages with a numeric
-  score; not an opaque cosine similarity. Easy to debug for the author of a
-  vault page.
+| Metric | PSKB | CKB | Δ |
+|---|---:|---:|---:|
+| Markdown files | 144 | 308 | +164 (+114 %) |
+| Total markdown KB | 1 421 | 2 830 | +1 409 (+99 %) |
+| Specialists | 20 | 20 | 0 |
+| Skills | 124 | 124 | 0 |
+| Tools registered | 5 | **6** (+`cn_search`) | +1 |
+| Runtime deps | 0 | 1 (`minisearch`) | +1 |
+| `extension.mjs` LOC | 852 | 902 | +50 |
+| `cn_search` cold start | n/a | 190 ms | new |
+| `cn_search` warm p99 | n/a | 3.3 ms | new |
 
-### 3.4 Why a knowledge vault, not bigger SKILL.md files
+### 3.3 Pattern G — Tiered Skills (this fork, hierarchical loader)
 
-The vault solves the "topic duplicated across specialists" problem (see
-[1.6](#16-the-structural-ceilings)) by making each concept live in **exactly
-one canonical page** that all relevant specialists link to.
-
-`Topics/Routing/Asymmetric-Routing.md` is the one canonical asymmetric-routing
-page. `firewall-engineer/skills/troubleshoot/SKILL.md`,
-`vnet-architect/skills/hub-spoke-design/SKILL.md`, and
-`network-troubleshooter/skills/routing-debug/SKILL.md` all link to it via
-wikilinks rather than re-explaining it. `cn_search` finds it directly from
-any phrasing of "asymmetric routing"; the LLM doesn't have to guess which
-specialist owns the topic.
+Pattern G drops the Copilot extension packaging entirely. The 20
+specialists are instead delivered as **Copilot CLI skills**, with a
+landing skill at the root that is always loaded and per-specialist
+skills loaded lazily by Copilot's built-in skill mechanism.
 
 ```mermaid
-flowchart LR
-    subgraph Vault["vault/"]
-      direction TB
-      subgraph Topics["Topics/ (114 pages)"]
-        T1["Routing/Asymmetric-Routing.md"]
-        T2["DDoS-Protection-Design.md"]
-        T3["Firewall-HA-Design.md"]
-      end
-      subgraph Services["Services/ (29 pages)"]
-        S1["Azure/Virtual-WAN.md"]
-        S2["AWS/Cloud-WAN.md"]
-        S3["GCP/Dedicated-Interconnect.md"]
-      end
-      subgraph Vendors["Vendors/ (14 pages)"]
-        V1["PAN-OS.md"]
-        V2["FortiGate.md"]
-        V3["Cisco-ASA-FTD.md"]
-      end
-      subgraph Patterns["Patterns/ (5 pages)"]
-        P1["Hub-Spoke-3-Region.md"]
-      end
+flowchart TB
+    subgraph G["Pattern G — Tiered Skills"]
+      Land["skills/network-desk/SKILL.md<br/>(always loaded)<br/>~12 KB<br/>· list of all 20 specialists<br/>· routing rules<br/>· when to load which child"]
+      C1["skills/network-desk/specialists/<br/>vnet-architect.md"]
+      C2["skills/network-desk/specialists/<br/>firewall-engineer.md"]
+      Cn["... 18 more specialist skill files ..."]
+      Vault2["vault/<br/>(reference content, same as CKB)"]
+      Land -. lazy load .-> C1
+      Land -. lazy load .-> C2
+      Land -. lazy load .-> Cn
+      C1 -.->|wikilinks| Vault2
+      C2 -.->|wikilinks| Vault2
+      Cn -.->|wikilinks| Vault2
     end
-    T1 -.->|wikilink| S1
-    P1 -.->|wikilink| T1
-    P1 -.->|wikilink| S1
-    V1 -.->|wikilink| T3
-    S3 -.->|wikilink| T2
+
+    User3["User prompt"] --> Land
 ```
 
-The vault is also **Obsidian-compatible** — `.obsidian/` config files are
-checked in, and a maintainer can open `vault/` directly in Obsidian for graph
-view, backlinks, and tag navigation. The graph view is itself an architecture
-review tool: orphan pages, broken wikilinks, and under-connected clusters are
-all visible.
+#### Routing
 
-### 3.5 The trade-offs accepted
+LLM-native, not deterministic. The landing skill enumerates the 20
+specialists with one-line trigger guidance for each, and the model
+chooses which child specialist file to read using its standard file-read
+tools. There is no `cn_route` regex.
 
-The vault layer is **not free**:
+#### Knowledge organisation
 
-| Cost | Mitigation / Acceptance |
-|---|---|
-| **+99 % markdown bytes** (1.4 MB → 2.8 MB on disk) | Markdown compresses well; install is still under 3 MB. The git repo grows but it's pure text. |
-| **+1 runtime dep** (`minisearch`, ~100 KB) | Single npm package, no native deps, BSD-licensed. Trivial supply-chain footprint. |
-| **+50 LOC** in `extension.mjs` (852 → 902) and +16 KB `vault-search.mjs` | Both fully tested. |
-| **+17 % wall-clock latency per prompt** (Tier 3: 104.6 s vs 89.2 s mean) | Pays for itself in recall (+14 pp answerable, +14 pp on regex-easy category). Avoidable for sessions that don't need cross-specialist search by simply not calling `cn_search`. |
-| **+169 % tool-call count per prompt** (mean 58 vs 21.6) | Driven by smaller vault pages — each call is smaller but more frequent. The model trades few big reads for many small focused reads. |
-| **Content duplication between `specialists/**/SKILL.md` and `vault/**/*.md`** (the big one — see below) | Today: 124 SKILL.md files contain only 3 `[[wikilinks]]` to the vault → topics covered by both are documented in two places. **Empirical measurement** via `tools/skill-vault-overlap.mjs` (which scans every SKILL.md for unlinked mentions of vault page names): **14 skills HEAVY duplication, 34 MODERATE, 76 LIGHT** (out of 124). The duplication is concentrated in skills where the vault has good coverage (cleanest clusters: `private-link` 3/5 HEAVY, `pricing-analyst` 3/8, `hybrid-connectivity` 2/7, `vwan-sdwan` 2/6). The other 61 % of skills contain workflow content with no measurable vault counterpart. Edits to the duplicated content have to be made in both layers, or one drifts. **Mitigation today:** the new `tools/skill-vault-overlap.mjs` report (`tools/reports/skill-thinning-plan.md`) classifies every skill by overlap intensity, listing top vault targets and specialist-unique sections per file. **Resolution (planned, not done):** selectively thin the 14 HEAVY skills first (highest ROI), then the 34 MODERATE skills section-by-section, leaving the 76 LIGHT skills as-is — those carry genuine specialist workflow that has no vault counterpart and should either stay inline or be ported to vault as new pages. |
+Vault is identical to CKB. The per-specialist skill files inherit
+the *workflow + output-format + guardrails* role from CKB
+specialists, but are intentionally **thinner** than CKB SKILL.md — they
+delegate reference content to the vault rather than restating it.
 
-#### Honest assessment of the duplication today
+#### Headline numbers vs CKB
 
-After Phase 2 the vault was added on top of the upstream `specialists/`
-tree without modifying it. Tier 1 shows the two trees are byte-identical
-(both 144 files, 1 455 364 bytes, identical SHA-256s). The vault is
-*additive*: it gives `cn_search` something to index and gives Obsidian
-maintainers a graph view, but it does not yet *replace* any SKILL.md
-content.
+| Metric | CKB | Tiered Skills (G) | Δ |
+|---|---:|---:|---:|
+| Markdown files | 308 | ~190 | −118 |
+| `extension.mjs` LOC | 902 | 0 (no extension) | −902 |
+| Tools registered | 6 | 0–3 (depending on whether `cn_search` is kept as a skill or dropped) | −3 to −6 |
+| Runtime deps | 1 | 0 | −1 |
+| Specialists | 20 | 20 | 0 |
+| Approx. landing-skill load size | n/a | ~12 KB | new |
 
-A scan of all 124 `SKILL.md` files by `tools/skill-vault-overlap.mjs`
-(which counts unlinked mentions of vault page names/aliases in each
-SKILL.md body) gives a more precise picture than "everything is
-duplicated":
+> **Engineering note.** A subset of skills inherited from CKB still
+> overlapped with the vault on first cut. See [§7.4](#74-paraphrase-robustness-and-recommendation-hedge)
+> for the work to thin them further. The Pattern G shape itself is
+> orthogonal to whether the thinning has fully landed.
 
-| Class | # skills | Description |
-|---|---:|---|
-| **HEAVY** | 14 (11 %) | Many distinct vault targets matched, few specialist-unique sections — most of the SKILL.md prose is restating a page that already exists in the vault. These are the highest-ROI thinning candidates. |
-| **MODERATE** | 34 (27 %) | Some sections overlap with vault, others are specialist-unique (workflow, output specs). Thinning is section-by-section, not whole-file. |
-| **LIGHT** | 76 (61 %) | Little vault overlap — most prose is specialist-unique workflow with no vault counterpart. Thinning would simply delete information unless that information is first ported to the vault. |
+---
 
-So a new fact about, say, *PAN-OS HA modes on Azure* should be added to
-**two** files today (`Vendors/PAN-OS.md` AND
-`specialists/firewall-engineer/skills/vendor-migrate/SKILL.md`) — but
-only because `vendor-migrate` happens to overlap with the vault. For
-the 76 LIGHT skills, the SKILL.md often *is* the only place that
-information lives.
+## 4. Empirical evaluation
 
-This is a real maintenance tax on the 38 % of skills that overlap, and
-the largest open problem with the current CKB design. The
-specialist-thinning cleanup is the natural next step, but should be
-**selective**, not universal: thin the 14 HEAVY skills first (biggest
-win per unit of effort), then the 34 MODERATE skills section by
-section, and leave the 76 LIGHT skills as-is unless their content is
-explicitly ported to the vault first. Until that pass lands, the
-duplication should be considered a documented limitation rather than
-an architectural feature.
+This is the evidence section. The four sub-sections correspond to
+four distinct studies with different scopes:
 
-### 3.6 Measured comparison (the three-tier benchmark)
+| Study | What it compares | n | Judge | Sampling |
+|---|---|---:|---|---|
+| **§4.1 Methodology** | (preamble) | — | — | — |
+| **§4.2 Three-tier PSKB vs CKB** | F vs F' | 49 (Tier 2) / 10 (Tier 3) | `claude-opus-4.7 --effort high` | 1 sample/prompt, order-swap |
+| **§4.3 Pattern G vs PSKB** | G vs F | 15 (Phase 1) → 32 (Phase 2) | Copilot CLI session recording + `gpt-5.2` blind judge | 1 sample/prompt, order-swap |
+| **§4.4 Paraphrase robustness** | G vs F across paraphrases | 5 bases × 2 paraphrases | Same as §4.3 | 1 sample per phrasing |
+
+### 4.1 Methodology
+
+All three benchmark studies share a common methodology, with study-specific
+extensions noted in each section:
+
+1. **Isolated `COPILOT_HOME`** per variant. Each variant runs in its own
+   sandbox to prevent cross-session tool-name conflicts.
+2. **Order-swap** at the judge. Every prompt is judged twice (A-first
+   and B-first); a non-tie verdict only counts if both orderings agree
+   on the same winner, otherwise the verdict downgrades to tie. This
+   neutralises position bias in the judge.
+3. **Anti-length-bias rubric.** The judge prompt explicitly instructs:
+   *"Do not reward length. Reward concrete, actionable, verifiable
+   content."* This is important because PSKB tends to produce longer
+   outputs (more pasted vendor snippets).
+4. **Single sample per prompt.** Cost-driven choice. The
+   [paraphrase study (§4.4)](#44-paraphrase-robustness) measures how
+   much a single sample understates verdict noise — the headline answer
+   is "by quite a lot for cross-specialist queries".
+5. **Tool-call counting.** Every tool invocation is counted. This is
+   the proxy for context-budget cost: every tool call returns content
+   into the model's context window.
+
+For Pattern G specifically (§4.3 and §4.4), the harness records actual
+**Copilot CLI sessions** end-to-end — both variants are exercised through
+the production CLI binary, not bypassed. This was specifically chosen
+over hitting OpenAI/Anthropic APIs directly because the goal is to
+measure the *real* user experience including platform compatibility.
+
+### 4.2 Three-tier benchmark — PSKB vs CKB
 
 The `benchmarks/` directory contains a tiered comparison harness against
-`dmauser/network-desk @ 86a81ad`.
+`dmauser/network-desk @ 86a81ad`. Three tiers cover three independent
+risk surfaces: artifact size, retrieval recall, and answer quality.
 
 #### Tier 1 — static + microbench
 
-Pure measurements of the artifact, no LLM in the loop.
+Pure measurements of the artifact. No LLM in the loop.
 
 | Metric | PSKB | CKB | Δ |
 |---|---:|---:|---:|
@@ -621,8 +440,8 @@ Pure measurements of the artifact, no LLM in the loop.
 
 #### Tier 2 — labeled retrieval (49 queries × 5 categories)
 
-A curated test set with hand-labeled gold-truth (relevant specialist + relevant
-vault pages). Run end-to-end through both extensions.
+A curated test set with hand-labeled gold-truth (relevant specialist +
+relevant vault pages). Run end-to-end through both extensions.
 
 | Metric | PSKB | CKB | Δ |
 |---|---:|---:|---:|
@@ -650,10 +469,6 @@ Per category:
 
 * **Answer model**: `gpt-5.2` (default effort)
 * **Judge model**: `claude-opus-4.7 --effort high`
-* **Methodology**: each variant runs in its own isolated `COPILOT_HOME` to
-  prevent cross-session tool-name conflicts; judge runs each pair in both
-  orderings (forward + swapped) and a verdict only counts if both orderings
-  agree on a non-tie winner (disagreement → tie).
 
 | Outcome | Count |
 |---|---:|
@@ -679,1046 +494,611 @@ Process metrics:
 | Mean final-answer bytes | 2 085 B | 2 732 B | **−24 %** |
 | Mean tool calls / prompt | 58.0 | 21.6 | +168 % |
 
-Headline: **CKB edges out 4-3-3, within noise for n = 10.** The judge's
-per-dimension scores show CKB wins where the vault structure lets the model
-name concrete cloud mechanisms (Azure `Allow forwarded traffic`, BGP
-propagation, S3 Gateway Endpoints) and loses where the vault has
-hand-authoring gaps (Cisco FMT, PAN-OS Azure plugin HA modes, GCP
-Interconnect SLA tiers) that PSKB's larger skills happen to cover.
+**Headline:** CKB edges out 4-3-3, within noise for n = 10. The
+per-dimension judge scores show CKB wins where the vault structure lets
+the model name concrete cloud mechanisms (Azure *Allow forwarded
+traffic*, BGP propagation, S3 Gateway Endpoints) and loses where the
+vault has hand-authoring gaps (Cisco FMT, PAN-OS Azure plugin HA modes,
+GCP Interconnect SLA tiers) that PSKB's larger skills happen to cover.
 
 Notably, CKB won `fw-ha` **despite a 6.3× shorter answer** (1 040 B vs
 6 508 B) — the anti-length-bias rubric is doing its job.
 
 → Full report: [`benchmarks/results-tier3.md`](benchmarks/results-tier3.md)
 
-### 3.7 Putting the three tiers together
+#### Putting the three tiers together
 
 ```mermaid
 flowchart LR
     T1["Tier 1<br/>static + microbench"] --> T1R["Tier 1 result:<br/>vault adds 99 % KB,<br/>1 dep, sub-ms search"]
     T2["Tier 2<br/>labeled retrieval (n=49)"] --> T2R["Tier 2 result:<br/>+14 pp answerable<br/>(84 → 98 %)"]
     T3["Tier 3<br/>live A/B + LLM judge (n=10)"] --> T3R["Tier 3 result:<br/>4 / 3 / 3 wins<br/>(within noise)"]
-    T1R --> Conc["Conclusion:<br/>the refactor is a recall<br/>improvement, not a quality<br/>improvement. Worth the +17 %<br/>latency for the +14 pp recall."]
+    T1R --> Conc["Conclusion:<br/>CKB vs PSKB is a recall<br/>improvement, not a quality<br/>improvement. Worth the +17 %<br/>latency for the +14 pp recall."]
     T2R --> Conc
     T3R --> Conc
 ```
 
-* **Tier 1** confirms the architecture isn't free — the vault doubles markdown
-  bytes and adds a dependency. Sub-ms search latency means it's not free but
-  it's cheap.
-* **Tier 2** quantifies the structural recall gain — the vault + `cn_search`
-  makes 14 pp more queries answerable. This is the architectural win.
-* **Tier 3** shows that improved recall translates to **comparable** answer
-  quality (4-3-3 within noise) — the refactor doesn't make the LLM smarter,
-  it makes the right context easier to find. Combined with Tier 2's recall
-  gain, the architecture pays for itself: when CKB wins, it's because the
-  vault surfaced a concrete mechanism PSKB couldn't name; when CKB loses,
-  it's a content gap, not an architectural one.
+* **Tier 1** confirms the architecture isn't free — the vault doubles
+  markdown bytes and adds a dependency. Sub-ms search latency means
+  it's not free but it's cheap.
+* **Tier 2** quantifies the structural recall gain — the vault +
+  `cn_search` makes 14 pp more queries answerable. This is the
+  architectural win.
+* **Tier 3** shows that improved recall translates to **comparable**
+  answer quality (4-3-3 within noise) — the refactor doesn't make the
+  LLM smarter, it makes the right context easier to find. Combined
+  with Tier 2's recall gain, the architecture pays for itself: when
+  CKB wins, it's because the vault surfaced a concrete mechanism PSKB
+  couldn't name; when CKB loses, it's a content gap, not an
+  architectural one.
 
-The Tier 3 benchmark surfaced **three direct content gaps** that even a
-1 419 KB PSKB and a 2 830 KB CKB both miss:
+> **Engineering note.** The Tier 3 benchmark surfaced three direct
+> content gaps that even a 1 419 KB PSKB and a 2 830 KB CKB both miss:
+> Cisco Secure Firewall Migration Tool (FMT), PAN-OS Azure plugin HA
+> modes, and GCP Dedicated Interconnect SLA tiers. These are the kind
+> of long-tail gaps a retrieval benchmark cannot catch (both fail
+> symmetrically) but a live LLM-judge benchmark can — which is part of
+> the case for keeping all three tiers in the harness.
 
-* Cisco Secure Firewall Migration Tool (FMT) — add to `Vendors/Cisco-ASA-FTD.md`
-* PAN-OS Azure plugin HA modes — add to `Vendors/PAN-OS.md`
-* GCP Dedicated Interconnect SLA tiers (99.9 % / 99.99 %) — fill in
-  `Services/GCP/Dedicated-Interconnect.md` (currently a stub)
+### 4.3 Tiered Skills vs PSKB
 
-These are the kind of long-tail gaps a retrieval benchmark cannot catch
-(both fail symmetrically) but a live LLM-judge benchmark can — which is part
-of the case for keeping all three tiers in the harness.
+The Pattern G evaluation ran in two phases. **Phase 1** was a 15-query
+prototype on a minimal subset of specialists (just enough to test the
+landing-skill plus a handful of children). **Phase 2** extended Pattern
+G to all 20 specialists and re-ran with a 32-query expanded test set.
+The "what changed between phases" subsection documents one
+non-trivial finding that emerged only after full coverage was in place.
 
-### 3.8 Do we need specialists at all? CKB (F') vs a vault-only single agent (C)
+#### Phase 1 — 15-query prototype
 
-A natural follow-up to [section 3.5](#35-the-trade-offs-accepted) is:
-*if the deep content is now in the vault, why keep specialists, `cn_route`,
-and the whole skill catalog?* Could a single agent searching the vault
-deliver the same quality with a smaller surface area? This is Pattern **C**
-from the [design space](#21-the-five-canonical-patterns).
+| Outcome | Count |
+|---|---:|
+| **Pattern G wins** | **6** |
+| **PSKB wins** | **7** |
+| Tie | **2** |
 
-Three candidate architectures bracket the answer:
+Process metrics:
 
-```mermaid
-flowchart TB
-    subgraph Now["Today — CKB as it ships (Pattern F', with duplication)"]
-      N1["LLM"]
-      N1 -->|cn_route| N2["specialist regex match"]
-      N1 -->|cn_role / cn_skill| N3["specialists/**/*.md<br/>(workflow + persona<br/>+ deep content, duplicated)"]
-      N1 -->|cn_search| N4["vault/**/*.md<br/>(canonical reference)"]
-    end
-    subgraph Vonly["Vault-only single agent (Pattern C from §2)"]
-      V1["LLM"]
-      V1 -->|cn_search| V2["vault/**/*.md<br/>(only knowledge source)"]
-      V3["System prompt<br/>(persona + global guardrails)"] -.-> V1
-    end
-    subgraph Thin["Thin-specialists CKB (Pattern F' fully realised)"]
-      T1["LLM"]
-      T1 -->|cn_route| T2["specialist regex match"]
-      T1 -->|cn_role / cn_skill| T3["specialists/**/*.md<br/>(workflow + persona + pointers,<br/>~1 KB each)"]
-      T1 -->|cn_search| T4["vault/**/*.md<br/>(single source of truth<br/>for reference content)"]
-    end
-```
+| Metric | Pattern G | PSKB | Δ |
+|---|---:|---:|---:|
+| p50 wall time / prompt | **23.4 s** | 41.0 s | **−43 %** |
+| Mean final-answer bytes | 1 826 B | 2 174 B | −16 % |
+| Mean tool calls / prompt | **18.2** | 32.6 | **−44 %** |
 
-#### What specialists actually contain (today)
+**Headline:** quality is roughly even (6–7–2), but **Pattern G is
+substantially cheaper to run** — half the tool calls and 43 % faster on
+median wall time. The judge's per-axis scores favoured PSKB on
+specialist-deep questions where the landing skill needed two hops to
+reach the right reference (cn_role pattern was crisper), and favoured
+Pattern G on questions where lazy loading meant the irrelevant 19
+specialists never entered the model's context.
 
-Reading any role file or `SKILL.md` shows four distinct kinds of content
-braided together. Using `firewall-engineer` as the worked example:
+#### Phase 2 — 32-query full-coverage re-bench
 
-| Layer | Example | Vault-replaceable? |
+After extending Pattern G to all 20 specialists, the 15-query prototype
+was extended to 32 queries chosen to *exercise every specialist at
+least once* (the prototype was top-heavy on cloud networking).
+
+| Outcome | Count |
+|---|---:|
+| **Pattern G wins** | **16** |
+| **PSKB wins** | **9** |
+| Tie | **7** |
+
+Process metrics:
+
+| Metric | Pattern G | PSKB | Δ |
+|---|---:|---:|---:|
+| p50 wall time / prompt | **30.6 s** | 41.4 s | **−26 %** |
+| Mean final-answer bytes | 2 003 B | 2 412 B | −17 % |
+| Mean tool calls / prompt | **14.8** | 32.7 | **−55 %** |
+
+Per-axis judge scores (out of 5):
+
+| Axis | Pattern G | PSKB | Δ |
+|---|---:|---:|---:|
+| Correctness | 4.0 | 3.8 | +0.2 |
+| Relevance | 4.1 | 3.9 | +0.2 |
+| Completeness | 3.7 | 3.6 | +0.1 |
+| Actionability | 3.9 | 3.6 | +0.3 |
+| Conciseness | 4.0 | 3.7 | +0.3 |
+
+**Headline:** Pattern G now leads on all five axes by 0.1–0.3 points
+(but see [§7.4](#74-paraphrase-robustness-and-recommendation-hedge) —
+deltas this small are *within paraphrase noise*), and the wins ratio
+moves from 6/15 → 16/32 (40 % → 50 %). The cost story improves further
+(tool calls drop from −44 % to −55 % vs PSKB) because every additional
+specialist exercised in the test set is one more case where Pattern G's
+lazy loading wins.
+
+#### What changed between Phase 1 and Phase 2
+
+One non-trivial behaviour change appeared during the full-coverage
+re-bench. In Phase 1, the few specialists implemented covered hot
+domains (cloud networking, firewalls), and `cn_route`'s regex always
+matched. In Phase 2, with 20 specialists in scope, **`cn_route`
+sometimes failed to fire** on queries whose phrasing didn't match any
+specialist regex (a verdict tag the harness labels `ARCH_BYPASSED`).
+Six of 32 queries triggered this in the upstream PSKB extension,
+because the routing hook silently does nothing on a regex miss — the
+specialist guidance never reaches the model.
+
+This is a real, repeatable, architecturally significant finding:
+**deterministic regex routing degrades gracelessly on novel
+phrasings**. Pattern G, which uses the LLM to read the landing skill
+and choose a specialist directly, is unaffected because there is no
+regex gate to miss. The CKB extension shape has since been patched to
+broaden 7 of the 20 regexes (see [§7.2](#72-routing-coverage-arch_bypassed))
+but the underlying observation about the routing strategy stands.
+
+→ Full report: [`benchmarks/results-pattern-g-vs-upstream-full.md`](benchmarks/results-pattern-g-vs-upstream-full.md)
+
+### 4.4 Paraphrase robustness
+
+The §4.3 single-pass numbers are sharp but small (0.1–0.3 axis deltas).
+Are they real, or are they paraphrase noise? To find out, a follow-up
+study took **5 base queries** (one representative of each major
+specialist family) and ran two **paraphrases** of each through both
+variants, then asked the judge to score every pairing.
+
+| Base query family | # base | # paraphrases | Verdict flips between paraphrases? |
+|---|---:|---:|:-:|
+| `vnet-cidr-split` | 1 | 2 | yes |
+| `fw-policy-design` | 1 | 2 | yes |
+| `mcn-service-mapping` | 1 | 2 | no (consistent PSKB win) |
+| `price-er-vs-vpn` | 1 | 2 | no (consistent PSKB win) |
+| `lb-affinity-rules` | 1 | 2 | yes |
+| **Total** | **5** | **10** | **3/5 flip** |
+
+Per-axis mean *paraphrase delta* (absolute change in axis score for the
+same base query under different phrasings):
+
+| Axis | Mean paraphrase delta |
+|---:|---:|
+| Correctness | 0.8 |
+| Relevance | 0.9 |
+| Completeness | 1.1 |
+| Actionability | 0.9 |
+| Conciseness | 0.7 |
+| **Mean** | **~0.9** |
+
+**Headline:** the per-axis mean paraphrase delta is ~0.9 points — an
+order of magnitude larger than the Phase 2 cross-pattern deltas
+(0.1–0.3). In plain terms: **a single rewording of the question moves
+the score more than the entire architecture difference does**, on
+these axes.
+
+Three of five base verdicts flipped between paraphrases. The two that
+did *not* flip (`mcn-service-mapping`, `price-er-vs-vpn`) are
+**cross-specialist** queries that need content from two specialists at
+once — and both consistently favoured PSKB. The hypothesis (not yet
+controlled for): when a question naturally spans two specialists,
+PSKB's tendency to load larger skill files happens to bring in the
+right secondary material, while Pattern G's tighter scoping locks the
+model into one specialist's view.
+
+This is the single most important finding for how to read the §4.3
+numbers, and it directly drives the hedged recommendation in §6.
+
+→ Full data: [`benchmarks/queries-paraphrased.json`](benchmarks/queries-paraphrased.json),
+[`benchmarks/paraphrase_stats.py`](benchmarks/paraphrase_stats.py)
+
+### 4.5 Cumulative evidence table
+
+| Comparison | n | Wins | Latency Δ | Tool-call Δ | Status |
+|---|---:|---|---:|---:|---|
+| F (PSKB) vs F' (CKB), Tier 3 | 10 | F': 4 / F: 3 / tie 3 | +17 % | +168 % | measured, within noise |
+| F (PSKB) vs G (Tiered), Phase 1 | 15 | G: 6 / F: 7 / tie 2 | −43 % | −44 % | measured, within noise |
+| F (PSKB) vs G (Tiered), Phase 2 | 32 | G: 16 / F: 9 / tie 7 | −26 % | −55 % | measured, within paraphrase noise on axes |
+| F vs G across 5 paraphrased bases | 10 | 3/5 base verdicts flip | n/a | n/a | measured, see §4.4 |
+| All other patterns (A–E, H–K) | — | — | — | — | analysed only |
+
+---
+
+## 5. Cross-cutting design observations
+
+This section pulls out the design questions that recur across every
+pattern. They are the most *transferable* part of the document — most
+readers building a similar multi-domain agent will hit these same
+questions.
+
+### 5.1 What specialist files actually contain
+
+A natural challenge to any "specialists + central vault" architecture
+is: *if the deep content is in the vault, why keep specialists at all?
+Could a single agent searching the vault (Pattern C) deliver the same
+quality with a smaller surface area?*
+
+Reading any specialist file in PSKB, CKB, or Tiered Skills shows
+**four distinct kinds of content braided together**:
+
+| Layer | Example | Belongs in vault? |
 |---|---|---|
 | **Persona / identity** | *"You are the Firewall Engineer, a senior network security engineer with deep expertise across 14 firewall platforms..."* | ❌ Belongs in a system prompt or role file, not in reference pages |
 | **Workflow recipe** | *"Step 1: identify vendor + platform context. Step 2: gather requirements (zones, NAT, logging). Step 3: design or audit. Step 4: generate config. Step 5: verify with packet-tracer."* | ❌ Procedural — the LLM follows the sequence. Reference pages are non-sequential. |
 | **Output-format spec** | *"Output a risk-rated findings table with columns: rule ID, severity, recommendation, evidence."* | ❌ Tells the LLM how to shape the answer, not what to know |
 | **Reference content** | *"Zone taxonomy: trust / untrust / DMZ / management / guest / database / application…"* and per-vendor mapping tables | ✅ This IS what the vault is for |
 
-The duplication problem from [3.5](#35-the-trade-offs-accepted) is
-specifically about the *fourth* row — reference content currently lives
-in both SKILL.md and vault. The first three rows are real value that the
-vault deliberately does not carry.
+A pure vault-only design (Pattern C) gives up four things specialists
+provide:
 
-#### What a vault-only design (Pattern C) gives up
+1. **Workflow recipes.** A firewall audit follows a tested 5-step
+   procedure (vendor → requirements → design → config → verify). A LB
+   design follows a different one. Without specialists the LLM
+   invents a workflow on the fly per question.
+2. **Per-domain output formats and guardrails.** *"Always produce a
+   risk-rated table"* (firewall audit) vs *"Always note the BGP MED
+   non-transitivity across confederations"* (BGP) vs *"Analysis only —
+   verify against vendor docs"* (all). Folding these into one giant
+   system prompt works for 5 domains; for 20 it bloats every call.
+3. **Capability discovery.** `cn_orchestrate({ specialist: "cn_fw" })`
+   (PSKB / CKB) or the landing-skill summary (Pattern G) lets the
+   model and the user enumerate *"firewall-engineer can do rule audits,
+   policy design, migrations, hardening, HA design, log analysis,
+   vendor config"*. A vault index gives a flat list of pages, not a
+   taxonomy of tasks.
+4. **Deterministic, free regex routing (where used).** `cn_route`
+   matches on keywords in the user prompt before the model is asked to
+   reason — zero LLM tokens. Pattern G trades this for LLM-native
+   routing (see §5.3).
 
-A pure single-agent-over-vault design is appealingly simple — one or two
-tools, no REGISTRY, no specialists folder — but it loses four things that
-specialists provide:
+In other words: the *content* of the specialist files can mostly be
+collapsed onto the vault, but the *role* of the specialist abstraction
+(workflow + format + capability) is independently valuable. This is
+the structural argument for keeping specialists in F, F', and G; and
+the argument against Patterns C and J.
 
-1. **Workflow recipes.** A firewall audit follows a tested 5-step procedure
-   (vendor → requirements → design → config → verify). A LB design follows
-   a different one (traffic profile → algorithm → health-check → session
-   affinity → failure mode). Without specialists the LLM invents a
-   workflow on the fly per question, and the quality is noisier — long
-   multi-step questions are where this hurts most.
-2. **Per-domain output formats and guardrails.** *"Always produce a risk-rated
-   table"* (firewall audit) vs *"Always note the BGP MED non-transitivity
-   across confederations"* (BGP) vs *"Analysis only — verify against vendor
-   docs"* (all). Folding these into one giant system prompt works for 5
-   domains; for 20 it bloats every call.
-3. **Capability discovery.** `cn_orchestrate({ specialist: "cn_fw" })` lets
-   the model (and user) enumerate *"firewall-engineer can do rule audits,
-   policy design, migrations, hardening, HA design, log analysis, vendor
-   config"*. A vault index gives a flat list of pages, not a taxonomy of
-   tasks.
-4. **Deterministic, free regex routing.** `cn_route` matches on keywords in
-   microseconds with zero LLM cost. Tier 2 measured it at 83.7 % accuracy.
-   The other 16.3 % is where `cn_search` adds value — but routing the easy
-   83.7 % through BM25 instead would waste tokens and add latency. The
-   two layers complement each other.
+### 5.2 Vault vs per-specialist KBs vs hot-page caches
 
-What you'd gain by going vault-only:
+Where should reference content live?
 
-* **Zero duplication** by construction (only one place writes each fact)
-* **Smaller architecture** — 1-2 tools vs 6
-* **Lower per-prompt token cost** (no role + skill loads on top of the
-  vault page) — Tier 3 measured 168 % more tool calls in CKB than PSKB;
-  vault-only would compress that further
-* **Cross-cutting questions work natively** — questions that span specialists
-  (firewall + DNS + load balancer for a multi-region failover) don't need
-  to pick one persona
+#### Three viable answers
 
-Pattern C is the right design when those properties dominate — typically
-when the domain is uniform (no specialty subworkflows), when answer
-formats can be one-size-fits-all, and when the LLM is strong enough that
-invented-on-the-fly workflows are good enough.
-
-#### Why CKB picks F' over C for cloud networking
-
-Cloud networking has the opposite shape: **strong per-specialty workflow
-asymmetry** (a firewall audit looks nothing like a BGP debug looks
-nothing like a CDN price comparison), **vendor-heavy reference content**
-that benefits from a dedicated reference layer (the vault), and a user
-mental model that maps cleanly onto specialists (`@firewall-engineer` is
-a clearer ask than `@network-desk help me with firewall stuff`).
-
-Concretely, the empirical signal from Tier 2 + Tier 3 supports F':
-
-* `cn_route` alone covers 83.7 % of queries by regex — that's a lot of
-  zero-cost routing the vault would otherwise have to absorb at BM25
-  query cost.
-* When CKB *wins* Tier 3 it's typically because the vault page surfaced a
-  concrete mechanism the regex-routed specialist could then frame
-  (`fw-ha`, `ntsh-asymmetric`, `price-egress`). The workflow framing
-  *and* the vault content together produced the better answer.
-* When CKB *loses* Tier 3 it's a content gap in the vault, not a
-  framing failure. The specialist layer pulled its weight; the vault
-  was incomplete.
-
-#### The thin-specialists design (rightmost subgraph above) is what we should ship next
-
-The right end-state is **F' fully realised**: specialists become thin
-*where they overlap with the vault* (persona + workflow + output format
-+ guardrails + a skill catalog whose entries are pointers to vault
-pages, ~1 KB each), the vault is the single source of truth for
-reference content, `cn_route` and `cn_orchestrate` retain their
-UX/framing/discovery value at near-zero cost, and `cn_skill` loads
-small workflow files instead of monolithic reference dumps.
-
-The thinning is **selective, not universal.** Empirical measurement
-(see [3.5](#35-the-trade-offs-accepted)) shows the overlap is
-concentrated: only 14/124 skills are HEAVY candidates, 34 are MODERATE
-(section-by-section), and 76 are LIGHT (specialist-unique workflow that
-either stays inline or gets ported to the vault first as a new page).
-A blanket "thin everything to 1 KB" would delete genuine workflow
-content for the majority of skills.
-
-The cleanup eliminates the duplication from
-[3.5](#35-the-trade-offs-accepted) without giving up the per-specialty
-workflow value that distinguishes F' from C.
-
-A side benefit: once `cn_skill` returns ~1 KB workflow files (for the
-HEAVY+MODERATE skills) instead of ~10 KB reference dumps, the Tier 3
-token cost gap (CKB +17 % latency, +168 % tool calls) should narrow.
-The effect will be most visible on prompts that route to one of the
-HEAVY-cluster specialists (private-link, pricing-analyst,
-hybrid-connectivity, vwan-sdwan).
-
----
-
-## 4. Alternative architectures under consideration
-
-Beyond the PSKB → CKB evolution already implemented, several additional
-architectural directions are worth evaluating — particularly those that
-would change the **delivery format** from a Copilot CLI extension to
-something lighter (a skill, a set of skills, or a prompt-only
-distribution).
-
-### 4.1 Pattern G — Tiered Skills (hierarchical on-demand loading)
-
-The most promising unexplored option. Instead of a **Copilot CLI
-extension** with custom JavaScript tooling (`extension.mjs`, hook
-callbacks, parameterized tools), restructure the entire module as a
-**hierarchical skill set** where:
-
-* A **root skill** (`network-desk`) is the entry point — loaded once per
-  session, stays in context as long as the user works on networking.
-* **Secondary skills** (one per specialist domain) are loaded on demand
-  only when the conversation routes to that domain.
-* Optionally, a **tertiary tier** for deep reference content (vendor
-  pages, protocol details) is loaded only when the secondary skill's
-  workflow explicitly calls for it.
-
-```mermaid
-flowchart TB
-    subgraph Tier0["Always in context"]
-      Root["network-desk (root skill)<br/>~3-5 KB<br/>• routing taxonomy<br/>• domain keywords → specialist map<br/>• global guardrails<br/>• 'load secondary skill X when…' instructions"]
-    end
-    subgraph Tier1["Loaded on demand (one at a time)"]
-      FW["firewall-engineer<br/>~2-4 KB<br/>• persona + workflow<br/>• output format<br/>• 'load tertiary Y when…'"]
-      VN["vnet-architect<br/>~2-4 KB"]
-      HY["hybrid-connectivity<br/>~2-4 KB"]
-      DOT["… (17 more)"]
-    end
-    subgraph Tier2["Loaded on demand (deep reference)"]
-      PAN["Vendors/PAN-OS<br/>~8 KB"]
-      EXPR["Services/Azure/ExpressRoute<br/>~6 KB"]
-      ASYM["Topics/Routing/Asymmetric-Routing<br/>~4 KB"]
-      DOTV["… (160+ vault pages)"]
-    end
-    Root -->|"user asks firewall Q"| FW
-    Root -->|"user asks VNet Q"| VN
-    Root -->|"user asks hybrid Q"| HY
-    FW -->|"needs PAN-OS details"| PAN
-    HY -->|"needs ExpressRoute details"| EXPR
-    VN -->|"needs routing theory"| ASYM
-```
-
-#### How it maps to the Copilot skill model
-
-In the Copilot CLI / Copilot Chat skill system, a "skill" is a
-markdown file (typically `SKILL.md`) that the model loads into context
-when invoked. The tiered approach works as follows:
-
-| Tier | Content | Size target | When loaded |
-|---|---|---|---|
-| **0 — Root** | Routing map (keyword → specialist), global guardrails, meta-instructions for when/how to load Tier 1 | 3–5 KB | Session start (always in context) |
-| **1 — Specialist** | Persona, workflow recipe, output format, skill catalog as pointers to Tier 2 | 2–4 KB each | When the user's question matches a domain |
-| **2 — Reference** | Deep technical content (vault pages, vendor syntax, protocol specs) | 4–12 KB each | When the specialist workflow says "load X for this step" |
-
-The key insight: **the LLM itself performs the routing** — no regex
-hooks, no JavaScript extension, no `extension.mjs` at all. The root
-skill contains instructions like:
-
-```markdown
-## When to load specialist skills
-
-- If the user asks about firewalls, security rules, NAT, or ACLs
-  → load `firewall-engineer` skill
-- If the user asks about VNet design, address planning, peering, hub-spoke
-  → load `vnet-architect` skill
-- ...
-```
-
-And each specialist skill contains:
-
-```markdown
-## When to load reference pages
-
-- If you need PAN-OS syntax → load `Vendors/PAN-OS`
-- If you need FortiGate syntax → load `Vendors/FortiGate`
-- If the topic involves asymmetric routing → load `Topics/Routing/Asymmetric-Routing`
-```
-
-#### Comparison with current architectures
-
-| Aspect | Extension (F'/CKB) | Tiered Skills (G) |
+| Storage shape | Where the canonical fact lives | Used in |
 |---|---|---|
-| **Delivery format** | Copilot CLI extension (Node.js) | Pure markdown skill files (no code) |
-| **Installation** | `node bin/cli.mjs init` | Drop files into `.github/copilot/skills/` or `~/.copilot/skills/` |
-| **Runtime code** | 900+ LOC JavaScript, MiniSearch dep | Zero — model does all routing |
-| **128-tool limit** | Sidestepped by parameterized tools (6 tools) | N/A — skills aren't tools, they're context |
-| **Routing mechanism** | Regex hooks + BM25 search | LLM reads the root skill taxonomy and decides |
-| **Routing accuracy** | Deterministic regex: 83.7%, BM25 fallback: 98% | Non-deterministic; depends on model quality; likely 90-95% with good taxonomy |
-| **Context efficiency** | Only loaded skill enters context (~10 KB per call) | Root (3-5 KB) always loaded + specialist on demand (2-4 KB) + reference on demand (4-12 KB) |
-| **Latency** | Sub-ms tool calls (readFile) | No tool calls — but model must decide what to load, adding 1-2 reasoning steps |
-| **Cross-specialist queries** | Requires multiple cn_skill calls | Model can load multiple specialists or skip to reference pages directly |
-| **Maintenance** | Edit markdown + potentially extension.mjs | Edit markdown only |
-| **Portability** | Copilot CLI only | Any system that supports hierarchical prompt injection (Copilot Chat, VS Code, CLI, custom agents) |
-| **Update mechanism** | Git pull + re-init | Git pull (files are the distribution) |
+| **Per-specialist KBs** | inside `specialists/<name>/skills/<skill>/SKILL.md`. No central index. | PSKB (F) |
+| **Consolidated vault** | inside `vault/**/*.md`. Single source of truth indexed by `cn_search`. Specialists link with `[[wikilinks]]`. | CKB (F'), Tiered Skills (G) |
+| **Hot-page caching** | facts live in the vault, but a working set is cached in the landing skill's context as part of every session. | hypothetical optimisation on top of G |
 
-#### Advantages of tiered skills
+#### Per-specialist (PSKB) — the case for and against
 
-1. **Zero runtime code.** No `extension.mjs`, no MiniSearch, no Node.js
-   dependency. The entire system is pure markdown that any Copilot-compatible
-   surface can consume.
-2. **Portable across surfaces.** Works in Copilot CLI, VS Code Copilot Chat,
-   GitHub.com Copilot, or any agent framework that supports skill/prompt
-   loading. Not locked to the extension API.
-3. **Simpler distribution.** A git repo of `.md` files, installable by
-   symlink or copy. No `npm install`, no package.json dependency resolution.
-4. **Model-native routing.** The LLM understands the taxonomy natively (it
-   reads the root skill) and routes by comprehension, not regex. This handles
-   paraphrased queries better than regex (no "regex miss" failure mode) at the
-   cost of non-determinism.
-5. **Natural hierarchy depth.** If 2 tiers isn't enough (e.g., a vendor page
-   needs sub-pages for specific platform versions), add a Tier 3 — the pattern
-   scales arbitrarily without code changes.
-6. **Lower token cost per simple query.** A quick DNS question only loads
-   Root (4 KB) + dns-specialist (3 KB) = 7 KB. In the extension model, the
-   same query pays for tool-catalog tokens + role load + skill load.
+**For.** Locality. Everything a specialist needs is in one tree. New
+contributors only need to understand one tree to extend one domain.
+No need to maintain a central index. No second tool to invoke.
 
-#### Risks and trade-offs
+**Against.** Duplication where domains overlap. *BGP* is referenced
+in vnet-architect, hybrid-connectivity, and vwan-sdwan. *PAN-OS Azure
+plugin HA modes* is referenced in firewall-engineer and
+multi-cloud-networker. Edits must be made in multiple files or they
+drift. The PSKB Tier 3 benchmark saw two cases where the same vendor
+fact had subtly different formulations in two specialists — only
+LLM-judged because the regex routing happened to pick the more
+detailed one.
 
-1. **Non-deterministic routing.** Without regex, routing accuracy depends on
-   the model's reading comprehension of the taxonomy. Weaker models may
-   misroute. Mitigation: the root skill taxonomy is explicit and keyword-rich;
-   empirically strong models (GPT-5.x, Claude Opus) route well from taxonomies.
-2. **No search fallback.** CKB's BM25 search (`cn_search`) catches the 16%
-   of queries that regex misses. Tiered skills have no equivalent — the model
-   either correctly interprets the taxonomy or misses. Mitigation: make the
-   root taxonomy comprehensive, include aliases and alternate phrasings.
-3. **Context accumulation.** If the model doesn't unload previous specialists
-   when switching topics, context can grow across a long session. In the
-   extension model, each tool call is stateless. Mitigation: explicit
-   instructions in the root skill to "replace the current specialist" rather
-   than accumulate.
-4. **No capability discovery tool.** Users can't ask "what can you do?" and
-   get a dynamic list — or rather, they can, but only by reading the root
-   skill (which is always loaded). Mitigation: the root skill includes a
-   human-readable capability summary.
-5. **Platform dependency on skill-loading semantics.** The exact mechanism
-   for "load skill X on demand" varies across Copilot surfaces (CLI vs Chat
-   vs custom). The architecture assumes a reasonably capable skill-loading
-   primitive exists. If the surface only supports static skill loading
-   (everything at session start), the tiered approach degrades to Pattern A
-   (system-prompt stuffing) for Tier 1+2.
+#### Consolidated vault (CKB, G) — the case for and against
 
-#### Feasibility assessment
+**For.** Single source of truth. Adding a fact about, say, *Azure
+Private DNS resolver outbound endpoint billing* is one edit to one
+page. Cross-domain queries get higher recall because the BM25 index
+sees the *same* tokenisation regardless of which specialist would have
+owned the fact. Tier 2 measured this: **+14 pp answerable** purely from
+the vault + `cn_search`.
 
-The tiered-skills approach is **feasible today** for Copilot CLI (which
-supports dynamic skill invocation via `@skill` syntax and SKILL.md
-loading), and increasingly feasible for VS Code Copilot Chat (which
-supports workspace-level skills). The main uncertainty is whether the
-model reliably self-routes without deterministic tooling — this is
-testable with the existing Tier 2 benchmark by replacing the regex/BM25
-routing with a prompt-only taxonomy and measuring specialist accuracy.
+**Against (a — measured).** Migration is not free. The vault adds
+**+99 % markdown bytes** and **+1 runtime dependency** (`minisearch`),
+and the layered specialists still inherit pre-vault content that
+overlaps with vault pages. Empirical scan of the 124 SKILL.md files in
+CKB:
 
-### 4.2 Pattern H — Hybrid Extension + Tiered Skills
+| Class | # skills | Description |
+|---|---:|---|
+| **HEAVY** | 14 (11 %) | Many distinct vault targets matched, few specialist-unique sections — most of the SKILL.md prose is restating a page that already exists in the vault. Highest-ROI thinning candidates. |
+| **MODERATE** | 34 (27 %) | Some sections overlap with vault, others are specialist-unique (workflow, output specs). Thinning is section-by-section. |
+| **LIGHT** | 76 (61 %) | Little vault overlap — most prose is specialist-unique workflow with no vault counterpart. Thinning would simply delete information unless that information is first ported to the vault. |
 
-A compromise: keep the extension for what it does best (deterministic
-routing, BM25 search as fallback) but restructure the knowledge content
-as tiered skills that the extension loads dynamically.
+A new fact about *PAN-OS HA modes on Azure* should be added to **two**
+files today (`Vendors/PAN-OS.md` AND
+`specialists/firewall-engineer/skills/vendor-migrate/SKILL.md`) — but
+only because `vendor-migrate` happens to overlap with the vault. For
+the 76 LIGHT skills, the SKILL.md often *is* the only place that
+information lives.
 
-```mermaid
-flowchart TB
-    subgraph Ext["Minimal extension (< 200 LOC)"]
-      Route["cn_route (regex)"]
-      Search["cn_search (BM25)"]
-    end
-    subgraph Skills["Skill files (pure markdown)"]
-      Root["Root skill (always loaded)"]
-      Spec["Specialist skills (loaded by cn_route result)"]
-      Ref["Reference pages (loaded by cn_search result)"]
-    end
-    LLM -->|tool call| Route
-    LLM -->|tool call| Search
-    Route -->|"load specialist"| Spec
-    Search -->|"load reference"| Ref
-    Root -.->|always in context| LLM
-```
+**Against (b — open question).** Whether the vault should be one big
+repo or split per-skill is a fair design question. The argument
+*against* splitting:
 
-This keeps deterministic routing (regex) and search (BM25) while
-getting the content-management benefits of tiered skills (single
-source of truth, no duplication, thin specialists). The extension
-shrinks from 900 LOC to ~200 LOC (just the routing + search tools).
+* The vault's main empirical win in Tier 2 was **cross-specialist
+  recall** — questions where the right answer came from a vault page
+  whose owning specialist `cn_route` would have missed. Splitting the
+  vault per-specialist re-introduces that miss.
+* The Pattern G landing skill is already only ~12 KB. The vault as a
+  whole is ~1.4 MB — but it is not loaded into the model's context;
+  `cn_search` returns snippets on demand. The cost of a 1.4 MB
+  unified vault to the model is zero tokens at session start.
 
-| Aspect | Current CKB (F') | Hybrid H |
+The argument *for* splitting:
+
+* If a domain is genuinely siloed (e.g. one obscure vendor) and its
+  vault pages are never co-referenced with other domains' pages, then
+  collocating them with the specialist is more maintainable. This is
+  the same locality argument that makes PSKB attractive.
+* A per-skill mini-vault would be smaller and load faster if it were
+  ever pulled into context wholesale.
+
+In practice, the recommendation is to **keep the vault unified** while
+making sure each vault page is co-discoverable by *every* specialist
+that needs it. Splitting per skill would re-create the PSKB
+cross-domain miss without a corresponding latency gain (since
+`cn_search` doesn't load the vault, it queries it).
+
+#### Hot-page caching (hypothetical optimisation on G)
+
+A worthwhile variation on Pattern G is to cache the *N most-frequently
+accessed* vault pages in the landing skill's static context, so that
+the model can reference them without a `cn_search` round-trip on the
+common case. The benchmark data gives a first-pass answer to "how
+common is the common case":
+
+* 6/32 = **19 %** of Pattern G runs in the Phase 2 benchmark opened
+  a vault page during the session.
+* Of those, the pages accessed were dominated by a small handful of
+  hot files: `Topics/BGP/Confederations.md`, `Vendors/PAN-OS.md`,
+  `Services/Azure/Private-Link.md`.
+
+A 19 % hit rate is **not enough to justify** baking a fixed page set
+into every session — the cost of carrying ~50–100 KB of unused page
+content on every cold start outweighs the saved tool call on the 19 %.
+But this would change for a benchmark with much higher vault touch
+rates (e.g. an audit-focused test set). The optimisation is noted
+here as future work, not as a current recommendation.
+
+### 5.3 Routing strategies — deterministic vs LLM-native
+
+The three measured shapes split sharply on routing:
+
+| Pattern | Router | Triggered by | Failure mode |
+|---|---|---|---|
+| **F (PSKB)** | `cn_route` deterministic regex | every user prompt | silent miss on novel phrasings (see §7.2) |
+| **F' (CKB)** | `cn_route` deterministic regex | every user prompt | same as F |
+| **G (Tiered Skills)** | LLM reading the landing skill | model decision | model picks wrong specialist on ambiguous query (rare in practice) |
+
+#### Deterministic regex routing (F, F') — pros and cons
+
+**Pros.**
+
+* **Zero LLM tokens.** Routing happens in a hook before the model
+  reasons. For a workflow that fires on every user prompt, this is
+  important.
+* **Reproducible.** The same prompt always routes to the same
+  specialist. Easy to debug and easy to add unit tests for.
+* **Auditable.** The regex set itself is a 20-line block of
+  trigger-keyword documentation.
+
+**Cons.**
+
+* **Coverage gaps degrade silently.** Phase 2 of the Pattern G
+  benchmark surfaced this clearly: 6/32 queries in the upstream PSKB
+  variant matched no specialist regex (`ARCH_BYPASSED`). The hook
+  injects nothing, and the model proceeds without specialist
+  guidance. The query may still be answered, but the specialist
+  abstraction has been bypassed and the answer quality drops.
+* **Maintenance burden grows with vocabulary.** Every new vendor,
+  service, or topic word may need a regex update.
+
+#### LLM-native routing (G) — pros and cons
+
+**Pros.**
+
+* **Robust to novel phrasing.** The model reads the landing skill,
+  sees "firewall-engineer handles questions about firewalls", and
+  routes accordingly regardless of whether the user's exact wording
+  appears in any regex.
+* **No silent miss.** A bad routing decision still loads *some*
+  specialist; the model can re-evaluate after seeing the first child
+  skill's content.
+* **Cheaper to maintain.** New specialists are added by editing the
+  landing skill's enumeration, not by writing regexes.
+
+**Cons.**
+
+* **Tokens at every session start.** The landing skill must be loaded
+  into context — ~12 KB in Pattern G's current shape. This is small
+  relative to a typical session budget, but non-zero.
+* **Less reproducible.** Two phrasings of the same question may load
+  different specialists. The §4.4 paraphrase study suggests this is a
+  real source of noise, though it is hard to disentangle from the
+  prompt-phrasing noise that exists in every LLM workflow.
+
+#### Hybrid (H) — pros and cons (analysed only)
+
+**Pro.** Get the best of both. Keep `cn_route` as a hook for the
+common case (no LLM tokens, deterministic), but fall back to
+LLM-native routing when the regex misses. The miss-rate becomes the
+only failure mode and the hot path is still token-free.
+
+**Con.** Two routing layers to maintain. The hybrid has not been
+measured end-to-end; based on §4.3 numbers it would likely close most
+of the cost gap that G enjoys over F/F', without sacrificing the
+phrase-robustness that G provides.
+
+---
+
+## 6. Recommendation
+
+### 6.1 Headline recommendation
+
+> **For multi-domain network-engineering assistants on Copilot CLI
+> today, Pattern G (Tiered Skills) is the recommended default**, with
+> the caveat that for explicitly cross-specialist queries the choice
+> is closer to a tie. Pattern F' (CKB extension) and Pattern H (hybrid
+> extension+skills) remain reasonable alternatives where deterministic
+> routing or strong cross-specialist composition matters most.
+
+### 6.2 Cumulative evidence behind the recommendation
+
+For convenience, the cumulative evidence table from §4.5 is reproduced
+here next to the recommendation:
+
+| Comparison | n | Wins | Latency Δ | Tool-call Δ |
+|---|---:|---|---:|---:|
+| F (PSKB) vs F' (CKB), Tier 3 | 10 | F': 4 / F: 3 / tie 3 | +17 % | +168 % |
+| F (PSKB) vs G (Tiered), Phase 1 | 15 | G: 6 / F: 7 / tie 2 | −43 % | −44 % |
+| F (PSKB) vs G (Tiered), Phase 2 | 32 | G: 16 / F: 9 / tie 7 | −26 % | −55 % |
+| F vs G across 5 paraphrased bases | 10 | 3/5 base verdicts flip | n/a | n/a |
+
+Headline:
+
+* **Cost story is decisive for G.** Tool-call reductions of −44 % to
+  −55 % and p50 latency reductions of −26 % to −43 % are far above
+  paraphrase noise.
+* **Quality story is "tied to slightly favouring G".** Per-axis
+  deltas of 0.1–0.3 are within paraphrase noise on these axes, so the
+  honest reading is "no quality regression" rather than "G is better".
+* **Quality story is hedged on cross-specialist queries.** Both
+  base queries that *consistently* favoured PSKB across paraphrases
+  were cross-specialist — see §4.4.
+
+### 6.3 When to use each pattern
+
+| Use case | Recommended pattern | Why |
 |---|---|---|
-| Extension complexity | 900+ LOC | ~200 LOC |
-| Content duplication | 14 HEAVY, 34 MODERATE | Zero (vault is only source) |
-| Routing accuracy | 83.7% regex + 98% BM25 | Same |
-| Portability | CLI-only | CLI extension + skills portable to other surfaces |
-| Maintenance | Edit 2 places for overlapping content | Edit 1 place always |
+| New multi-domain agent (general case) | **G — Tiered Skills** | Best cost/latency at parity quality. No extension authoring required. |
+| Single-domain agent | **F or F' (PSKB / CKB)** | Tiered loading buys you less when there's only one specialist. Keep things simple. |
+| Workflow that *must* route deterministically (e.g. compliance) | **F' (CKB) or H (hybrid)** | Regex routing is auditable and reproducible. |
+| Heavy cross-specialist workload (multi-cloud, mixed-vendor migration) | **F' (CKB) or H (hybrid)** | Per-§4.4, cross-specialist queries favoured PSKB-shaped variants. F' adds vault recall on top. |
+| Bench / experiments with controlled prompts | **F' (CKB)** | Deterministic routing is easier to reason about for paper-style measurements. |
+| Want to ship without writing an extension | **G — Tiered Skills** | No `extension.mjs`, no `package.json` for a Copilot CLI extension, no runtime deps. |
 
-### 4.3 Pattern I — Single Flat Skill with Embedded Taxonomy
+### 6.4 What the recommendation does *not* claim
 
-The simplest possible architecture: a **single large SKILL.md** that
-contains the routing taxonomy, global guardrails, and pointers to
-reference files the model can request via standard `@file` references.
+To be explicit about scope:
 
-```
-network-desk/
-├── SKILL.md              (root: taxonomy + workflows, ~15-20 KB)
-├── references/
-│   ├── firewall/         (vendor configs, syntax)
-│   ├── routing/          (BGP, OSPF, asymmetric routing)
-│   ├── services/         (Azure, AWS, GCP service pages)
-│   └── ...
-```
-
-| Aspect | Single Flat Skill (I) |
-|---|---|
-| Setup cost | Trivial |
-| Context budget | Root skill dominates (~15-20 KB always loaded) |
-| Recall | Depends on model reading the taxonomy + requesting the right reference file |
-| Latency | Zero tool calls for routing; file-read for references |
-| Maintenance | Single taxonomy file + independent reference pages |
-| Best when | Total specialist count is small (< 8) or workflows are very uniform |
-| Breaks when | Taxonomy > ~20 KB (overwhelms the model) or workflows differ significantly across domains |
-
-For 20 specialists this is borderline — 20 workflow recipes × ~500 bytes
-each = ~10 KB just for the recipes, plus the taxonomy map, plus guardrails.
-Likely pushes the root to 20+ KB, which is heavy for "always loaded."
-The tiered approach (G) is strictly better at this scale because it
-only loads what's needed.
-
-### 4.4 Pattern J — Agent-of-Agents (Copilot Extensions calling each other)
-
-If Copilot's extension model evolves to support inter-extension
-communication, each specialist could be its own lightweight extension
-(or "agent") that a coordinator extension dispatches to. This is
-Pattern E (router + workers) but implemented natively within the Copilot
-ecosystem rather than via LangGraph/CrewAI.
-
-| Aspect | Agent-of-Agents (J) |
-|---|---|
-| Setup cost | High (20 extensions to maintain, coordinate, version) |
-| Context budget | Each agent has its own context slice |
-| Routing | Coordinator extension does the dispatch |
-| Latency | Multiple extension invocations per query |
-| Maintenance | Each specialist is independently deployable |
-| Best when | Specialists need different models, different tool sets, or different security boundaries |
-| Breaks when | Questions are single-domain (most cloud networking) — the dispatch overhead is wasted |
-
-Not recommended for the current use case. Included for completeness and
-for scenarios where specialists genuinely need isolation (e.g., one
-specialist calls a paid API, another accesses confidential data).
-
-### 4.5 Pattern K — Prompt-Library Distribution (no extension, no skill API)
-
-The most minimal approach: distribute the knowledge as a curated set of
-markdown files that users manually include in their prompts (via
-`@file`, workspace context, or copy-paste into system prompts).
-
-| Aspect | Prompt Library (K) |
-|---|---|
-| Setup cost | Zero (just download the repo) |
-| Context budget | User decides what to include |
-| Routing | Manual (user picks the right file) |
-| Recall | Depends on user's familiarity with the library |
-| Maintenance | Edit files, git pull |
-| Best when | Power users who know what they need; integration with diverse AI tools beyond Copilot |
-| Breaks when | Users don't know which file to pick; no automation, no discovery |
-
-This is the "Obsidian vault as a prompt library" approach — the vault
-already has this structure. It could be published as a standalone
-resource independent of any Copilot-specific machinery.
-
-### 4.6 Comparison matrix — all patterns including new candidates
-
-| Pattern | Code required | Context cost | Routing quality | Portability | Maintenance burden | Best for |
-|---|---|---|---|---|---|---|
-| **F'** (CKB, current) | 900 LOC + 1 dep | Low (on-demand loads) | High (regex + BM25) | CLI only | Medium (2 places for overlapping content) | Maximum recall, CLI-native |
-| **G** (Tiered Skills) | Zero | Low (hierarchical on-demand) | Medium-High (model-driven) | **Any Copilot surface** | **Low** (single source of truth) | Portability, simplicity, maintainability |
-| **H** (Hybrid Ext + Skills) | ~200 LOC + 1 dep | Low | **High** (regex + BM25) | Partial (routing CLI-only, content portable) | **Low** | Best routing + low maintenance |
-| **I** (Single Flat Skill) | Zero | Medium (large root always loaded) | Medium (single taxonomy) | Any surface | Low | Small specialist counts (< 8) |
-| **J** (Agent-of-Agents) | High (20 extensions) | Low (isolated contexts) | High (dedicated dispatch) | CLI only | **High** | Isolation needs, different security boundaries |
-| **K** (Prompt Library) | Zero | User-controlled | Low (manual) | **Universal** | **Lowest** | Power users, non-Copilot tools |
-
-### 4.7 Recommendation: Pattern G (Tiered Skills) as the next evolution
-
-Based on the goals stated (latency, token efficiency, answer quality,
-maintainability), **Pattern G (Tiered Skills)** represents the most
-promising next step:
-
-1. **Maintainability** improves dramatically — zero code to maintain,
-   single source of truth for all content, no duplication between
-   specialists and vault.
-2. **Token efficiency** improves — only the active tier is in context;
-   no tool-catalog overhead, no hook injection tokens.
-3. **Portability** unlocks new surfaces — the same skill set works in
-   VS Code Copilot Chat, GitHub.com, or any agent framework.
-4. **Latency** should improve — no tool-call round trips for routing;
-   the model routes inline from the taxonomy.
-5. **Answer quality** is the main risk — deterministic routing (regex)
-   is lost, and BM25 search fallback is lost. The taxonomy must be
-   comprehensive enough that model-native routing achieves ≥ 90%
-   specialist accuracy.
-
-The recommended validation path:
-
-1. **Prototype** the root skill taxonomy and 2-3 specialist skills
-2. **Run Tier 2 benchmark** — measure routing accuracy with model-only
-   routing vs regex+BM25
-3. If routing accuracy ≥ 90%, proceed with full conversion
-4. If routing accuracy < 90%, fall back to **Pattern H** (keep extension
-   for routing, restructure content as skills)
+* It does **not** claim G is better than F/F' on answer quality. The
+  measured per-axis deltas are within paraphrase noise.
+* It does **not** claim F is obsolete. F is the simplest possible
+  shape; for a single-domain assistant it is still appropriate.
+* It does **not** claim CKB's vault contribution is unimportant. G
+  inherits the vault from CKB; the +14 pp Tier 2 recall gain
+  measured between PSKB and CKB carries forward.
+* It does **not** claim G eliminates the need for content thinning.
+  See §7.4 for the open work on the inherited duplication.
+* It does **not** claim Patterns H, I, or any unmeasured alternative
+  is worse than G. They have simply not been measured.
 
 ---
 
-## 5. Conclusion
+## 7. Engineering notes
 
-If you are building an expert-agent system on the Copilot CLI today, the
-**parameterized-loader + lexical-search hybrid (Pattern F')** is, on the
-evidence collected here, the right starting point for **maximum recall within
-the CLI extension model**:
+This section captures issues discovered during the measurement work in
+§4. They are operational findings, not architectural patterns; they
+are documented here so the file remains a complete record of what is
+known about each pattern's current implementation.
 
-* It sidesteps the **128-tool limit** without losing per-skill granularity.
-* It avoids **vector-DB ops overhead** in a domain where BM25 wins on
-  noun-heavy queries anyway.
-* It avoids **multi-agent orchestration latency** in a domain where one
-  question = one specialist.
-* It keeps the knowledge base **editable by humans** in plain markdown, with
-  cross-references that double as an Obsidian graph.
+### 7.1 CIDR worked example for vnet-architect
 
-The benchmark harness in `benchmarks/` is reusable: drop in a different
-domain (security desk, data desk, devops desk), regenerate the vault, and
-the same three-tier comparison runs.
+**Finding.** The Phase 2 benchmark caught a single-query regression
+where `vnet-architect` produced an incorrect CIDR split because the
+specialist's `Step 4` guidance left subnet-size arithmetic implicit.
 
-However, if the goals shift toward **portability, maintainability, and
-zero-code distribution**, Pattern G (Tiered Skills) or Pattern H (Hybrid)
-from [section 4](#4-alternative-architectures-under-consideration) deserve
-serious evaluation. The tiered-skills approach eliminates the extension
-runtime entirely, makes the content portable across Copilot surfaces, and
-resolves the content-duplication problem by construction. The trade-off is
-the loss of deterministic routing — an empirically testable risk.
+**Fix.** Added an explicit **Step 4.5 worked subnet template** to
+[`skills/network-desk/specialists/vnet-architect.md`](skills/network-desk/specialists/vnet-architect.md)
+and two positive guardrails (#6 and #7) covering /24 → /27 splits and
+the AzureBastionSubnet minimum /26.
 
-> **Update (Pattern G now empirically validated).** A live A/B benchmark
-> against the upstream CLI extension showed Pattern G is **~43% faster on
-> p50 wall time, uses ~44% fewer tool calls, and ties on answer quality**
-> on a 15-query sample. See [§ 6](#6-live-ab-benchmark--pattern-g-vs-upstream-copilot-cli-sessions)
-> for the full data. The deterministic-routing risk did not materialize:
-> the LLM routed correctly on 14/15 queries and made a *better* call than
-> the deterministic system on the 15th. **Pattern G is now the recommended
-> direction for the next major iteration** of this fork.
+**Status.** Closed. No further work expected.
 
-#### Known open work in this fork
+### 7.2 Routing coverage (ARCH_BYPASSED)
 
-The CKB implementation as it ships today is not the fully realised form of
-Pattern F'. The most important remaining piece is the **selective
-specialist thinning** described in [3.5](#35-the-trade-offs-accepted) and
-[3.8](#38-do-we-need-specialists-at-all-ckb-f-vs-a-vault-only-single-agent-c):
-the 14 HEAVY-overlap skills can be aggressively reduced to
-persona + workflow + output spec + pointers; the 34 MODERATE skills
-need section-by-section work; the 76 LIGHT skills carry
-specialist-unique workflow with no vault counterpart and should be
-left as-is (or have their content ported to the vault before any
-thinning). Until that pass lands, edits to the overlapping content
-have to be made in two places. The architecture is sound and the
-benchmarks show the recall win; the maintenance ergonomics still need
-the cleanup pass.
+**Finding.** Six of 32 queries in Phase 2 of the Pattern G benchmark
+matched no specialist regex in the upstream PSKB extension. The
+`onUserPromptSubmitted` hook silently does nothing on a regex miss, so
+no specialist guidance reaches the model. Verdict tag `ARCH_BYPASSED`
+in the harness.
 
----
+**Mitigation.** Broadened 7 of the 20 regexes in
+[`skills/network-desk/SKILL.md`](skills/network-desk/SKILL.md) and
+expanded `report-builder` + `pricing-analyst` trigger sets. The 6
+problem queries from Phase 2 now route correctly.
 
-### See also
+**Architectural read.** This is not the *root* fix — deterministic
+regex routing degrades silently on novel phrasing by design. The
+permanent fix is either Pattern H's hybrid fallback (regex match if
+possible, LLM router otherwise) or migrating fully to Pattern G's
+LLM-native routing.
 
-* [`benchmarks/results-tier1.md`](benchmarks/results-tier1.md) — static + microbench detail
-* [`benchmarks/results-tier2.md`](benchmarks/results-tier2.md) — retrieval recall detail (49 queries)
-* [`benchmarks/results-tier3.md`](benchmarks/results-tier3.md) — live LLM-judge A/B detail (10 prompts)
-* [`benchmarks/ab/results/_summary/summary.md`](benchmarks/ab/results/_summary/summary.md) — Section 6 raw data
-* [`README.md`](README.md) — installation and usage
-* [`CHANGELOG.md`](CHANGELOG.md) — release notes
+**Status.** Mitigated for the known query set; structurally
+unresolved.
 
----
+### 7.3 Hot-page caching evaluation
 
-## 6. Live A/B benchmark — Pattern G vs Upstream (Copilot CLI sessions)
+**Finding.** A proposed optimisation to Pattern G was to cache the
+*top N* most-frequently-accessed vault pages directly in the landing
+skill's static context, on the assumption that this would eliminate
+common `cn_search` round-trips.
 
-The earlier tier-3 benchmarks compared CKB to PSKB through synthetic
-prompt-and-judge harnesses. The numbers below come from a **real
-end-to-end Copilot CLI A/B run** comparing the **tiered-skill Pattern G
-prototype** against **the upstream `dmauser/network-desk` CLI
-extension**, both invoked through the same `copilot` subprocess.
+**Measurement.** In Phase 2 of the Pattern G benchmark, **6 of 32
+(19 %)** runs opened a vault page during the session. Among those,
+hits concentrated on three pages.
 
-### 6.1 Methodology
+**Decision.** Deferred. A 19 % hit rate does not justify the ~50–
+100 KB context-cost of inlining a hot-page set on every cold start.
+The decision should be revisited if and when the workload shifts to
+something more vault-heavy (e.g. an audit-focused test set).
 
-* **Harness:** `benchmarks/ab/copilot_bench.py` — three subcommands
-  (`run`, `judge`, `report`).
-* **Variants:**
-  * **Pattern G** — `skills/network-desk/` at the repo root, installed to
-    `~/.copilot/skills/network-desk/` for each run, removed
-    after. Three specialist sub-skills (`cn_vnet`, `cn_fw`, `cn_hyb`).
-  * **Upstream** — `dmauser/network-desk @ 86a81ad` checked out as a git
-    worktree under `benchmarks/ab/temp/upstream/` and installed via
-    `node bin/cli.mjs init` (user-level extension, requires
-    `--experimental` flag).
-* **Answer model:** `gpt-5.5` at `medium` effort. Same prompt suffix on
-  every query forbids writing files / running shells / generating
-  diagrams to keep the comparison about *answer quality*, not artifact
-  generation.
-* **Containment:** `--excluded-tools` list of ~30 entries strips every
-  diagram / file-write skill and every shell tool from the session so
-  neither variant can wander into the broader Copilot tool universe.
-* **Judge:** `claude-opus-4.6` at `high` effort. Answer order
-  (`pattern-g` / `upstream`) randomized per-query via `random.Random(qid)`
-  to neutralize position bias. Verdict is a single-line JSON object with
-  five 0-10 axes plus `winner ∈ {A, B, tie}`.
-* **Query set:** 15 of the 49 queries in `benchmarks/queries.json` that
-  fall inside Pattern G's three-specialist coverage
-  (`cn_vnet ∪ cn_fw ∪ cn_hyb`). Categories: 8 `regex-easy`, 5
-  `vendor-specific`, 3 `cloud-service`.
+**Status.** Closed as "deferred with rationale". Re-open if workload
+profile changes.
 
-All raw outputs live under `benchmarks/ab/results/{pattern-g,upstream,judge,_summary}/`.
+### 7.4 Paraphrase robustness and recommendation hedge
 
-### 6.2 Headline numbers
+**Finding.** The §4.4 paraphrase study showed that single-pass
+per-axis deltas of ≤0.3 are within paraphrase noise. Three of five
+base verdicts flipped between paraphrases.
 
-| metric | pattern-g | upstream | delta |
-|---|---|---|---|
-| queries run | 15 | 15 | — |
-| **p50 wall time** | **65.5 s** | 114.1 s | **–43%** |
-| **p95 wall time** | **98.1 s** | 189.9 s | **–48%** |
-| **p50 LLM API time** | **26.3 s** | 32.3 s | **–19%** |
-| **mean output tokens** | **897** | 966 | **–7%** |
-| mean premium requests | 7.5 | 7.5 | 0% |
-| **mean tool calls / query** | **2.0** | 3.6 | **–44%** |
-| mean `cn_*` tool calls | 0.0 | 2.3 | n/a |
-| contaminated runs (wrote files) | 0 | 0 | ✓ both clean |
-| architecture-used rate | 93% | 100% | — |
-| network-desk skill load rate | 100% | — | — |
-| network-desk skill invoke rate | 93% | — | — |
+**Action.** The §6 recommendation was rewritten as a hedged
+recommendation:
 
-The session-duration win is the headline result: **median sessions
-finish in ~half the wall time and use ~half the tool calls**, with
-indistinguishable answer quality (see 6.3). The LLM-API portion of the
-budget shrinks too (–19%), but the bigger wins come from removing
-extension-side parameterized-tool round-trips that don't exist in
-Pattern G (it dispatches through a single `skill` tool invocation).
+* G's cost wins (−26 % to −55 %) are far above paraphrase noise → safe
+  to claim.
+* G's quality wins (0.1–0.3 axis deltas) are within paraphrase noise →
+  honest claim is *"parity"*, not *"better"*.
+* Two cross-specialist base queries (`mcn-service-mapping`,
+  `price-er-vs-vpn`) consistently favoured PSKB across paraphrases →
+  explicit caveat in §6.3 ("use F'/H for cross-specialist-heavy
+  workloads").
 
-A side-finding worth highlighting: pattern-g declined to invoke the
-network-desk skill on **one** trivial query (`vnet-subnet-math` — "how
-many usable IPs in a /27?"). It answered directly in 55 s for 113
-tokens. Upstream's regex routing forced the full `cn_route + cn_role`
-dance for the same question, taking 60 s and 571 tokens. Letting the
-LLM decide when *not* to load a specialist is an unanticipated
-efficiency lever that the deterministic-routing approach forfeits.
+**Status.** Closed. The aggregator script
+[`benchmarks/paraphrase_stats.py`](benchmarks/paraphrase_stats.py) and
+the paraphrased query set
+[`benchmarks/queries-paraphrased.json`](benchmarks/queries-paraphrased.json)
+are committed so future re-runs can extend the study.
 
-### 6.3 Judge verdict (head-to-head)
+### 7.5 Inherited specialist↔vault duplication
 
-* **Pattern G wins: 6** (`fw-vendor-cisco`, `fw-vendor-opnsense`,
-  `fw-vendor-palo`, `fw-vendor-vyos`, `hyb-dx-macsec`,
-  `vnet-peering-transitivity`)
-* **Upstream wins: 7** (`fw-ha`, `fw-rule-audit`, `fw-vendor-fortigate`,
-  `hyb-bgp-design`, `hyb-er-fastpath`, `vnet-ip-planning`,
-  `vnet-subnet-math`)
-* **Ties: 2** (`hyb-gcp-interconnect`, `vnet-hub-spoke`)
+**Finding.** Even after Pattern G's specialist thinning, a measurable
+subset of skills inherited from CKB still restate vault content. The
+classification (14 HEAVY / 34 MODERATE / 76 LIGHT) was established
+with `tools/skill-vault-overlap.mjs`.
 
-| axis | pattern-g | upstream |
-|---|---|---|
-| technical_accuracy | 8.3 | 8.4 |
-| completeness | 7.9 | 7.9 |
-| actionability | 7.5 | 7.7 |
-| clarity | 8.2 | 8.0 |
-| conciseness | 7.4 | 6.9 |
+**Mitigation underway.** Selective thinning: 14 HEAVY skills first
+(highest ROI), then 34 MODERATE section-by-section. The 76 LIGHT
+skills carry genuine specialist workflow with no vault counterpart and
+should stay inline.
 
-The per-axis deltas are within **±0.5 on a 0-10 scale** on every
-dimension — a statistical tie in answer quality on this 15-query
-sample. Pattern G's only real quality regression was a CIDR
-hallucination in `vnet-ip-planning` (the answer used invalid
-5-octet notation like `10.x.y.1.0/24`); that's a content-quality
-issue in the network-desk skill itself, not an architectural defect
-— the upstream extension's `cn_vnet` specialist content happens to
-not trip that particular failure mode.
-
-### 6.4 What the numbers mean for the architecture choice
-
-The benchmark validates the central claim of Section 4.1: **Pattern G
-matches the upstream extension on answer quality while cutting wall
-time roughly in half and tool calls by 44%**, all while dropping the
-JavaScript extension runtime entirely. The architecture is portable
-across Copilot surfaces (CLI, Chat, future surfaces), needs no
-`--experimental` flag, and has nothing analogous to the 128-tool API
-ceiling that drove the original parameterized-tool design.
-
-The trade-off identified in Section 5's "Conclusion" — *loss of
-deterministic routing* — turned out to cost essentially nothing on this
-sample: the LLM routed correctly on 14/15 queries, and on the 15th it
-made the right call (skip routing entirely for a trivial question) that
-the deterministic system gets wrong. **Pattern G is now the
-recommended architecture for the next major iteration.**
-
-### 6.5 Should secondary skills carry their own knowledge bases?
-
-A natural follow-up: would Pattern G work better if each secondary
-skill (`cn_vnet`, `cn_fw`, etc.) shipped with its own private vault
-instead of leaning on the consolidated `vault/` corpus the parent
-skill exposes? Short answer: **no, not at the leaf level — but
-strategically caching "hot pages" inside each secondary is the right
-incremental refinement.**
-
-**Where decentralizing the KB helps:**
-
-* **Cuts indirection on the hot path.** Today a leaf-skill that
-  knows it always reads three specific vault pages still has to
-  re-discover them through `cn_search` / pointer traversal. Co-locating
-  those pages with the skill lets the SKILL.md cite local paths
-  directly, removing one round-trip per query.
-* **Cleaner ownership boundaries.** A vault edit to a Topics/Firewall
-  page today silently affects every firewall vendor skill. Per-skill
-  KBs would let a `palo-alto` skill evolve without touching
-  `fortigate`'s bytes.
-* **Better search relevance.** BM25 scoped to a single sub-tree
-  beats BM25 on the global corpus — a Palo-specific query is less
-  likely to return Cisco-leaning hits.
-
-**Where decentralizing the KB hurts:**
-
-* **Re-introduces duplication of cross-vendor principles.** The vault's
-  whole design splits content along a two-axis convention
-  (`Topics/Firewall` = cross-vendor principles, `Vendors/<id>.md` =
-  vendor-specific syntax) precisely to avoid restating "what is a
-  zone-based firewall?" in 14 vendor pages. Decentralizing reintroduces
-  that exact maintainability problem.
-* **The tiered-loading model already amortizes the cost.** Tier 0
-  stays cheap and the secondary loads lazily on demand. If the
-  secondary then carries its own KB, the per-leaf load gets heavier,
-  not lighter — you re-amortize at the wrong layer.
-* **Search infrastructure must be replicated** or stay centralized
-  while pages move (which breaks indexing).
-
-**Recommended middle ground — "hot-page caching, not partitioning":**
-
-1. **Keep the consolidated vault as canonical knowledge** — it remains
-   the single source of truth for cross-cutting content
-   (`Topics/`, `Vendors/`, `Troubleshooting/`).
-2. **Let each secondary skill package its 3–5 "hot pages" inline**
-   under `skills/firewall/reference/`. At build time these are copied
-   or symlinked from the canonical vault. Loading the secondary
-   skill auto-loads the 90% case without extra tool calls.
-3. **The root skill (`network-desk`) keeps the vault index and
-   `cn_search`** so unanticipated cross-vendor questions still
-   resolve through global search.
-
-This preserves the vault's single source of truth, makes the
-secondary skills self-contained for the common path, and avoids
-re-fragmenting the corpus. The change is mechanical (a sync step in
-the skill build pipeline) rather than architectural, and can ship
-independently of the Pattern G rollout.
-
-### 6.6 Open follow-up items
-
-* **Expand query coverage.** Pattern G's current 3 specialists cover
-  only 15/49 benchmark queries. Adding 17 more secondary skills to
-  reach upstream's 20-specialist parity would also let the benchmark
-  exercise the full 49-query suite. **→ Closed in §7.**
-* **Fix the CIDR hallucination** in the `cn_vnet` SKILL.md before
-  graduating Pattern G out of prototype status — the
-  `vnet-ip-planning` loss was a content issue, not an architecture
-  issue, and is the only meaningful quality regression on the
-  sample. **→ Closed in §7.5 (item 1).**
-* **Implement hot-page caching** per 6.5(2) — measure whether it
-  closes the small `actionability` and `technical_accuracy` gap on
-  the next benchmark round. **→ Closed in §7.5 (item 3, deferred
-  with empirical justification).**
-* **Re-run the benchmark with a larger n** (3–5 paraphrases per
-  query) to tighten confidence intervals on the per-axis judge
-  scores. The current sample is just sufficient to say "indistinguishable
-  on quality" but not to detect a 0.3-point delta on any single axis.
-  **→ Closed in §7.5 (item 4 — paraphrase smoke study, 5 bases × 2
-  paraphrases).**
+**Status.** Tracked in [`tools/reports/skill-thinning-plan.md`](tools/reports/skill-thinning-plan.md);
+the work is open and benefits both F' and G equally.
 
 ---
 
-## 7. Re-benchmark with full 20-specialist coverage
+## 8. See also
 
-Section 6 ran the prototype against the upstream extension with only
-three Pattern G specialists implemented (`cn_vnet`, `cn_fw`, `cn_hyb`),
-covering 15 of 49 benchmark queries. Once Pattern G was extended to
-all 20 specialists (commit `12dbb2e`, "skills(specialists): complete
-tier-1 coverage"), the benchmark was rerun on a representative 17-query
-sample — one query per previously-untested specialist class
-(`cn_lb`, `cn_dns`, `cn_pl`, `cn_price`, `cn_sase`, `cn_nsec`,
-`cn_vwan`, `cn_iac`, `cn_ipv6`, `cn_cnet`, `cn_cdn`, `cn_nmon`,
-`cn_mcn`, `cn_ncap`, `cn_nauto`, `cn_ntsh`, `cn_doc`). The original
-15 results were retained via `--skip-existing`, giving a combined
-**32-query corpus**. Same harness, same answer/judge model, same
-containment list, randomized A/B answer order, generated
-`2026-06-03T09:27:22+00:00`.
-
-### 7.1 Headline numbers — 32-query rerun
-
-| metric | pattern-g | upstream | delta |
-|---|---|---|---|
-| queries run | 32 | 32 | — |
-| **p50 wall time** | **67.8 s** | 92.1 s | **–26%** |
-| **p95 wall time** | **104.4 s** | 177.3 s | **–41%** |
-| p50 LLM API time | 28.4 s | 31.1 s | –9% |
-| mean output tokens | 930 | 942 | –1% |
-| mean premium requests | 7.5 | 7.5 | 0% |
-| **mean tool calls / query** | **2.0** | 4.4 | **–55%** |
-| mean `cn_*` tool calls | 0.0 | 3.0 | n/a |
-| contaminated runs | 0 | 0 | ✓ both clean |
-| architecture-used rate | 94% | 100% | — |
-| network-desk skill load rate | 100% | — | — |
-| network-desk skill invoke rate | 94% | — | — |
-
-The latency win shrank a little compared to §6.2 (–26% p50 vs –43%
-before), but **the tool-call efficiency gap widened** (–55% vs –44%) —
-adding more specialists made the upstream extension's per-query
-`cn_route` → `cn_role` → `cn_skill` dispatch chain more visible
-without imposing the same overhead on Pattern G, which still resolves
-through a single `skill` invocation per query.
-
-A new failure-mode appears in the rerun: **one query (`doc-xlsx-report`)
-bypassed the skill entirely** (`ARCH_BYPASSED` in the JSONL trace).
-The model generated a competent Excel-design answer without consulting
-the `report-builder` specialist content. The judge still rated this
-answer as a Pattern G win, but it's worth flagging as a Pattern G
-risk: when the question reads "generic" enough, the LLM may decline
-to load any specialist and lose access to the specialist's curated
-references and guardrails. This is the flip side of the §6.2 "Pattern G
-chose not to invoke for trivial subnet math" finding, and it argues
-for **lightly nudging** specialist invocation in the root SKILL.md when
-a domain match is present (rather than leaving it fully to LLM
-discretion).
-
-### 7.2 Judge verdict — combined 32-query corpus
-
-* **Pattern G wins: 16** — up from 6 in §6.3 (`cdn-cloudfront`,
-  `doc-xlsx-report`, `lb-l4-vs-l7`, `mcn-service-mapping`,
-  `mon-flow-logs`, `nauto-drift`, `nsec-ddos`, `pl-endpoint-dns`,
-  `price-egress`, `sase-ztna` + 6 prior firewall/hybrid/VNet wins)
-* **Upstream wins: 9** — `cap-throughput`, `vwan-routing-intent`
-  added to the prior 7
-* **Ties: 7** — `cnet-cni`, `dns-private-resolver`, `iac-terraform-hub`,
-  `ipv6-migration`, `ntsh-mtu` added to the prior 2
-
-That's **a 10-2-5 split on the 17 new queries alone** — and the
-combined 16-9-7 verdict swings Pattern G from a statistical tie at
-15 queries to a **clear majority across 32 queries**.
-
-| axis | pattern-g | upstream | delta |
-|---|---|---|---|
-| technical_accuracy | 8.4 | 8.5 | –0.1 |
-| **completeness** | **8.2** | 7.9 | **+0.3** |
-| **actionability** | **7.9** | 7.8 | **+0.1** |
-| **clarity** | **8.3** | 8.2 | **+0.1** |
-| **conciseness** | **7.4** | 7.2 | **+0.2** |
-
-Pattern G now leads on **four of five axes** (vs three in §6.3),
-losing only `technical_accuracy` by 0.1 points — within sample noise.
-The `completeness` swing (+0.3) is the most interesting: the newly
-authored specialist files (averaging ~6.5 KB / ~120 lines each, with
-verified Tier-2 reference links and consistent cross-specialist
-delegation notes) are evidently more useful as the model's working
-context than the upstream extension's parameterized tool dispatch
-through smaller per-skill markdown chunks.
-
-### 7.3 What changed between §6 and §7
-
-1. **20 specialist files now exist** (was 3). Each follows the same
-   template: identity → product expertise → workflow → cross-cloud
-   quick reference table → Tier-2 references → guardrails. Sizes
-   range 5.4–7.8 KB.
-2. **All 181 reference-page links resolve** under the canonical
-   `skills/network-desk/reference/` vault (verified by
-   `benchmarks/link_check.py`, which was extended in this iteration
-   to also cross-check the SKILL.md taxonomy table against on-disk
-   specialist files — catches both missing files and orphan files).
-3. **No vault changes were needed**. Specialists added in this pass
-   leaned exclusively on existing `Topics/`, `Services/`, `Vendors/`,
-   and `Patterns/` content; no new vault pages were authored.
-
-### 7.4 Updated recommendation
-
-Pattern G **graduates from prototype to recommended architecture** for
-the next major iteration. The full 20-specialist build hits every
-quality target the §6 prototype demonstrated, with the addition of:
-
-* A **clearer majority win** on the head-to-head judge verdict
-  (16-9-7 vs 6-7-2 at prototype scale).
-* **Tool-call efficiency that widens with scale** (–55% at 32 queries
-  vs –44% at 15), suggesting the extension-style parameterized-tool
-  dispatch cost grows with specialist count while Pattern G's
-  single-skill dispatch stays flat.
-* **One identified architectural risk** (`ARCH_BYPASSED` on
-  `doc-xlsx-report`) that is straightforwardly addressed by
-  strengthening domain-trigger language in the root SKILL.md
-  taxonomy table.
-
-The §6.5 conclusion stands: keep the consolidated vault as canonical
-knowledge, optionally add per-specialist hot-page caching as an
-incremental refinement. The §6.6 follow-ups that remain open are
-(a) the `vnet-ip-planning` CIDR hallucination (content fix, not
-architectural), and (b) per-axis statistical confidence — both
-addressable in a larger-n follow-up benchmark.
-
-### 7.5 Open-item closures (post-§7.4)
-
-This subsection closes out every follow-up item left open by §6.6 and
-§7.4. Each entry names the artefact, the symptom, the fix, and the
-evidence.
-
-#### 1. CIDR hallucination in `vnet-architect` *(content fix)*
-
-* **Symptom (§6.3 / §7.4):** The §6 benchmark showed
-  `vnet-ip-planning` was Pattern G's only meaningful quality
-  regression — the model emitted invalid CIDR strings such as
-  `10.1.2.1.0/24` in worked examples.
-* **Root cause:** A negation guardrail (`NEVER write
-  10.1.2.1.0/24`) in `specialists/vnet-architect.md` provided the
-  exact malformed token, which the LLM then latched onto when
-  generating examples (classic LLM negation-failure pattern).
-* **Fix:** Added **Step 4.5 "Worked Subnet Template"** with a
-  fully-worked positive example
-  (`10.50.0.0/22 → /26 GatewaySubnet, /26 AzureFirewallSubnet, ...`),
-  removed the negation, and added two positive-framed guardrails
-  (#6 "Validate every octet ≤ 255 and CIDR has exactly four
-  octets", #7 "If asked for a sample, copy a row from the §4.5
-  template; never invent new octets in narrative answers").
-* **Evidence:** No tooling regression — `benchmarks/link_check.py`
-  passes 181/181 reference links + 20/20 taxonomy entries after
-  the edit. Quality validation will land on the next full
-  benchmark sweep.
-
-#### 2. `ARCH_BYPASSED` on `doc-xlsx-report` *(routing fix)*
-
-* **Symptom (§7.1):** The model answered "build an Excel workbook
-  documenting a connectivity audit" without consulting the
-  `report-builder` specialist — `network_skill_invoked=false` in
-  the trace. Judge still scored it a Pattern G win, but the
-  specialist's curated workflow was bypassed.
-* **Root cause:** `report-builder`'s trigger column in the
-  `SKILL.md` taxonomy was narrowly worded ("report layout, exec
-  summary"), so the model didn't pattern-match "build an Excel
-  workbook" or "create a runbook" prompts. Compounded by
-  permissive routing rule wording ("consider invoking …").
-* **Fix:** (a) Expanded `report-builder` triggers to cover Excel,
-  xlsx, spreadsheet, CSV, runbook, deliverable, design document,
-  audit report; (b) expanded `pricing-analyst` triggers to cover
-  per-resource cost and cost summary; (c) rewrote the seven
-  routing rules — tightened rule 4 to trivial lookups only, added
-  rule 5 ("ALWAYS invoke for generative/document/audit tasks")
-  and rule 7 ("Bias toward routing when in doubt").
-* **Evidence:** `benchmarks/link_check.py` still passes 181/181 +
-  20/20 after the SKILL.md changes.
-
-#### 3. Hot-page caching per §6.5(2) — *deferred with data*
-
-* **Question (§6.5):** Would caching frequently-referenced vault
-  pages directly into each specialist file close the small
-  `actionability` / `technical_accuracy` gap?
-* **Empirical:** Across the 32 Pattern G result JSONs from §7,
-  only **6/32 (19%) actually opened a reference page via `view`**
-  during the run — concentrated on firewall-vendor, DNS, and
-  network-automation queries. The other 81% answered from the
-  specialist file alone.
-* **Decision:** Defer. The benefit covers <20% of queries while
-  the cost is permanent: duplicated content across multiple
-  specialist files plus a sync step every time a vault page
-  changes. The existing vault-as-single-source-of-truth has
-  measurable maintenance value (one edit propagates everywhere)
-  that a 19%-of-queries latency optimisation does not justify.
-* **Reopen criteria:** If a future benchmark shows
-  `technical_accuracy` regressing >0.3 points specifically on
-  queries that touch reference pages, revisit per-specialist
-  caching for that subset only (not blanket).
-
-#### 4. Larger-n paraphrase study *(tooling + smoke run)*
-
-* **Question (§6.6 / §7.4):** Are the per-axis judge scores
-  statistically distinguishable, or noise?
-* **Tooling shipped:** `benchmarks/queries-paraphrased.json`
-  (5 base queries × 2 hand-written paraphrases = 10 prompts).
-  `benchmarks/ab/copilot_bench.py` now accepts `--queries-file`
-  on both `run` and `judge` subcommands. Same JSONL trace,
-  judge, and aggregation paths as the §7 corpus.
-  `benchmarks/paraphrase_stats.py` rolls verdicts and per-axis
-  scores up by `base_id` and reports paraphrase-delta means.
-* **Smoke results (10 paraphrase pairs):**
-
-  | base query | p1 winner | p2 winner | verdict |
-  |---|---|---|---|
-  | fw-rule-audit | upstream | tie | **FLIPPED** |
-  | lb-snat-exhaustion | upstream | pattern-g | **FLIPPED** |
-  | mcn-service-mapping | upstream | upstream | consistent |
-  | price-er-vs-vpn | upstream | upstream | consistent |
-  | vnet-hub-spoke | pattern-g | tie | **FLIPPED** |
-
-  Single-paraphrase winner flipped on **3 of 5 base queries**.
-  Per-axis paraphrase delta: pattern-g mean **0.96** (max 4),
-  upstream mean **0.84** (max 2). Upstream is marginally more
-  paraphrase-stable.
-
-  Averaged across both paraphrases:
-
-  | axis | pattern-g | upstream | delta |
-  |---|---|---|---|
-  | technical_accuracy | 8.30 | 8.30 | 0.0 |
-  | completeness | 8.00 | 8.30 | –0.3 |
-  | actionability | 7.40 | 7.70 | –0.3 |
-  | clarity | 8.00 | 8.20 | –0.2 |
-  | conciseness | 7.30 | 7.40 | –0.1 |
-
-* **Headline finding:** **Single-paraphrase per-axis deltas
-  ≤0.3 points are within paraphrase noise** (mean delta is
-  ~0.9 points per axis). The §7.2 per-axis verdict
-  ("Pattern G leads on four of five axes by 0.1–0.3 points")
-  cannot be confirmed at n=1 paraphrase. The §7.2
-  *aggregated* head-to-head (16-9-7) is more robust because
-  it averages across 32 different queries, but a given
-  query's verdict is sensitive to phrasing.
-* **Open question raised by the smoke run:** On these 5
-  bases — averaged across paraphrases — upstream slightly
-  edges Pattern G (4/5 axes by ≤0.3 points). The 5 bases
-  intentionally span 5 specialist classes; the two
-  cross-specialist queries (`mcn-service-mapping`,
-  `price-er-vs-vpn`) consistently favour upstream. One
-  hypothesis: Pattern G's single-skill resolution may
-  under-serve queries that span 2+ specialists. Validate
-  before claiming Pattern G is the universal winner.
-* **Recommended next step (not blocking this iteration):**
-  Extend the paraphrase set to 3 paraphrases × all 32 base
-  queries (~96-query, ~3-hour sweep) and use **majority-vote
-  per base** instead of per-paraphrase verdicts. The full
-  sweep command is:
-
-  ```pwsh
-  python benchmarks/ab/copilot_bench.py run --variant pattern-g `
-    --queries-file benchmarks/queries-paraphrased.json
-  python benchmarks/ab/copilot_bench.py run --variant upstream `
-    --queries-file benchmarks/queries-paraphrased.json
-  python benchmarks/ab/copilot_bench.py judge `
-    --queries-file benchmarks/queries-paraphrased.json
-  python benchmarks/paraphrase_stats.py
-  ```
-
-#### Recommendation status
-
-All §6.6 and §7.4 open items are now closed or actively
-deferred with data. The §7.4 recommendation
-("Pattern G graduates from prototype to recommended
-architecture") **still holds at the corpus level (16-9-7),
-with one caveat surfaced by the paraphrase study**: per-query
-verdicts have meaningful phrasing sensitivity and
-cross-specialist queries may favour upstream. Treat the
-recommendation as "Pattern G is the recommended architecture
-for the typical query; cross-specialist queries warrant a
-larger-n re-run before claiming parity".
-
----
+* Upstream PSKB extension: <https://github.com/dmauser/network-desk>
+* Tier 1 (static + microbench): [`benchmarks/results-tier1.md`](benchmarks/results-tier1.md)
+* Tier 2 (labeled retrieval): [`benchmarks/results-tier2.md`](benchmarks/results-tier2.md)
+* Tier 3 (live A/B + LLM judge): [`benchmarks/results-tier3.md`](benchmarks/results-tier3.md)
+* Pattern G full re-bench (32 queries): [`benchmarks/results-pattern-g-vs-upstream-full.md`](benchmarks/results-pattern-g-vs-upstream-full.md)
+* Paraphrase study: [`benchmarks/queries-paraphrased.json`](benchmarks/queries-paraphrased.json),
+  [`benchmarks/paraphrase_stats.py`](benchmarks/paraphrase_stats.py)
+* Vault overlap tool and report: [`tools/skill-vault-overlap.mjs`](tools/skill-vault-overlap.mjs),
+  [`tools/reports/skill-thinning-plan.md`](tools/reports/skill-thinning-plan.md)
+* CLI compatibility verification (Pattern G runs through real
+  Copilot CLI sessions, see §4.1): [`benchmarks/ab/copilot_bench.py`](benchmarks/ab/copilot_bench.py)
