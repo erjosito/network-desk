@@ -1,0 +1,34 @@
+{
+  "id": "doc-xlsx-report",
+  "variant": "pattern-g",
+  "query": "build an Excel workbook summarizing per-resource networking costs",
+  "expected_specialists": [
+    "cn_doc",
+    "cn_price"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**Workbook blueprint: \u201cPer-Resource Networking Costs\u201d**\n\nCreate these sheets:\n\n| Sheet | Purpose |\n|---|---|\n| `Summary` | Executive rollup by subscription, resource group, service type, region, and month |\n| `Resource Costs` | One row per networking resource with cost metrics |\n| `Cost Drivers` | Bandwidth, data processing, NAT hours, public IPs, firewall policy, DNS zones, etc. |\n| `Tags` | Cost allocation by owner, app, environment, cost center |\n| `Assumptions` | Pricing notes, currency, billing period, exclusions |\n\n**`Resource Costs` columns**\n\n| Column |\n|---|\n| Billing Month |\n| Subscription |\n| Resource Group |\n| Resource Name |\n| Resource Type |\n| Region |\n| SKU / Tier |\n| Environment |\n| Owner |\n| Cost Center |\n| Usage Quantity |\n| Usage Unit |\n| Unit Price |\n| Pretax Cost |\n| Discount / Credit |\n| Net Cost |\n| Tags Present |\n| Notes |\n\n**Useful Excel formulas**\n\n```excel\nNet Cost = [@[Pretax Cost]] - [@[Discount / Credit]]\n```\n\n```excel\nCost per Resource Type = SUMIFS([Net Cost],[Resource Type],A2)\n```\n\n```excel\nCost per Cost Center = SUMIFS([Net Cost],[Cost Center],A2)\n```\n\n```excel\nTag Compliance = COUNTIF([Tags Present],\"Yes\") / COUNTA([Resource Name])\n```\n\n**Recommended pivots**\n\n| Pivot | Rows | Values |\n|---|---|---|\n| Monthly cost by service | Billing Month, Resource Type | Sum of Net Cost |\n| Top expensive resources | Resource Name, Resource Type | Sum of Net Cost |\n| Cost by owner | Owner, Cost Center | Sum of Net Cost |\n| Untagged spend | Tags Present, Resource Group | Sum of Net Cost |\n\n**Networking resource categories to include**\n\nVirtual Networks, VPN Gateways, ExpressRoute Gateways, Azure Firewall, NAT Gateway, Load Balancers, Application Gateways, Public IPs, Private DNS Zones, Traffic Manager, Front Door, Bastion, DDoS Protection, Private Endpoints, and bandwidth/data transfer charges.",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 590,
+    "api_duration_ms": 14968,
+    "session_duration_ms": 39677,
+    "wall_ms": 50077,
+    "premium_requests": 7.5,
+    "session_id": "11cc7cf4-f7b5-486e-bf6c-eb87455703ce",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T09:09:50+00:00"
+}

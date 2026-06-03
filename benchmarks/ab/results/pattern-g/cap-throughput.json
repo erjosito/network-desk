@@ -1,0 +1,37 @@
+{
+  "id": "cap-throughput",
+  "variant": "pattern-g",
+  "query": "size an Azure VPN gateway for 300 Mbps sustained throughput",
+  "expected_specialists": [
+    "cn_ncap"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**Recommendation:** use **Azure VPN Gateway VpnGw2AZ** for 300 Mbps sustained throughput.\n\n**Why:** VpnGw1 is rated above 300 Mbps in Azure benchmark figures, but 300 Mbps sustained leaves limited operational margin once IPsec overhead, packet size, latency, internet path variability, BGP, and failover are considered. **VpnGw2AZ** gives better headroom and zone redundancy.\n\n**Sizing rule of thumb:**\n\n| Requirement | Recommended SKU |\n|---|---|\n| Lab / non-critical 300 Mbps | VpnGw1 |\n| Production 300 Mbps sustained | **VpnGw2AZ** |\n| Strict 300 Mbps SLA, high growth, or many tunnels | VpnGw3AZ or ExpressRoute |\n\nUse **route-based VPN**, **IKEv2/IPsec**, **BGP if dynamic routing is needed**, and validate with realistic packet sizes and bidirectional traffic. If 300 Mbps must be contractually predictable, prefer **ExpressRoute**, because VPN throughput depends on internet path quality and encryption overhead.\n\nVerify final SKU limits against current Microsoft Azure VPN Gateway documentation before deployment.",
+    "tool_calls": [
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 680,
+    "api_duration_ms": 20883,
+    "session_duration_ms": 43996,
+    "wall_ms": 50718,
+    "premium_requests": 7.5,
+    "session_id": "51c3df6c-9a7e-4908-80f7-4c9fa15d8b87",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T09:07:18+00:00"
+}

@@ -1,0 +1,40 @@
+{
+  "id": "dns-private-resolver",
+  "variant": "upstream",
+  "query": "design Azure Private DNS Resolver for on-prem to cloud lookups",
+  "expected_specialists": [
+    "cn_dns"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the DNS specialist first, then answer with the specialist guidance.\n\n## Azure Private DNS Resolver design: on-prem \u2192 Azure private lookups\n\n**Recommended pattern:** centralize DNS resolution in a hub VNet using **Azure DNS Private Resolver inbound endpoints**. On-prem DNS servers use conditional forwarders to send Azure-private zones to those inbound endpoint IPs.\n\n### Target architecture\n\n1. **Hub VNet**\n   - Deploy Azure DNS Private Resolver.\n   - Create a dedicated subnet for the **inbound endpoint**.\n   - Link required **Azure Private DNS zones** to the hub VNet.\n\n2. **Private DNS zones**\n   - Link zones such as:\n     - `privatelink.blob.core.windows.net`\n     - `privatelink.database.windows.net`\n     - `privatelink.vaultcore.azure.net`\n     - Any internal zone, for example `cloud.contoso.com`\n   - Ensure Private Endpoint A records are registered in the correct zone.\n\n3. **On-prem DNS**\n   - Add conditional forwarders for Azure-private zones.\n   - Forward those zones to the Private Resolver inbound endpoint IPs.\n   - Do **not** forward all DNS traffic to Azure; only forward Azure-private namespaces.\n\n4. **Connectivity**\n   - On-prem DNS servers must reach the inbound endpoint over ExpressRoute or VPN.\n   - NSGs/UDRs must allow UDP/TCP 53 between on-prem DNS and the resolver subnet.\n\n5. **Spoke VNets**\n   - Link Private DNS zones to spokes if workloads in spokes also need direct Azure resolution.\n   - For central governance, keep zone ownership in the hub and automate Private Endpoint DNS registration.\n\n### Query flow\n\n`On-prem client \u2192 on-prem DNS \u2192 conditional forwarder \u2192 Azure DNS Private Resolver inbound endpoint \u2192 Azure Private DNS zone \u2192 private IP response`\n\n### Add outbound only if needed\n\nFor **Azure \u2192 on-prem** name resolution, also deploy an **outbound endpoint** and DNS forwarding ruleset pointing to on-prem DNS servers. For strictly on-prem \u2192 Azure lookups, inbound endpoints are the key component.\n\n### Key design rules\n\n- Use **conditional forwarding**, not broad forwarding.\n- Link every required Private DNS zone to the resolver hub VNet.\n- Keep resolver endpoints in dedicated subnets.\n- Use TCP and UDP 53.\n- Validate each Private Endpoint zone separately; Azure PaaS services use different `privatelink.*` zones.\n- Plan regional resiliency: DNS Private Resolver is regional, so critical multi-region designs should include resolver capability per region.\n\nDocs: [Azure DNS Private Resolver](https://learn.microsoft.com/azure/dns/dns-private-resolver-overview), [Azure Private Endpoint DNS configuration](https://learn.microsoft.com/azure/private-link/private-endpoint-dns).\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 1377,
+    "api_duration_ms": 38939,
+    "session_duration_ms": 69901,
+    "wall_ms": 91420,
+    "premium_requests": 7.5,
+    "session_id": "a8945c13-3ddc-474b-97af-c4afcc6c2454",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:26:03+00:00"
+}

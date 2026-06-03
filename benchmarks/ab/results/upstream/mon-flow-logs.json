@@ -1,0 +1,41 @@
+{
+  "id": "mon-flow-logs",
+  "variant": "upstream",
+  "query": "enable VNet flow logs and Traffic Analytics for east-west visibility",
+  "expected_specialists": [
+    "cn_nmon"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**Recommended approach:** enable **Azure VNet flow logs** at the VNet scope and connect them to **Traffic Analytics** via a Log Analytics workspace for east-west traffic visibility across subnets, spokes, and hub paths.\n\n1. Enable **Network Watcher** in each Azure region hosting VNets.\n2. Create or select a **storage account** for raw VNet flow logs.\n3. Create or select a **Log Analytics workspace** for Traffic Analytics.\n4. Enable **VNet flow logs** per VNet, not NSG flow logs, since NSG flow logs are legacy and retiring.\n5. Turn on **Traffic Analytics** with an appropriate processing interval, typically 10 or 60 minutes depending on freshness versus cost.\n6. Scope enablement first to critical east-west VNets: hub, shared services, production spokes, and inspection VNets.\n7. Review Traffic Analytics views for top talkers, allowed/denied flows, cross-subnet traffic, unexpected ports, and traffic bypassing inspection points.\n8. Add alerts for unusual east-west volume, denied-flow spikes, unexpected lateral movement ports, and traffic to/from sensitive subnets.\n\n**Cost and security notes:** flow logs create storage and Log Analytics ingestion costs, so start with high-value VNets and set retention intentionally. Restrict access to the storage account and workspace because flow logs expose topology, private IPs, ports, and communication patterns.\n\n**References:** Microsoft Learn \u2014 Azure Network Watcher VNet flow logs and Traffic Analytics.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "report_intent",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 717,
+    "api_duration_ms": 30650,
+    "session_duration_ms": 67585,
+    "wall_ms": 92702,
+    "premium_requests": 7.5,
+    "session_id": "0652bfd7-2d13-4a44-9c9c-5f1a4f12a7da",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:41:05+00:00"
+}

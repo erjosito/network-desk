@@ -1,0 +1,45 @@
+{
+  "id": "cap-throughput",
+  "variant": "upstream",
+  "query": "size an Azure VPN gateway for 300 Mbps sustained throughput",
+  "expected_specialists": [
+    "cn_ncap"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**Recommended minimum:** `VpnGw1AZ` for 300 Mbps sustained site-to-site VPN.\n\n300 Mbps at a 60% sustainable utilization target requires about **500 Mbps rated capacity**; Azure `VpnGw1`/`VpnGw1AZ` is rated up to about **650 Mbps aggregate throughput**, so it fits with modest headroom. For production-critical workloads, growth, heavy encryption, or multiple tunnels, use **`VpnGw2AZ`** for safer headroom.\n\n**Sizing note:** Azure VPN Gateway throughput is benchmark/aggregate, not a guaranteed per-tunnel rate; real throughput depends on packet size, IPsec policy, internet path, active-active design, and on-prem VPN device capacity.\n\nReference: Azure VPN Gateway SKUs \u2014 https://learn.microsoft.com/azure/vpn-gateway/vpn-gateway-about-vpngateways#gwsku\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_route",
+      "cn_route",
+      "report_intent",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 770,
+    "api_duration_ms": 28559,
+    "session_duration_ms": 54198,
+    "wall_ms": 77063,
+    "premium_requests": 7.5,
+    "session_id": "b0199498-5c66-4615-9b11-4bbd688f554c",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_route",
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:45:18+00:00"
+}

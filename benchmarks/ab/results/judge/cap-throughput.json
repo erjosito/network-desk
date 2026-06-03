@@ -1,0 +1,57 @@
+{
+  "id": "cap-throughput",
+  "query": "size an Azure VPN gateway for 300 Mbps sustained throughput",
+  "category": "regex-easy",
+  "expected_specialists": [
+    "cn_ncap"
+  ],
+  "order": {
+    "A": "pattern-g",
+    "B": "upstream"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 7,
+      "completeness": 8,
+      "actionability": 7,
+      "clarity": 8,
+      "conciseness": 6
+    },
+    "B": {
+      "technical_accuracy": 8,
+      "completeness": 7,
+      "actionability": 8,
+      "clarity": 8,
+      "conciseness": 8
+    },
+    "winner": "B",
+    "reason": "B gives precise throughput rating (650 Mbps), uses defensible 60% utilization rule, and includes doc link; A understates VpnGw1 capacity and over-engineers without clear math"
+  },
+  "winner_variant": "upstream",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":7,\"completeness\":8,\"actionability\":7,\"clarity\":8,\"conciseness\":6},\"B\":{\"technical_accuracy\":8,\"completeness\":7,\"actionability\":8,\"clarity\":8,\"conciseness\":8},\"winner\":\"B\",\"reason\":\"B gives precise throughput rating (650 Mbps), uses defensible 60% utilization rule, and includes doc link; A understates VpnGw1 capacity and over-engineers without clear math\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 941,
+    "api_duration_ms": 20208,
+    "session_duration_ms": 45012,
+    "wall_ms": 54717,
+    "premium_requests": 3.0,
+    "session_id": "caa8dfd1-bf91-4f83-b6c2-5e3b539d1f16",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T09:10:58+00:00"
+}

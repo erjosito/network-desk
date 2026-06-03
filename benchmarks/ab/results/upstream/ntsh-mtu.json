@@ -1,0 +1,40 @@
+{
+  "id": "ntsh-mtu",
+  "variant": "upstream",
+  "query": "intermittent TCP resets \u2014 could it be MTU and PMTUD black holes",
+  "expected_specialists": [
+    "cn_ntsh"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the appropriate network-desk specialist and keep the answer concise.\n\nYes \u2014 **MTU / PMTUD black holes are a plausible cause** of intermittent TCP resets, especially if failures correlate with larger payloads, TLS handshakes, file transfers, VPN/ER paths, tunnels, or asymmetric routing.\n\nKey checks:\n\n1. **Look for size sensitivity**\n   - Small requests succeed, large responses fail/reset.\n   - SYN/SYN-ACK succeeds, but connection dies after TLS ClientHello, certificate exchange, or first large data segment.\n\n2. **Validate PMTUD**\n   - Test with DF-bit probes at different payload sizes.\n   - If packets above a threshold vanish and no ICMP \u201cfragmentation needed\u201d returns, suspect PMTUD black hole.\n\n3. **Capture both ends**\n   - Source sees retransmissions or RST after stalled large segment.\n   - Destination may never receive the large segment.\n   - If an intermediate firewall/NVA sends the RST, the reset is a symptom, not the root cause.\n\n4. **Common culprits**\n   - VPN/IPsec/GRE/VXLAN overhead reducing effective MTU.\n   - Firewalls blocking ICMP Type 3 Code 4 / Packet Too Big.\n   - Load balancers, proxies, or NVAs mishandling MSS.\n   - Asymmetric path where ICMP errors return via a different/blocked route.\n\n5. **Likely fix**\n   - Allow required ICMP for PMTUD.\n   - Clamp TCP MSS on tunnel/firewall edges.\n   - Standardize MTU across the path where possible.\n\nA quick discriminator: if lowering client/server MTU or clamping MSS makes the resets disappear, MTU/PMTUD is very likely involved.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 589,
+    "api_duration_ms": 25320,
+    "session_duration_ms": 52085,
+    "wall_ms": 74125,
+    "premium_requests": 7.5,
+    "session_id": "d69fefc1-9fbd-4174-abaa-0da1d38128a0",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:30:03+00:00"
+}

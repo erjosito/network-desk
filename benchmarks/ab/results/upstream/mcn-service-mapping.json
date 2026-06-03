@@ -1,0 +1,43 @@
+{
+  "id": "mcn-service-mapping",
+  "variant": "upstream",
+  "query": "what's the GCP equivalent of Azure Private Endpoint and AWS PrivateLink",
+  "expected_specialists": [
+    "cn_mcn",
+    "cn_pl"
+  ],
+  "category": "vague",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the right network-desk specialist, then answer concisely.\n\n**GCP equivalent:** **Private Service Connect (PSC)**.\n\n| Cloud | Consumer-side private access | Provider-side private service exposure |\n|---|---|---|\n| Azure | Private Endpoint | Private Link Service |\n| AWS | Interface VPC Endpoint | AWS PrivateLink endpoint service |\n| GCP | Private Service Connect endpoint | Private Service Connect service attachment |\n\n**Nuance:** For Google APIs specifically, GCP also has **Private Google Access**, but the closest architectural equivalent to Azure Private Endpoint and AWS PrivateLink is **Private Service Connect**.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 442,
+    "api_duration_ms": 22573,
+    "session_duration_ms": 52476,
+    "wall_ms": 80000,
+    "premium_requests": 7.5,
+    "session_id": "a0d0846b-9fe5-4766-83ca-d742c920801c",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:44:01+00:00"
+}

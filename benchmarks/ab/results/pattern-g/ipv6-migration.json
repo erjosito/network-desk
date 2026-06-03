@@ -1,0 +1,37 @@
+{
+  "id": "ipv6-migration",
+  "variant": "pattern-g",
+  "query": "phased dual-stack rollout plan for a brownfield Azure environment",
+  "expected_specialists": [
+    "cn_ipv6"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "## Phased dual-stack rollout plan for brownfield Azure\n\n### 0. Principles\n\n- Keep IPv4 as the control-plane and rollback path until IPv6 is proven.\n- Roll out **dual-stack**, not IPv6-only, unless each workload dependency is confirmed ready.\n- Start at the edge and shared services, then expand inward by workload tier.\n- Use policy, route tables, NSGs, firewalls, DNS, monitoring, and IaC consistently for both IP families.\n\n### 1. Discovery and readiness\n\n**Goal:** understand what can safely become dual-stack.\n\n- Inventory VNets, subnets, peerings, route tables, NSGs, Azure Firewall/NVAs, load balancers, private endpoints, DNS zones, ExpressRoute/VPN, AKS, App Service, Application Gateway, Front Door, and third-party appliances.\n- Classify workloads:\n  - **Ready:** OS, app, dependencies, monitoring, security controls support IPv6.\n  - **Needs remediation:** app binding, logging, firewall policy, DNS, dependency gaps.\n  - **Not eligible yet:** unsupported platform feature, vendor appliance, legacy app, hardcoded IPv4.\n- Check inbound, outbound, east-west, hybrid, and management paths separately.\n- Define IPv6 address plan, ownership model, naming standards, tagging, and change windows.\n\n**Exit criteria:** complete dependency map, risk register, IPv6 address plan, and first pilot candidate selected.\n\n### 2. Foundation design\n\n**Goal:** make the Azure landing zone IPv6-capable without exposing workloads yet.\n\n- Allocate IPv6 address space per region, hub, spoke, environment, and workload.\n- Add IPv6 address spaces to selected VNets and IPv6 prefixes to pilot subnets.\n- Update IaC modules, Azure Policy, naming conventions, NSG standards, route table patterns, firewall rule templates, and monitoring schemas.\n- Confirm Azure Firewall/NVA support for IPv6 inspection, logging, routing, NAT behavior, and HA.\n- Prepare DNS strategy:\n  - Add AAAA records only when the service is ready.\n  - Maintain A records during dual-stack.\n  - Use low TTLs during rollout.\n- Define observability requirements for IPv4 and IPv6 flow logs, firewall logs, WAF logs, app logs, and synthetic tests.\n\n**Exit criteria:** approved baseline architecture and reusable deployment pattern.\n\n### 3. Non-production pilot\n\n**Goal:** prove the pattern with low blast radius.\n\n- Select one representative non-prod app with simple dependencies.\n- Enable IPv6 on VNet/subnet, NICs or platform frontends where supported.\n- Add IPv6 NSG rules equivalent to approved IPv4 intent, not broad allow rules.\n- Add IPv6 routes only where required; avoid accidental bypass of inspection.\n- Enable dual-stack frontend using the appropriate service, such as Azure Load Balancer, Application Gateway, Front Door, or another supported ingress layer.\n- Publish AAAA records for pilot names only.\n- Test:\n  - Internet inbound over IPv6.\n  - Internal east-west over IPv6.\n  - Outbound IPv6 path.\n  - IPv4 fallback.\n  - Logging, alerting, WAF/firewall inspection, and rollback.\n\n**Exit criteria:** pilot passes functional, security, monitoring, and rollback tests.\n\n### 4. Shared services and edge rollout\n\n**Goal:** prepare common network services before broad workload adoption.\n\n- Dual-stack approved ingress services first: Front Door, Application Gateway, public load balancers, WAF, and DDoS controls where applicable.\n- Update centralized firewall/NVA policy for IPv6.\n- Validate DNS resolution paths, private DNS behavior, conditional forwarding, and monitoring.\n- Confirm hybrid behavior for ExpressRoute/VPN if IPv6 is required on-premises.\n- Update runbooks, incident response, threat detection, and packet-capture procedures for IPv6.\n\n**Exit criteria:** shared services can safely support workload migrations.\n\n### 5. Workload wave rollout\n\n**Goal:** migrate in controlled waves.\n\nSuggested wave order:\n\n| Wave | Scope | Notes |\n|---|---|---|\n| 1 | Stateless web/API workloads | Easiest rollback; good visibility |\n| 2 | Internal services | Validate east-west IPv6 and service discovery |\n| 3 | Stateful/backend services | Requires dependency and backup validation |\n| 4 | Hybrid-connected apps | Coordinate with on-prem routing, firewalls, DNS |\n| 5 | High-criticality apps | Only after patterns are proven |\n\nFor each wave:\n\n- Enable IPv6 at subnet/NIC/frontend level.\n- Apply NSG, firewall, UDR, DNS, and monitoring changes.\n- Publish AAAA records after service validation.\n- Monitor error rates, latency, connection failures, firewall denies, asymmetric routing, and IPv4 fallback.\n- Keep rollback simple: remove AAAA record, disable IPv6 frontend, or revert route/security changes.\n\n**Exit criteria:** workload stable for agreed burn-in period.\n\n### 6. Governance and hardening\n\n**Goal:** prevent IPv6 drift and shadow exposure.\n\n- Enforce Azure Policy for approved IPv6 address allocation, NSG requirements, diagnostic settings, and public exposure rules.\n- Add IPv6 checks to CI/CD, architecture review, firewall review, and change approval.\n- Update threat models for direct IPv6 reachability.\n- Review deny-by-default behavior for NSGs, Azure Firewall, WAF, and third-party controls.\n- Ensure asset inventory, CMDB, vulnerability scanning, SIEM parsing, and incident workflows understand IPv6.\n\n### 7. Optimization and steady state\n\n**Goal:** operate dual-stack as normal production.\n\n- Track IPv6 adoption, traffic ratios, failures, latency, and cost impact.\n- Remove temporary exceptions and broad pilot rules.\n- Tune DNS TTLs back to normal.\n- Standardize reusable patterns for new VNets and workloads.\n- Decide whether any workloads should remain IPv4-only due to unsupported dependencies.\n\n### Key risks to manage\n\n- IPv6 bypassing existing IPv4-only inspection paths.\n- Missing AAAA rollback plan.\n- Hardcoded IPv4 dependencies.\n- Incomplete logging/SIEM parsing for IPv6.\n- Third-party NVA or agent limitations.\n- Hybrid routing asymmetry.\n- Inconsistent Azure service support across regions or SKUs.\n\nVerify current Azure service-specific IPv6 support and limits against Microsoft documentation before implementation.",
+    "tool_calls": [
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1600,
+    "api_duration_ms": 57167,
+    "session_duration_ms": 80163,
+    "wall_ms": 87233,
+    "premium_requests": 7.5,
+    "session_id": "d604f9d3-cfaf-4825-a06a-e3fae5bcfd99",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T09:05:37+00:00"
+}

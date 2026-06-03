@@ -1,0 +1,57 @@
+{
+  "id": "iac-terraform-hub",
+  "query": "generate Terraform for an Azure hub VNet with Azure Firewall",
+  "category": "regex-easy",
+  "expected_specialists": [
+    "cn_iac"
+  ],
+  "order": {
+    "A": "upstream",
+    "B": "pattern-g"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 9,
+      "completeness": 8,
+      "actionability": 9,
+      "clarity": 9,
+      "conciseness": 7
+    },
+    "B": {
+      "technical_accuracy": 9,
+      "completeness": 8,
+      "actionability": 9,
+      "clarity": 8,
+      "conciseness": 9
+    },
+    "winner": "tie",
+    "reason": "Both technically correct with azurerm ~>4.0. A adds tags/shared-svc subnet; B adds spoke route table. Different completeness trade-offs, similar overall quality."
+  },
+  "winner_variant": "tie",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":9,\"completeness\":8,\"actionability\":9,\"clarity\":9,\"conciseness\":7},\"B\":{\"technical_accuracy\":9,\"completeness\":8,\"actionability\":9,\"clarity\":8,\"conciseness\":9},\"winner\":\"tie\",\"reason\":\"Both technically correct with azurerm ~>4.0. A adds tags/shared-svc subnet; B adds spoke route table. Different completeness trade-offs, similar overall quality.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 1176,
+    "api_duration_ms": 27964,
+    "session_duration_ms": 55750,
+    "wall_ms": 65641,
+    "premium_requests": 3.0,
+    "session_id": "2550edc2-9665-42ad-99b8-17f2cca8f424",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T09:16:04+00:00"
+}

@@ -1,0 +1,37 @@
+{
+  "id": "price-egress",
+  "variant": "pattern-g",
+  "query": "minimize cross-region egress costs in a multi-region deployment",
+  "expected_specialists": [
+    "cn_price"
+  ],
+  "category": "vague",
+  "exit_code": 0,
+  "metrics": {
+    "content": "To **minimize cross-region egress costs**, design so traffic stays regional by default and only crosses regions for controlled replication, failover, or global entry traffic.\n\n## Key tactics\n\n1. **Keep users on the nearest regional stack**\n   - Use global DNS or global load balancing to route clients to the closest healthy region.\n   - Avoid sending user traffic from Region A to backends in Region B.\n\n2. **Localize service dependencies**\n   - Deploy app, cache, database read replicas, queues, secrets, and observability collectors in each region.\n   - Avoid chatty synchronous calls between regional services.\n\n3. **Replicate intentionally**\n   - Prefer asynchronous replication over cross-region request/response flows.\n   - Compress, batch, deduplicate, and filter replication data.\n   - Replicate only required datasets, not full logs or raw telemetry unless needed.\n\n4. **Use regional ingress and egress points**\n   - Avoid centralized NAT, firewalls, proxies, or inspection hubs that force traffic across regions.\n   - If inspection is required, deploy regional security stacks.\n\n5. **Cache aggressively**\n   - Use CDN/edge caching for static and cacheable dynamic content.\n   - Use regional caches for APIs, package repositories, container images, and database reads.\n\n6. **Avoid cross-region private traffic surprises**\n   - Review VNet/VPC peering, transit gateways, cloud WANs, private endpoints, and service endpoints.\n   - Cross-region private backbone traffic is usually still billable.\n\n7. **Place data close to compute**\n   - Do not run compute in one region against databases, storage, or analytics services in another.\n   - Co-locate batch jobs with the data they process.\n\n8. **Make failover cost-aware**\n   - Active-active reduces failover blast radius but may increase replication cost.\n   - Active-passive can be cheaper but needs careful warm-standby sizing and tested promotion.\n\n9. **Monitor by traffic path**\n   - Break down costs by source region, destination region, service, and application.\n   - Alert on unexpected inter-region flows, especially from logs, backups, service mesh, or health checks.\n\n## Target architecture in words\n\nUse **regional application stacks** behind a **global traffic manager/CDN**, with **regional databases or read replicas**, **regional NAT/security inspection**, and **asynchronous cross-region replication** only for required state. Treat cross-region traffic as an exception path, not the default path.\n\nVerify exact rates and service-specific transfer rules against current Azure, AWS, or GCP pricing documentation before applying.",
+    "tool_calls": [
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 626,
+    "api_duration_ms": 24234,
+    "session_duration_ms": 49649,
+    "wall_ms": 60031,
+    "premium_requests": 7.5,
+    "session_id": "7cc04813-348c-4040-8e59-33609181c2e8",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:57:18+00:00"
+}

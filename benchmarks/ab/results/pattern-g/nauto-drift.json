@@ -1,0 +1,42 @@
+{
+  "id": "nauto-drift",
+  "variant": "pattern-g",
+  "query": "detect and remediate configuration drift across firewall rule sets",
+  "expected_specialists": [
+    "cn_nauto"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll ground this in the network automation/firewall guidance, then provide a concise runbook-style answer.\n\n**Firewall rule drift remediation pattern**\n\n1. **Define source of truth**  \n   Store approved firewall policy in Git/IaC: rule name, action, source, destination, service, app/user identity, NAT/security profile, priority/order, tags, owner, expiry, and change ticket.\n\n2. **Normalize actual state**  \n   Export running rules from each firewall, then normalize vendor-specific objects into a common model:\n   `rule_id`, `name`, `zone`, `src`, `dst`, `service`, `app`, `action`, `order`, `enabled`, `logging`, `profile`, `metadata`.\n\n3. **Detect drift**  \n   Compare desired vs. actual using semantic diff, not raw text diff:\n   - **Missing rule**: approved rule absent from device.\n   - **Unauthorized rule**: device rule absent from source of truth.\n   - **Modified rule**: same rule identity but changed match/action/profile/order.\n   - **Shadowed rule**: rule exists but is ineffective due to earlier broader rule.\n   - **Expired rule**: temporary access still active past expiry.\n   - **Object drift**: address/service group membership changed.\n\n4. **Classify risk**  \n   Prioritize remediation by blast radius:\n   - **Critical**: unexpected allow, broad internet exposure, disabled logging, removed security profile.\n   - **High**: destination/source widened, deny removed, rule reordered above controls.\n   - **Medium**: stale temporary rule, missing owner, object mismatch.\n   - **Low**: naming/tagging/comment drift.\n\n5. **Remediate safely**  \n   Use change-controlled automation:\n   - For **unauthorized broad allows**, disable first if policy permits; otherwise open emergency change.\n   - For **missing approved rules**, generate a pull request or change request to deploy.\n   - For **modified rules**, revert to Git/IaC baseline.\n   - For **object drift**, reconcile group membership before touching dependent rules.\n   - For **rule order drift**, simulate impact before reordering.\n\n6. **Validate before and after**  \n   Check policy behavior with packet/path tests: source, destination, port, protocol, app, user, and expected action. Confirm logs are generated and hit counts behave as expected.\n\n7. **Operate continuously**  \n   Run drift checks on a schedule and after every approved change. Alert on critical drift immediately, create tickets for lower-risk drift, and require pull-request review for remediation.\n\n**Recommended control loop:**  \n`Git baseline -> normalize vendor configs -> semantic diff -> risk score -> change request/PR -> deploy -> validate -> record evidence`.\n\nFor production environments, verify implementation details against the current vendor documentation for your firewall platform, especially API behavior, rule-order semantics, object inheritance, and commit/rollback mechanisms.",
+    "tool_calls": [
+      "skill",
+      "report_intent",
+      "view",
+      "view",
+      "view",
+      "view"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1272,
+    "api_duration_ms": 55505,
+    "session_duration_ms": 94170,
+    "wall_ms": 102500,
+    "premium_requests": 7.5,
+    "session_id": "10055f6e-54fe-4a37-8181-8d749b81f062",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T09:09:00+00:00"
+}

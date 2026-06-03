@@ -1,0 +1,58 @@
+{
+  "id": "doc-xlsx-report",
+  "query": "build an Excel workbook summarizing per-resource networking costs",
+  "category": "regex-easy",
+  "expected_specialists": [
+    "cn_doc",
+    "cn_price"
+  ],
+  "order": {
+    "A": "upstream",
+    "B": "pattern-g"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 7,
+      "completeness": 7,
+      "actionability": 6,
+      "clarity": 8,
+      "conciseness": 6
+    },
+    "B": {
+      "technical_accuracy": 8,
+      "completeness": 8,
+      "actionability": 8,
+      "clarity": 8,
+      "conciseness": 7
+    },
+    "winner": "B",
+    "reason": "B uses real Excel structured references, enumerates specific networking resources, adds tag governance, and specifies pivot row/value configs\u2014more directly implementable."
+  },
+  "winner_variant": "pattern-g",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":7,\"completeness\":7,\"actionability\":6,\"clarity\":8,\"conciseness\":6},\"B\":{\"technical_accuracy\":8,\"completeness\":8,\"actionability\":8,\"clarity\":8,\"conciseness\":7},\"winner\":\"B\",\"reason\":\"B uses real Excel structured references, enumerates specific networking resources, adds tag governance, and specifies pivot row/value configs\u2014more directly implementable.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 774,
+    "api_duration_ms": 20989,
+    "session_duration_ms": 46137,
+    "wall_ms": 54952,
+    "premium_requests": 3.0,
+    "session_id": "ee9e9469-fea7-42d0-abf4-c83211a9b94e",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T09:14:58+00:00"
+}

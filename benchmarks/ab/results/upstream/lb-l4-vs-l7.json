@@ -1,0 +1,39 @@
+{
+  "id": "lb-l4-vs-l7",
+  "variant": "upstream",
+  "query": "when should I use AWS NLB vs ALB",
+  "expected_specialists": [
+    "cn_lb"
+  ],
+  "category": "cloud-service",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this through the loaded network-desk specialists first, then answer concisely.\n\nUse **ALB** when your traffic is **HTTP/HTTPS** and you need Layer 7 features: host/path routing, redirects, header-based rules, HTTP/2, gRPC, WebSockets, AWS WAF integration, or Lambda targets.\n\nUse **NLB** when you need **Layer 4 TCP/UDP/TLS** performance: static IPs, very high throughput, ultra-low latency, source IP preservation, PrivateLink, or non-HTTP protocols.\n\n| Choose | Best for |\n|---|---|\n| **ALB** | Web apps, APIs, microservices, content-based routing, WAF |\n| **NLB** | Databases, gaming, IoT, SIP, MQTT, TLS pass-through, PrivateLink, fixed IPs |\n\nRule of thumb: **default to ALB for web/API workloads; use NLB for raw network protocols, static IPs, PrivateLink, or extreme performance needs.**\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 388,
+    "api_duration_ms": 19815,
+    "session_duration_ms": 47695,
+    "wall_ms": 86234,
+    "premium_requests": 7.5,
+    "session_id": "b7c7db06-8dde-4752-8cc7-659a4da133c1",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:24:31+00:00"
+}

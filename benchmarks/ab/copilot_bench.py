@@ -61,7 +61,16 @@ JUDGE_EFFORT = "high"
 ANSWER_TIMEOUT_S = 600
 JUDGE_TIMEOUT_S = 600
 
-PATTERN_G_SPECIALISTS = {"cn_vnet", "cn_fw", "cn_hyb"}
+# All 20 specialist prefixes now present in skills/network-desk/specialists/.
+# Used by the --pattern-g-only filter (kept for back-compat; with full
+# coverage this filter is essentially a no-op when expected_specialists is
+# set, since every query maps to a covered specialist).
+PATTERN_G_SPECIALISTS = {
+    "cn_vnet", "cn_fw", "cn_lb", "cn_dns", "cn_pl",
+    "cn_hyb", "cn_nsec", "cn_ntsh", "cn_vwan", "cn_nmon",
+    "cn_mcn", "cn_price", "cn_iac", "cn_cnet", "cn_cdn",
+    "cn_nauto", "cn_sase", "cn_ncap", "cn_ipv6", "cn_doc",
+}
 
 # Containment: prevent the model from going off-task with file-writing or
 # graphics skills that other users happen to have installed. Both variants

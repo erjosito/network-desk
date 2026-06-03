@@ -1,0 +1,46 @@
+{
+  "id": "sase-ztna",
+  "variant": "upstream",
+  "query": "ZTNA design for replacing a legacy VPN concentrator",
+  "expected_specialists": [
+    "cn_sase"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "## Summary\n\nReplace the legacy VPN concentrator with **ZTNA as application-specific access**, not network access. Users authenticate through IdP + MFA + device posture, then reach only approved private apps through outbound app connectors or brokered access.\n\n## Target Design\n\n- **Identity:** Microsoft Entra ID, Okta, or equivalent as the trust anchor.\n- **Access model:** user/group/device/context \u2192 specific app, not subnet.\n- **Data plane:** ZTNA cloud broker mediates sessions between user clients and private app connectors.\n- **Connectors:** deploy at least two per datacenter/cloud region/application zone; outbound-only to ZTNA service.\n- **Device posture:** require compliant OS, encryption, EDR/MDM, firewall, certificate, and risk status.\n- **Fallback:** keep VPN read-only or emergency-only during migration, then decommission.\n\n## Traffic Flows\n\n1. User opens private app FQDN.\n2. ZTNA client or browser redirects to IdP.\n3. Policy engine evaluates identity, MFA, device posture, location, risk, and app entitlement.\n4. ZTNA broker connects user session to the app connector.\n5. Connector reaches the private app internally; user never receives broad network reachability.\n\n## Policy Framework\n\n| Policy area | Recommendation |\n|---|---|\n| Users | Map IdP groups to explicit app entitlements |\n| Devices | Full access only from compliant managed devices |\n| BYOD/partners | Use clientless/browser access for approved web apps only |\n| Admin access | Require MFA step-up, JIT approval, session logging |\n| Privilege | No wildcard \u201call private apps\u201d access |\n| Context | Block high-risk locations, impossible travel, unmanaged devices |\n| Sessions | Re-evaluate posture continuously where supported |\n\n## Migration Plan\n\n1. **Discover:** inventory VPN users, apps, ports, protocols, dependencies, and access groups.\n2. **Pilot:** onboard IT users and 5\u201310 low-risk web apps.\n3. **Expand:** migrate business apps by user group; keep VPN as fallback.\n4. **Segment:** split apps into finance, HR, engineering, admin, prod, and non-prod zones.\n5. **Restrict VPN:** remove migrated apps from VPN routes and policies.\n6. **Decommission:** retire concentrators after no critical traffic remains and rollback window expires.\n\n## Key Design Choices\n\n- Prefer **ZTNA 2.0** if you need continuous posture checks, inline threat inspection, DLP, and stronger session control.\n- Use **agent-based access** for managed employees and **clientless access** for contractors/BYOD.\n- Keep app connectors close to workloads, but avoid placing them in flat networks with excessive reach.\n- Do not lift-and-shift VPN ACLs directly; redesign around least-privilege application access.\n\n## Vendor Notes\n\nCommon platforms include **Zscaler ZPA**, **Palo Alto Prisma Access**, **Netskope Private Access**, **Microsoft Entra Private Access**, **Cisco Secure Access**, and **FortiSASE**. Select based on protocol support, connector model, IdP/MDM integration, logging, DLP needs, data residency, and existing security stack alignment.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role",
+      "cn_orchestrate",
+      "cn_skill",
+      "cn_skill"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 1112,
+    "api_duration_ms": 32476,
+    "session_duration_ms": 67656,
+    "wall_ms": 97000,
+    "premium_requests": 7.5,
+    "session_id": "d2734b40-fc54-4590-89a2-15c8fcfa641d",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role",
+      "cn_orchestrate",
+      "cn_skill",
+      "cn_skill"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:39:32+00:00"
+}

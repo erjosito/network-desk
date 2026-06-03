@@ -1,0 +1,57 @@
+{
+  "id": "nsec-ddos",
+  "query": "DDoS protection design for a public-facing API",
+  "category": "regex-easy",
+  "expected_specialists": [
+    "cn_nsec"
+  ],
+  "order": {
+    "A": "upstream",
+    "B": "pattern-g"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 8,
+      "completeness": 7,
+      "actionability": 7,
+      "clarity": 8,
+      "conciseness": 8
+    },
+    "B": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 9,
+      "clarity": 8,
+      "conciseness": 7
+    },
+    "winner": "B",
+    "reason": "B adds auth-endpoint hardening, graceful degradation, baseline TLS policy, cross-cloud table, and origin design principle\u2014all substantive and correct."
+  },
+  "winner_variant": "pattern-g",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":8,\"completeness\":7,\"actionability\":7,\"clarity\":8,\"conciseness\":8},\"B\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":9,\"clarity\":8,\"conciseness\":7},\"winner\":\"B\",\"reason\":\"B adds auth-endpoint hardening, graceful degradation, baseline TLS policy, cross-cloud table, and origin design principle\u2014all substantive and correct.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 565,
+    "api_duration_ms": 19826,
+    "session_duration_ms": 45737,
+    "wall_ms": 53546,
+    "premium_requests": 3.0,
+    "session_id": "f16999da-da59-4a73-b5e4-60d3108e9261",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T09:22:10+00:00"
+}

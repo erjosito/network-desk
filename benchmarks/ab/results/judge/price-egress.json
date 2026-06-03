@@ -1,0 +1,57 @@
+{
+  "id": "price-egress",
+  "query": "minimize cross-region egress costs in a multi-region deployment",
+  "category": "vague",
+  "expected_specialists": [
+    "cn_price"
+  ],
+  "order": {
+    "A": "pattern-g",
+    "B": "upstream"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 8,
+      "clarity": 9,
+      "conciseness": 6
+    },
+    "B": {
+      "technical_accuracy": 9,
+      "completeness": 8,
+      "actionability": 8,
+      "clarity": 8,
+      "conciseness": 7
+    },
+    "winner": "A",
+    "reason": "A offers better structure, more specific tactics (container images, package repos, secrets), and a useful target-architecture synthesis; B is tighter but adds filler opening"
+  },
+  "winner_variant": "pattern-g",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":8,\"clarity\":9,\"conciseness\":6},\"B\":{\"technical_accuracy\":9,\"completeness\":8,\"actionability\":8,\"clarity\":8,\"conciseness\":7},\"winner\":\"A\",\"reason\":\"A offers better structure, more specific tactics (container images, package repos, secrets), and a useful target-architecture synthesis; B is tighter but adds filler opening\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 930,
+    "api_duration_ms": 23588,
+    "session_duration_ms": 48913,
+    "wall_ms": 56952,
+    "premium_requests": 3.0,
+    "session_id": "c8228100-ef71-4992-b2bd-e3c5f8773dd3",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T09:25:01+00:00"
+}

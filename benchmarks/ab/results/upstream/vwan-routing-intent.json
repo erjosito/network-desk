@@ -1,0 +1,49 @@
+{
+  "id": "vwan-routing-intent",
+  "variant": "upstream",
+  "query": "configure Virtual WAN routing intent for internet and private traffic inspection",
+  "expected_specialists": [
+    "cn_vwan"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "To configure **Azure Virtual WAN routing intent** for both internet and private traffic inspection:\n\n1. Use a **Standard Virtual WAN** with a **secured virtual hub**.\n2. Deploy **Azure Firewall** or a supported **Virtual WAN NVA** in the hub.\n3. Enable two routing intent policies on the hub:\n   - **Internet Traffic**: destination `Internet`, next hop = hub firewall/NVA.\n   - **Private Traffic**: destination `PrivateTraffic`, next hop = hub firewall/NVA.\n4. Ensure each spoke VNet connection has **Internet Security / Propagate default route** enabled if it should receive `0.0.0.0/0`.\n5. Validate effective routes before and after enabling:\n   - Spokes should learn `0.0.0.0/0` via the firewall/NVA.\n   - Private VNet, VPN, and ExpressRoute prefixes should route through the firewall/NVA.\n6. Confirm firewall/NVA capacity, because this forces internet, east-west, branch-to-spoke, and potentially inter-hub traffic through inspection.\n\nKey caution: routing intent can override existing custom hub route table behavior, so treat it as a routing control-plane change and validate asymmetric routing risks, especially with ExpressRoute and more-specific on-premises prefixes.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role",
+      "report_intent",
+      "report_intent",
+      "report_intent",
+      "cn_orchestrate",
+      "cn_skill",
+      "cn_skill"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 763,
+    "api_duration_ms": 31751,
+    "session_duration_ms": 60342,
+    "wall_ms": 82468,
+    "premium_requests": 7.5,
+    "session_id": "bc6fda1e-84b3-4a72-927c-f6348c2d924f",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role",
+      "cn_orchestrate",
+      "cn_skill",
+      "cn_skill"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:31:26+00:00"
+}

@@ -1,33 +1,33 @@
 {
-  "generated": "2026-06-02T13:42:39+00:00",
+  "generated": "2026-06-03T09:27:22+00:00",
   "answer_model": "gpt-5.5",
   "answer_effort": "medium",
   "judge_model": "claude-opus-4.6",
   "judge_effort": "high",
   "aggregates": {
     "pattern-g": {
-      "queries": 15,
-      "p50_wall_ms": 65530,
-      "p95_wall_ms": 98086,
-      "p50_api_ms": 26283,
-      "mean_out_tokens": 897,
+      "queries": 32,
+      "p50_wall_ms": 67804,
+      "p95_wall_ms": 104398,
+      "p50_api_ms": 28350,
+      "mean_out_tokens": 930.3,
       "mean_premium_requests": 7.5,
       "mean_tool_calls": 2,
       "mean_cn_tool_calls": 0,
       "contaminated_count": 0,
-      "architecture_used_rate": 0.9333333333333333,
+      "architecture_used_rate": 0.9375,
       "network_skill_load_rate": 1.0,
-      "network_skill_invoke_rate": 0.9333333333333333
+      "network_skill_invoke_rate": 0.9375
     },
     "upstream": {
-      "queries": 15,
-      "p50_wall_ms": 114109,
-      "p95_wall_ms": 189869,
-      "p50_api_ms": 32325,
-      "mean_out_tokens": 965.7,
+      "queries": 32,
+      "p50_wall_ms": 92061,
+      "p95_wall_ms": 177330,
+      "p50_api_ms": 31119,
+      "mean_out_tokens": 942.1,
       "mean_premium_requests": 7.5,
-      "mean_tool_calls": 3.6,
-      "mean_cn_tool_calls": 2.3,
+      "mean_tool_calls": 4.4,
+      "mean_cn_tool_calls": 3,
       "contaminated_count": 0,
       "architecture_used_rate": 1.0,
       "network_skill_load_rate": null,
@@ -35,28 +35,143 @@
     }
   },
   "judge_winners": {
-    "pattern-g": 6,
-    "upstream": 7,
-    "tie": 2,
+    "pattern-g": 16,
+    "upstream": 9,
+    "tie": 7,
     "unparsed": 0
   },
   "judge_axis_means": {
     "pattern-g": {
-      "technical_accuracy": 8.3,
-      "completeness": 7.9,
-      "actionability": 7.5,
-      "clarity": 8.2,
+      "technical_accuracy": 8.4,
+      "completeness": 8.2,
+      "actionability": 7.9,
+      "clarity": 8.3,
       "conciseness": 7.4
     },
     "upstream": {
-      "technical_accuracy": 8.4,
+      "technical_accuracy": 8.5,
       "completeness": 7.9,
-      "actionability": 7.7,
-      "clarity": 8,
-      "conciseness": 6.9
+      "actionability": 7.8,
+      "clarity": 8.2,
+      "conciseness": 7.2
     }
   },
   "per_query": [
+    {
+      "id": "cap-throughput",
+      "winner_variant": "upstream",
+      "reason": "B gives precise throughput rating (650 Mbps), uses defensible 60% utilization rule, and includes doc link; A understates VpnGw1 capacity and over-engineers with",
+      "A": {
+        "technical_accuracy": 7,
+        "completeness": 8,
+        "actionability": 7,
+        "clarity": 8,
+        "conciseness": 6
+      },
+      "B": {
+        "technical_accuracy": 8,
+        "completeness": 7,
+        "actionability": 8,
+        "clarity": 8,
+        "conciseness": 8
+      },
+      "order": {
+        "A": "pattern-g",
+        "B": "upstream"
+      }
+    },
+    {
+      "id": "cdn-cloudfront",
+      "winner_variant": "pattern-g",
+      "reason": "A names specific managed policies (CachingOptimized/CachingDisabled), shows concrete header examples, and details custom error response codes\u2014more directly acti",
+      "A": {
+        "technical_accuracy": 9,
+        "completeness": 9,
+        "actionability": 9,
+        "clarity": 9,
+        "conciseness": 7
+      },
+      "B": {
+        "technical_accuracy": 9,
+        "completeness": 9,
+        "actionability": 8,
+        "clarity": 9,
+        "conciseness": 8
+      },
+      "order": {
+        "A": "pattern-g",
+        "B": "upstream"
+      }
+    },
+    {
+      "id": "cnet-cni",
+      "winner_variant": "tie",
+      "reason": "Both valid CNI picks for strict planning; A more actionable with table/CIDR detail, B more concise and arguably better scoped but uses non-standard 'static bloc",
+      "A": {
+        "technical_accuracy": 7,
+        "completeness": 8,
+        "actionability": 8,
+        "clarity": 8,
+        "conciseness": 6
+      },
+      "B": {
+        "technical_accuracy": 7,
+        "completeness": 7,
+        "actionability": 7,
+        "clarity": 8,
+        "conciseness": 8
+      },
+      "order": {
+        "A": "upstream",
+        "B": "pattern-g"
+      }
+    },
+    {
+      "id": "dns-private-resolver",
+      "winner_variant": "tie",
+      "reason": "Both technically accurate with correct inbound-endpoint pattern. A adds regional resiliency, spoke guidance, doc links; B is tighter and more focused. Trade-off",
+      "A": {
+        "technical_accuracy": 9,
+        "completeness": 9,
+        "actionability": 9,
+        "clarity": 8,
+        "conciseness": 7
+      },
+      "B": {
+        "technical_accuracy": 9,
+        "completeness": 8,
+        "actionability": 8,
+        "clarity": 9,
+        "conciseness": 8
+      },
+      "order": {
+        "A": "upstream",
+        "B": "pattern-g"
+      }
+    },
+    {
+      "id": "doc-xlsx-report",
+      "winner_variant": "pattern-g",
+      "reason": "B uses real Excel structured references, enumerates specific networking resources, adds tag governance, and specifies pivot row/value configs\u2014more directly impl",
+      "A": {
+        "technical_accuracy": 7,
+        "completeness": 7,
+        "actionability": 6,
+        "clarity": 8,
+        "conciseness": 6
+      },
+      "B": {
+        "technical_accuracy": 8,
+        "completeness": 8,
+        "actionability": 8,
+        "clarity": 8,
+        "conciseness": 7
+      },
+      "order": {
+        "A": "upstream",
+        "B": "pattern-g"
+      }
+    },
     {
       "id": "fw-ha",
       "winner_variant": "upstream",
@@ -311,6 +426,259 @@
       }
     },
     {
+      "id": "iac-terraform-hub",
+      "winner_variant": "tie",
+      "reason": "Both technically correct with azurerm ~>4.0. A adds tags/shared-svc subnet; B adds spoke route table. Different completeness trade-offs, similar overall quality",
+      "A": {
+        "technical_accuracy": 9,
+        "completeness": 8,
+        "actionability": 9,
+        "clarity": 9,
+        "conciseness": 7
+      },
+      "B": {
+        "technical_accuracy": 9,
+        "completeness": 8,
+        "actionability": 9,
+        "clarity": 8,
+        "conciseness": 9
+      },
+      "order": {
+        "A": "upstream",
+        "B": "pattern-g"
+      }
+    },
+    {
+      "id": "ipv6-migration",
+      "winner_variant": "tie",
+      "reason": "A excels with exit criteria and risk register; B is more concise with stronger Azure-specific details (ICMPv6, /64 constraints, Basic LB). Both technically soun",
+      "A": {
+        "technical_accuracy": 9,
+        "completeness": 9,
+        "actionability": 9,
+        "clarity": 8,
+        "conciseness": 6
+      },
+      "B": {
+        "technical_accuracy": 9,
+        "completeness": 8,
+        "actionability": 8,
+        "clarity": 9,
+        "conciseness": 8
+      },
+      "order": {
+        "A": "pattern-g",
+        "B": "upstream"
+      }
+    },
+    {
+      "id": "lb-l4-vs-l7",
+      "winner_variant": "pattern-g",
+      "reason": "A provides more concrete protocol examples (MQTT, SIP, gRPC, K8s Ingress) improving actionability; B wastes space with unnecessary 'routing through specialists'",
+      "A": {
+        "technical_accuracy": 9,
+        "completeness": 9,
+        "actionability": 9,
+        "clarity": 9,
+        "conciseness": 8
+      },
+      "B": {
+        "technical_accuracy": 9,
+        "completeness": 8,
+        "actionability": 8,
+        "clarity": 8,
+        "conciseness": 8
+      },
+      "order": {
+        "A": "pattern-g",
+        "B": "upstream"
+      }
+    },
+    {
+      "id": "mcn-service-mapping",
+      "winner_variant": "pattern-g",
+      "reason": "A correctly cites Private Service Access (VPC peering for managed services); B conflates it with Private Google Access (subnet setting for API reach). A is also",
+      "A": {
+        "technical_accuracy": 9,
+        "completeness": 9,
+        "actionability": 7,
+        "clarity": 9,
+        "conciseness": 9
+      },
+      "B": {
+        "technical_accuracy": 8,
+        "completeness": 8,
+        "actionability": 6,
+        "clarity": 8,
+        "conciseness": 7
+      },
+      "order": {
+        "A": "pattern-g",
+        "B": "upstream"
+      }
+    },
+    {
+      "id": "mon-flow-logs",
+      "winner_variant": "pattern-g",
+      "reason": "B provides a concrete CLI command and structured table making it immediately actionable; both are technically sound but B is more operationally useful",
+      "A": {
+        "technical_accuracy": 9,
+        "completeness": 8,
+        "actionability": 7,
+        "clarity": 9,
+        "conciseness": 7
+      },
+      "B": {
+        "technical_accuracy": 9,
+        "completeness": 9,
+        "actionability": 9,
+        "clarity": 9,
+        "conciseness": 8
+      },
+      "order": {
+        "A": "upstream",
+        "B": "pattern-g"
+      }
+    },
+    {
+      "id": "nauto-drift",
+      "winner_variant": "pattern-g",
+      "reason": "B adds validation step, continuous operation loop, and more specific per-drift-type remediation actions; both accurate but B is more complete and actionable.",
+      "A": {
+        "technical_accuracy": 8,
+        "completeness": 7,
+        "actionability": 7,
+        "clarity": 8,
+        "conciseness": 8
+      },
+      "B": {
+        "technical_accuracy": 8,
+        "completeness": 8,
+        "actionability": 8,
+        "clarity": 8,
+        "conciseness": 7
+      },
+      "order": {
+        "A": "upstream",
+        "B": "pattern-g"
+      }
+    },
+    {
+      "id": "nsec-ddos",
+      "winner_variant": "pattern-g",
+      "reason": "B adds auth-endpoint hardening, graceful degradation, baseline TLS policy, cross-cloud table, and origin design principle\u2014all substantive and correct.",
+      "A": {
+        "technical_accuracy": 8,
+        "completeness": 7,
+        "actionability": 7,
+        "clarity": 8,
+        "conciseness": 8
+      },
+      "B": {
+        "technical_accuracy": 9,
+        "completeness": 9,
+        "actionability": 9,
+        "clarity": 8,
+        "conciseness": 7
+      },
+      "order": {
+        "A": "upstream",
+        "B": "pattern-g"
+      }
+    },
+    {
+      "id": "ntsh-mtu",
+      "winner_variant": "tie",
+      "reason": "Both technically accurate, well-structured, actionable. B adds asymmetric ICMP path insight; A adds IPv6 detail. Net equivalent quality.",
+      "A": {
+        "technical_accuracy": 9,
+        "completeness": 9,
+        "actionability": 9,
+        "clarity": 9,
+        "conciseness": 8
+      },
+      "B": {
+        "technical_accuracy": 9,
+        "completeness": 9,
+        "actionability": 9,
+        "clarity": 9,
+        "conciseness": 8
+      },
+      "order": {
+        "A": "pattern-g",
+        "B": "upstream"
+      }
+    },
+    {
+      "id": "pl-endpoint-dns",
+      "winner_variant": "pattern-g",
+      "reason": "B adds PE placement guidance (hub vs spoke table), DNS Private Resolver outbound coverage, and a pitfalls section\u2014all substantive and accurate extra value over ",
+      "A": {
+        "technical_accuracy": 9,
+        "completeness": 7,
+        "actionability": 8,
+        "clarity": 8,
+        "conciseness": 8
+      },
+      "B": {
+        "technical_accuracy": 9,
+        "completeness": 9,
+        "actionability": 9,
+        "clarity": 8,
+        "conciseness": 7
+      },
+      "order": {
+        "A": "upstream",
+        "B": "pattern-g"
+      }
+    },
+    {
+      "id": "price-egress",
+      "winner_variant": "pattern-g",
+      "reason": "A offers better structure, more specific tactics (container images, package repos, secrets), and a useful target-architecture synthesis; B is tighter but adds f",
+      "A": {
+        "technical_accuracy": 9,
+        "completeness": 9,
+        "actionability": 8,
+        "clarity": 9,
+        "conciseness": 6
+      },
+      "B": {
+        "technical_accuracy": 9,
+        "completeness": 8,
+        "actionability": 8,
+        "clarity": 8,
+        "conciseness": 7
+      },
+      "order": {
+        "A": "pattern-g",
+        "B": "upstream"
+      }
+    },
+    {
+      "id": "sase-ztna",
+      "winner_variant": "pattern-g",
+      "reason": "B covers more practical details (DNS, IPv6, legacy protocols, pitfalls, success criteria) that matter in real migrations; A is cleaner but less complete",
+      "A": {
+        "technical_accuracy": 9,
+        "completeness": 8,
+        "actionability": 8,
+        "clarity": 9,
+        "conciseness": 8
+      },
+      "B": {
+        "technical_accuracy": 9,
+        "completeness": 9,
+        "actionability": 9,
+        "clarity": 8,
+        "conciseness": 7
+      },
+      "order": {
+        "A": "upstream",
+        "B": "pattern-g"
+      }
+    },
+    {
       "id": "vnet-hub-spoke",
       "winner_variant": "tie",
       "reason": "Both technically sound. A broader coverage (VWAN option, DDoS, DNS, NSGs); B more actionable subnet sizing. Trade-off is completeness vs conciseness.",
@@ -396,6 +764,29 @@
         "actionability": 7,
         "clarity": 9,
         "conciseness": 7
+      },
+      "order": {
+        "A": "pattern-g",
+        "B": "upstream"
+      }
+    },
+    {
+      "id": "vwan-routing-intent",
+      "winner_variant": "upstream",
+      "reason": "B uses correct Azure destination labels (Internet/PrivateTraffic), includes NVA option, mentions propagate default route setting, and covers inter-hub/capacity ",
+      "A": {
+        "technical_accuracy": 8,
+        "completeness": 7,
+        "actionability": 8,
+        "clarity": 8,
+        "conciseness": 7
+      },
+      "B": {
+        "technical_accuracy": 9,
+        "completeness": 8,
+        "actionability": 8,
+        "clarity": 8,
+        "conciseness": 8
       },
       "order": {
         "A": "pattern-g",

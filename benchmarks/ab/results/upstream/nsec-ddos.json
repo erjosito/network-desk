@@ -1,0 +1,40 @@
+{
+  "id": "nsec-ddos",
+  "variant": "upstream",
+  "query": "DDoS protection design for a public-facing API",
+  "expected_specialists": [
+    "cn_nsec"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**DDoS design for a public-facing API**\n\nPlace the API behind a managed edge or regional ingress that provides DDoS absorption before traffic reaches the workload: CDN/edge, WAF, API gateway, and load balancer as applicable. Enable the cloud provider\u2019s enhanced DDoS tier for critical public IPs/VPCs/VNets, not just default baseline protection.\n\n**Recommended layers**\n\n1. **Edge protection:** Use CloudFront/Azure Front Door/Cloud CDN or equivalent to absorb volumetric attacks close to source.\n2. **WAF controls:** Enable managed OWASP rules, IP reputation, geo restrictions if appropriate, bot protections, and custom rules for API abuse patterns.\n3. **Rate limiting:** Apply per-client, per-token, and per-endpoint throttles at the API gateway or WAF layer.\n4. **Origin shielding:** Keep backend services private where possible; allow inbound only from the edge/WAF/API gateway service ranges or private connectivity.\n5. **L3/L4 DDoS:** Enable Azure DDoS Network/IP Protection, AWS Shield Advanced, or Google Cloud Armor/Cloud Load Balancing protection for high-value APIs.\n6. **Autoscale with guardrails:** Scale API and gateway tiers, but cap runaway cost exposure with quotas, circuit breakers, and backpressure.\n7. **Observability:** Alert on request rate, 4xx/5xx spikes, WAF blocks, SYN/UDP floods, bandwidth anomalies, latency, and origin saturation.\n8. **Runbook:** Define escalation paths, provider DDoS response contacts, emergency WAF rules, traffic shedding, and customer communications.\n\n**Fail-closed posture:** the API origin should not be directly reachable from the internet. Public exposure should terminate at protected ingress only.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 834,
+    "api_duration_ms": 26537,
+    "session_duration_ms": 64584,
+    "wall_ms": 85593,
+    "premium_requests": 7.5,
+    "session_id": "1381c89d-3044-4f4c-b093-fa9f97231509",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:28:49+00:00"
+}

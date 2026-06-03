@@ -1,0 +1,38 @@
+{
+  "id": "cdn-cloudfront",
+  "variant": "pattern-g",
+  "query": "tune CloudFront cache for a single-page app with dynamic origin",
+  "expected_specialists": [
+    "cn_cdn"
+  ],
+  "category": "cloud-service",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**Recommended CloudFront cache layout for an SPA with a dynamic origin:**\n\n| Path pattern | Cache behavior |\n|---|---|\n| `/assets/*`, `/*.js`, `/*.css`, images/fonts | Long TTL: `Cache-Control: public,max-age=31536000,immutable`; forward no cookies, no query strings unless needed |\n| `/index.html` | Short/no cache: `Cache-Control: no-cache` or `max-age=60`; keeps deploys safe |\n| `/api/*` or dynamic routes | Disable caching or very short TTL; forward required headers, query strings, cookies, and auth headers |\n| `/*` | SPA fallback to `/index.html`; cache carefully, usually short TTL |\n\n**Key CloudFront tuning:**\n\n1. Use **separate cache behaviors** for static assets, SPA shell, and API/dynamic origin paths.\n2. Use hashed filenames for build assets so they can be cached for a year.\n3. Keep `index.html` short-lived because it points users to the latest asset bundle.\n4. Do **not** forward all headers/cookies/query strings globally; only forward what the dynamic origin actually needs.\n5. Enable **Brotli/Gzip compression**.\n6. Configure custom error responses for SPA routing: map `403`/`404` to `/index.html` with `200`, but avoid applying that to `/api/*`.\n7. Prefer managed policies where possible:\n   - `CachingOptimized` for immutable static assets\n   - `CachingDisabled` for APIs/authenticated dynamic paths\n   - custom cache policy for `index.html`\n8. Use invalidations only for `index.html` or emergency rollback; hashed assets should not need invalidation.\n9. Add `stale-while-revalidate` and `stale-if-error` where acceptable to reduce origin pressure.\n10. Put WAF/rate limiting in front of dynamic paths if the origin is public or expensive to scale.\n\n**Typical headers:**\n\n```http\n/assets/app.abc123.js\nCache-Control: public,max-age=31536000,immutable\n\n/index.html\nCache-Control: no-cache\n\n/api/*\nCache-Control: no-store\n```\n\n**Main principle:** cache immutable SPA assets aggressively, keep the SPA entrypoint fresh, and isolate dynamic/API traffic so CloudFront does not accidentally cache personalized or rapidly changing responses. Verify exact limits and managed policy behavior against current AWS CloudFront documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1094,
+    "api_duration_ms": 31962,
+    "session_duration_ms": 59056,
+    "wall_ms": 66812,
+    "premium_requests": 7.5,
+    "session_id": "df5a7e2c-0f42-4b40-a45c-9a8368cac635",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T09:01:28+00:00"
+}

@@ -1,0 +1,37 @@
+{
+  "id": "lb-l4-vs-l7",
+  "variant": "pattern-g",
+  "query": "when should I use AWS NLB vs ALB",
+  "expected_specialists": [
+    "cn_lb"
+  ],
+  "category": "cloud-service",
+  "exit_code": 0,
+  "metrics": {
+    "content": "Use **ALB** for HTTP/HTTPS applications; use **NLB** for high-performance TCP/UDP/TLS traffic or when you need static IPs.\n\n| Choose | When |\n|---|---|\n| **ALB \u2014 Application Load Balancer** | Web apps, APIs, microservices, containers, path/host-based routing, HTTP headers, redirects, WebSockets, AWS WAF integration, user authentication, TLS offload at Layer 7 |\n| **NLB \u2014 Network Load Balancer** | TCP, UDP, TLS pass-through/offload, very high throughput, very low latency, static IPs, preserving client source IP, PrivateLink services, non-HTTP protocols |\n\n**Rule of thumb:**  \nIf the load balancer needs to understand HTTP, use **ALB**. If it just needs to move packets fast and reliably at Layer 4, use **NLB**.\n\nCommon examples:\n\n- Public website or REST API: **ALB**\n- Kubernetes Ingress for HTTP apps: **ALB**\n- gRPC over HTTP/2 with L7 routing needs: **ALB**\n- MQTT, SIP, database proxy, custom TCP service: **NLB**\n- UDP workload: **NLB**\n- Need fixed IP addresses or Elastic IPs: **NLB**\n- Need AWS PrivateLink endpoint service: **NLB**\n\nVerify current feature limits and pricing against AWS documentation before final design.",
+    "tool_calls": [
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 313,
+    "api_duration_ms": 18379,
+    "session_duration_ms": 52528,
+    "wall_ms": 64422,
+    "premium_requests": 7.5,
+    "session_id": "29b721ac-2390-44d8-9910-077fb954d197",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:50:13+00:00"
+}

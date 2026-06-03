@@ -1,0 +1,58 @@
+{
+  "id": "mcn-service-mapping",
+  "query": "what's the GCP equivalent of Azure Private Endpoint and AWS PrivateLink",
+  "category": "vague",
+  "expected_specialists": [
+    "cn_mcn",
+    "cn_pl"
+  ],
+  "order": {
+    "A": "pattern-g",
+    "B": "upstream"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 7,
+      "clarity": 9,
+      "conciseness": 9
+    },
+    "B": {
+      "technical_accuracy": 8,
+      "completeness": 8,
+      "actionability": 6,
+      "clarity": 8,
+      "conciseness": 7
+    },
+    "winner": "A",
+    "reason": "A correctly cites Private Service Access (VPC peering for managed services); B conflates it with Private Google Access (subnet setting for API reach). A is also more concise without filler."
+  },
+  "winner_variant": "pattern-g",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":7,\"clarity\":9,\"conciseness\":9},\"B\":{\"technical_accuracy\":8,\"completeness\":8,\"actionability\":6,\"clarity\":8,\"conciseness\":7},\"winner\":\"A\",\"reason\":\"A correctly cites Private Service Access (VPC peering for managed services); B conflates it with Private Google Access (subnet setting for API reach). A is also more concise without filler.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 699,
+    "api_duration_ms": 20253,
+    "session_duration_ms": 47643,
+    "wall_ms": 54827,
+    "premium_requests": 3.0,
+    "session_id": "ec131b3a-69c8-4a27-b707-f17619a2979e",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T09:19:18+00:00"
+}

@@ -1,0 +1,37 @@
+{
+  "id": "sase-ztna",
+  "variant": "pattern-g",
+  "query": "ZTNA design for replacing a legacy VPN concentrator",
+  "expected_specialists": [
+    "cn_sase"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "## ZTNA design to replace a legacy VPN concentrator\n\n**Target state:** replace broad network-layer VPN access with identity-, device-, and application-aware access. Users connect only to approved private applications, not to entire subnets.\n\n### Core architecture\n\n| Layer | Design |\n|---|---|\n| **Identity** | Central IdP with SSO, MFA, conditional access, risk-based login, group/role claims |\n| **Device posture** | Require managed device, compliant OS, disk encryption, EDR health, certificate where possible |\n| **ZTNA broker** | Cloud-delivered or self-hosted policy enforcement plane; no inbound exposure to apps |\n| **App connectors** | Lightweight outbound-only connectors near private apps in datacenter/cloud |\n| **Policy engine** | Per-app access rules based on user, group, device, location, risk, time, and sensitivity |\n| **Segmentation** | Users never receive routable access to internal networks; app access is proxied or tunneled per session |\n| **Logging** | Central logs for auth, posture, app access, session metadata, denied access, admin actions |\n\n### Recommended traffic model\n\nLegacy VPN:\n\n```text\nUser -> VPN concentrator -> internal network/subnets -> apps\n```\n\nZTNA replacement:\n\n```text\nUser -> ZTNA client/browser -> ZTNA broker -> outbound connector -> specific private app\n```\n\nThis removes implicit network trust and avoids placing users directly on internal address space.\n\n### Access policy model\n\nStart with **default deny**, then publish apps explicitly:\n\n| App type | ZTNA method |\n|---|---|\n| Web apps | Browser-based or client-based reverse proxy |\n| SSH/RDP/admin tools | Strongly controlled client-based access, just-in-time approval, session recording if possible |\n| Thick-client TCP apps | Per-app tunnel, restricted destination/port only |\n| SaaS apps | SSO + CASB/SSE controls, not routed through private access unless required |\n| Legacy apps needing full network access | Temporary exception zone with compensating controls and migration plan |\n\nExample policy:\n\n```text\nAllow Finance group to access payroll.internal.example.com:443\nonly from compliant corporate devices\nwith MFA satisfied\nfrom approved countries\nwith session re-auth every 8 hours\ndeny all lateral movement.\n```\n\n### Network placement\n\nDeploy connectors close to applications:\n\n- **Datacenter:** at least two connectors per site/VLAN zone.\n- **Cloud:** connectors per VNet/VPC or per application segment.\n- **Critical apps:** dedicated connector pools.\n- **No inbound firewall rules** from the internet to apps or connectors.\n- **Outbound-only:** connectors initiate TLS sessions to the ZTNA service.\n\nKeep internal firewalls/NSGs/security groups enforcing connector-to-app access only.\n\n### Migration approach\n\n1. **Discover VPN usage:** users, groups, destination IPs, ports, apps, service owners.\n2. **Classify access:** business apps, admin access, legacy dependencies, unknown flows.\n3. **Publish low-risk apps first:** web apps and well-known TCP services.\n4. **Create app-specific policies:** avoid copying VPN subnet rules into ZTNA.\n5. **Pilot by cohort:** IT, power users, then business groups.\n6. **Run parallel access temporarily:** VPN remains fallback during cutover.\n7. **Reduce VPN scope:** block migrated apps from VPN, then remove user groups.\n8. **Retire concentrator:** after exceptions are resolved or formally accepted.\n\n### Key design decisions\n\n| Decision | Recommendation |\n|---|---|\n| **Clientless vs client-based** | Use clientless for web apps; client-based for TCP, SSH, RDP, legacy apps |\n| **Private DNS** | Ensure ZTNA can resolve internal names; avoid leaking private zones externally |\n| **Split tunneling** | Prefer per-app access, not broad split-tunnel routes |\n| **Admin access** | Separate privileged ZTNA policy, stronger MFA, JIT, PAM integration |\n| **Contractor access** | Browser-only where possible; no unmanaged device tunnel access |\n| **Break-glass** | Maintain tightly controlled emergency access path, logged and reviewed |\n| **High availability** | Multiple brokers/PoPs if SaaS; multiple connectors per app/site/cloud region |\n| **IPv6** | Confirm ZTNA support before migrating dual-stack or IPv6-only workloads |\n\n### Controls to preserve or improve\n\n- MFA and conditional access.\n- Device compliance enforcement.\n- Per-app least privilege.\n- No lateral movement.\n- TLS inspection only where legally and technically appropriate.\n- Central audit logging to SIEM.\n- DLP/CASB integration for sensitive apps.\n- Automated deprovisioning from IdP group membership.\n- Separate policies for employees, admins, vendors, and unmanaged devices.\n\n### Common pitfalls\n\n- Recreating VPN by allowing broad CIDR access.\n- Publishing apps without owner approval.\n- Ignoring DNS dependencies.\n- Forgetting non-web legacy protocols.\n- Under-sizing connector pools.\n- Leaving VPN active indefinitely.\n- Allowing unmanaged devices to access thick-client private apps.\n- Not mapping firewall rules from connector-to-app paths.\n\n### Success criteria\n\n- Users no longer receive internal IP-level network access.\n- Every private app has an owner, policy, and logging trail.\n- VPN usage drops to defined exceptions only.\n- Connector-to-app firewall rules are minimal and documented.\n- Access decisions use identity, device posture, and app context.\n- Security team can answer: who accessed what app, from which device, and why it was allowed.\n\n**Bottom line:** design ZTNA as an application access platform, not a VPN replacement with a new client. Verify final limits, connector sizing, protocol support, and HA behavior against the selected vendor\u2019s current documentation before implementation.",
+    "tool_calls": [
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1343,
+    "api_duration_ms": 41180,
+    "session_duration_ms": 71464,
+    "wall_ms": 80547,
+    "premium_requests": 7.5,
+    "session_id": "07eed26d-d040-4f44-9ea5-5802b6e4b4d9",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T09:02:48+00:00"
+}

@@ -1,0 +1,40 @@
+{
+  "id": "nauto-drift",
+  "variant": "upstream",
+  "query": "detect and remediate configuration drift across firewall rule sets",
+  "expected_specialists": [
+    "cn_nauto"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the right network-desk specialist and use its guidance for a concise remediation approach.\n\n**Firewall rule drift remediation pattern**\n\n1. **Define source of truth**: store approved rules as structured policy-as-code, including rule ID, zone pair, source/destination objects, services, action, logging, owner, expiry, and change ticket.\n\n2. **Normalize live configs**: export rule sets from each firewall manager/API into a common schema so vendor syntax differences do not hide drift.\n\n3. **Compare intent vs. live state**:\n   | Drift type | Detection | Remediation |\n   |---|---|---|\n   | Missing rule | Exists in baseline, absent live | Re-add through change workflow |\n   | Unauthorized rule | Exists live, absent baseline | Remove or formally approve |\n   | Modified rule | Same ID/name, changed match/action/logging | Revert or update baseline after approval |\n   | Order drift | Rule priority differs | Restore intended order |\n   | Object drift | Address/service object changed | Reconcile object definition first |\n   | Expired exception | Rule past expiry date | Disable/remove after owner validation |\n\n4. **Risk-rank before remediation**: prioritize permissive allow rules, internet-facing exposure, management-plane access, disabled logging, shadowed rules, and rules bypassing inspection.\n\n5. **Remediate safely**: stage changes in a candidate policy, run impact analysis, validate hit counts/logs, apply during a change window, and keep rollback artifacts.\n\n6. **Prevent recurrence**: require all changes through policy-as-code pull requests, enforce approval gates, schedule drift scans, alert on out-of-band changes, and tag every rule with owner and expiry metadata.\n\nUse vendor documentation for the exact export, policy-install, API, and rollback workflow for platforms such as Azure Firewall Policy, AWS Network Firewall, Palo Alto Panorama, FortiManager, Check Point Management API, Cisco FMC, Juniper SRX, pfSense/OPNsense, or nftables.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 943,
+    "api_duration_ms": 42232,
+    "session_duration_ms": 75490,
+    "wall_ms": 97140,
+    "premium_requests": 7.5,
+    "session_id": "4cd9045c-d076-4782-8930-65e5b9b2d670",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:46:55+00:00"
+}

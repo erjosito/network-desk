@@ -1,0 +1,38 @@
+{
+  "id": "nsec-ddos",
+  "variant": "pattern-g",
+  "query": "DDoS protection design for a public-facing API",
+  "expected_specialists": [
+    "cn_nsec"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "## DDoS Protection Design for a Public-Facing API\n\nUse a **layered edge-first design** so volumetric, protocol, and application-layer attacks are absorbed before traffic reaches the API origin.\n\n### Recommended architecture\n\n**Client \u2192 DNS \u2192 CDN/Edge DDoS + WAF \u2192 API gateway / load balancer \u2192 private API backend**\n\nPlace the API behind a globally distributed edge service such as:\n\n| Cloud | Edge / DDoS | WAF | API entry |\n|---|---|---|---|\n| Azure | Azure DDoS Protection + Front Door | Azure WAF | API Management / App Gateway |\n| AWS | AWS Shield Advanced + CloudFront | AWS WAF | API Gateway / ALB |\n| GCP | Cloud Armor + global LB | Cloud Armor WAF | API Gateway / HTTPS LB |\n\n### Key controls\n\n1. **Hide the origin**\n   - Do not expose backend public IPs directly.\n   - Restrict origin access to only the edge/CDN, WAF, or API gateway.\n   - Prefer private backends where possible.\n\n2. **Enable managed DDoS protection**\n   - Use cloud-native DDoS protection for volumetric and protocol attacks.\n   - For critical APIs, use premium tiers such as Azure DDoS Protection, AWS Shield Advanced, or Cloud Armor Enterprise.\n\n3. **Use WAF at the edge**\n   - Enable managed rules for OWASP Top 10.\n   - Add API-specific rules for bad headers, malformed JSON, suspicious user agents, and unexpected methods.\n   - Block known malicious IPs, regions, or ASNs if appropriate.\n\n4. **Apply rate limiting**\n   - Enforce per-IP, per-token, per-user, and per-API-key limits.\n   - Use stricter limits for unauthenticated endpoints.\n   - Add burst and sustained-rate thresholds.\n\n5. **Protect authentication endpoints**\n   - Add tighter throttling to login, token, password reset, and registration endpoints.\n   - Use bot protection, CAPTCHA/challenge flows, or proof-of-work where appropriate.\n   - Monitor credential stuffing separately from general DDoS.\n\n6. **Design for graceful degradation**\n   - Cache safe GET responses at the edge.\n   - Serve static/error fallback responses during overload.\n   - Prioritize critical API paths over non-critical ones.\n   - Use circuit breakers and queueing for expensive backend operations.\n\n7. **Scale the origin safely**\n   - Autoscale API gateway, compute, and database tiers.\n   - Protect databases with connection limits and backpressure.\n   - Avoid scaling the backend blindly in response to attack traffic.\n\n8. **Monitor and respond**\n   - Alert on request rate, error rate, latency, WAF blocks, DDoS events, origin saturation, and authentication failures.\n   - Keep runbooks for enabling emergency blocks, stricter rate limits, and origin isolation.\n   - Log edge, WAF, gateway, and application telemetry into a central SIEM.\n\n### Baseline policy\n\n- Allow only `HTTPS/443`.\n- Require TLS 1.2+ or TLS 1.3.\n- Block direct origin access.\n- Enable managed WAF rules in prevention/block mode after tuning.\n- Rate-limit unauthenticated traffic aggressively.\n- Use API keys, OAuth/JWT, mTLS, or signed requests for sensitive APIs.\n- Separate public API ingress from internal/admin endpoints.\n\n### Important design principle\n\nDo **not** rely on backend autoscaling as the primary DDoS defense. The strongest design absorbs or rejects malicious traffic at the **edge**, before it consumes application, database, or private network capacity.\n\nVerify exact limits, features, and pricing against the current vendor documentation before implementation.",
+    "tool_calls": [
+      "report_intent",
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1110,
+    "api_duration_ms": 44216,
+    "session_duration_ms": 66145,
+    "wall_ms": 74391,
+    "premium_requests": 7.5,
+    "session_id": "220ec48b-aa1a-4657-9568-6eb4e082d6ac",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:54:07+00:00"
+}

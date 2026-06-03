@@ -1,0 +1,52 @@
+{
+  "id": "doc-xlsx-report",
+  "variant": "upstream",
+  "query": "build an Excel workbook summarizing per-resource networking costs",
+  "expected_specialists": [
+    "cn_doc",
+    "cn_price"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this through the network-desk pricing specialist and provide a workbook design in text only, without creating files.\n\nThe workbook packaging specialist indicates pricing analysis should own the cost model, so I\u2019m loading the pricing role before drafting the workbook schema.\n\n**Workbook design:** create a per-resource network cost model with editable assumptions and formulas, not hard-coded totals.\n\n| Sheet | Purpose | Key columns / cells |\n|---|---|---|\n| `Inputs` | Global assumptions | Currency, month hours `730`, region, pricing date, discount %, tax/support exclusion note |\n| `Resource Inventory` | One row per networking resource | Resource ID, name, cloud, region, service, SKU/tier, environment, owner, cost center |\n| `Usage` | Monthly usage drivers | Resource ID, uptime hours, GB processed, GB egress, DNS queries, rules, connections, requests |\n| `Unit Prices` | Rate table | Cloud, service, SKU, price dimension, unit, unit price, source URL, effective date |\n| `Cost Summary` | Calculated per-resource costs | Resource ID, fixed monthly cost, usage cost, discount, net monthly cost, annualized cost |\n\n**Core formulas:**\n\n| Metric | Example formula |\n|---|---|\n| Fixed monthly cost | `=UptimeHours * HourlyRate` |\n| Data processing cost | `=GBProcessed * PricePerGBProcessed` |\n| Egress cost | `=GBEgress * PricePerGBEgress` |\n| DNS/query cost | `=Queries / 1000000 * PricePerMillionQueries` |\n| Net monthly cost | `=(FixedCost + UsageCost) * (1 - DiscountPct)` |\n| Annualized cost | `=NetMonthlyCost * 12` |\n\n**Recommended summary pivots:** total by cloud, service, region, environment, owner, and cost center; top 10 highest-cost resources; resources with zero/low utilization but nonzero fixed cost.\n\n**Important assumptions to include:** prices are indicative, region-specific, USD unless changed, exclude taxes/support/enterprise discounts unless explicitly modeled, and should reference vendor pricing pages with effective dates.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role",
+      "cn_orchestrate",
+      "cn_skill",
+      "cn_skill",
+      "report_intent",
+      "cn_role",
+      "cn_orchestrate"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 1517,
+    "api_duration_ms": 50635,
+    "session_duration_ms": 76297,
+    "wall_ms": 85125,
+    "premium_requests": 7.5,
+    "session_id": "1a516147-8bce-4497-acec-a259378718f1",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role",
+      "cn_orchestrate",
+      "cn_skill",
+      "cn_skill",
+      "cn_role",
+      "cn_orchestrate"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:48:20+00:00"
+}

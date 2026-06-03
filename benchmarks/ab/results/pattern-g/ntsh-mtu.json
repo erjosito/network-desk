@@ -1,0 +1,37 @@
+{
+  "id": "ntsh-mtu",
+  "variant": "pattern-g",
+  "query": "intermittent TCP resets \u2014 could it be MTU and PMTUD black holes",
+  "expected_specialists": [
+    "cn_ntsh"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "Yes \u2014 **MTU/PMTUD black holes can cause intermittent TCP resets or stalls**, especially when traffic crosses VPNs, tunnels, firewalls, load balancers, or cloud hybrid links.\n\n**Typical pattern:**\n- Small requests work, large transfers fail or hang.\n- TLS handshakes may intermittently fail.\n- TCP retransmissions increase before reset/timeout.\n- Problems appear only on certain paths, destinations, or packet sizes.\n- ICMP \u201cFragmentation Needed\u201d / \u201cPacket Too Big\u201d is blocked, so PMTUD cannot adjust MSS.\n\n**How to confirm:**\n1. Test with DF-bit pings at different sizes.\n2. Compare working vs failing paths with packet captures.\n3. Look for large TCP segments retransmitted repeatedly.\n4. Check whether ICMP Type 3 Code 4 is blocked for IPv4, or ICMPv6 Packet Too Big for IPv6.\n5. Inspect tunnel overhead: IPsec, GRE, VXLAN, SD-WAN, ExpressRoute/VPN overlays, etc.\n\n**Common fixes:**\n- Allow required PMTUD ICMP messages through firewalls/security groups.\n- Clamp TCP MSS on tunnel/firewall edges.\n- Lower interface/tunnel MTU consistently across the path.\n- Avoid blocking all ICMP as a blanket rule.\n- For IPv6, do **not** block ICMPv6 Packet Too Big; fragmentation relies on PMTUD.\n\nA practical quick test: if reducing client/server MSS or using a smaller MTU makes the resets disappear, MTU/PMTUD is a strong suspect. Verify exact limits against current vendor documentation before changing production paths.",
+    "tool_calls": [
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 414,
+    "api_duration_ms": 19339,
+    "session_duration_ms": 44026,
+    "wall_ms": 52360,
+    "premium_requests": 7.5,
+    "session_id": "bf24221b-fcd5-4faf-bd39-44b68a87b80e",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:54:59+00:00"
+}

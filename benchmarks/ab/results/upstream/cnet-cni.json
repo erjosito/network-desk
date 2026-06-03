@@ -1,0 +1,49 @@
+{
+  "id": "cnet-cni",
+  "variant": "upstream",
+  "query": "pick a CNI for an Azure Kubernetes cluster with strict pod IP planning",
+  "expected_specialists": [
+    "cn_cnet"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "Routing this to the right network-desk specialist before answering.\n\nI\u2019ll use the container-networking specialist and pull the CNI-selection guidance.\n\n**Pick: Azure CNI Overlay with Cilium dataplane.**\n\nIt best fits an AKS cluster with strict pod IP planning because pod IPs come from a dedicated, non-VNet pod CIDR, while node IPs stay in the VNet subnet. That lets you size pod space explicitly without consuming large VNet subnets or pre-allocating pod IPs per node.\n\nUse **Azure CNI traditional** only if pods must be directly routable from the VNet, on-premises, or firewall rules need real pod IPs. Otherwise, overlay is cleaner and safer for planned scale.\n\n**Recommended planning model:**\n\n| Item | Recommendation |\n|---|---|\n| CNI | Azure CNI Overlay |\n| Dataplane | Cilium |\n| Pod CIDR | Dedicated non-overlapping RFC1918 block, e.g. `10.244.0.0/16` |\n| Node subnet | Sized only for nodes, not pods |\n| Max pods/node | Set deliberately; avoid defaults-by-accident |\n| Policy | Use Cilium NetworkPolicy if L7/eBPF observability matters |\n\n**Key caveat:** the pod CIDR must not overlap with VNet, peered VNet, on-prem, VPN, ExpressRoute, service CIDR, or future expansion ranges.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "report_intent",
+      "cn_role",
+      "cn_orchestrate",
+      "cn_skill",
+      "cn_role",
+      "cn_skill"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 1000,
+    "api_duration_ms": 27259,
+    "session_duration_ms": 54542,
+    "wall_ms": 75827,
+    "premium_requests": 7.5,
+    "session_id": "61651899-fd09-43f2-9012-c8b66d9ab43c",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role",
+      "cn_orchestrate",
+      "cn_skill",
+      "cn_role",
+      "cn_skill"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:35:40+00:00"
+}

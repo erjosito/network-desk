@@ -1,0 +1,57 @@
+{
+  "id": "ipv6-migration",
+  "query": "phased dual-stack rollout plan for a brownfield Azure environment",
+  "category": "regex-easy",
+  "expected_specialists": [
+    "cn_ipv6"
+  ],
+  "order": {
+    "A": "pattern-g",
+    "B": "upstream"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 9,
+      "clarity": 8,
+      "conciseness": 6
+    },
+    "B": {
+      "technical_accuracy": 9,
+      "completeness": 8,
+      "actionability": 8,
+      "clarity": 9,
+      "conciseness": 8
+    },
+    "winner": "tie",
+    "reason": "A excels with exit criteria and risk register; B is more concise with stronger Azure-specific details (ICMPv6, /64 constraints, Basic LB). Both technically sound."
+  },
+  "winner_variant": "tie",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":9,\"clarity\":8,\"conciseness\":6},\"B\":{\"technical_accuracy\":9,\"completeness\":8,\"actionability\":8,\"clarity\":9,\"conciseness\":8},\"winner\":\"tie\",\"reason\":\"A excels with exit criteria and risk register; B is more concise with stronger Azure-specific details (ICMPv6, /64 constraints, Basic LB). Both technically sound.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 1909,
+    "api_duration_ms": 37793,
+    "session_duration_ms": 64445,
+    "wall_ms": 73811,
+    "premium_requests": 3.0,
+    "session_id": "f064e672-a759-4db9-8f8b-f6549204b8af",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T09:17:18+00:00"
+}

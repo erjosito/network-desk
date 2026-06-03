@@ -1,0 +1,55 @@
+{
+  "id": "pl-endpoint-dns",
+  "variant": "upstream",
+  "query": "Private Endpoint DNS integration with hub-and-spoke",
+  "expected_specialists": [
+    "cn_pl",
+    "cn_dns"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll use the network-desk specialists for the DNS and Private Endpoint guidance, then answer without creating files or running commands.\n\n**Recommended pattern:** centralize Azure Private DNS zones in the hub/shared-services subscription, then link every spoke VNet that consumes Private Endpoints to those zones.\n\nFor Azure Private Endpoints in hub-and-spoke:\n\n1. Create the required `privatelink.*` private DNS zones centrally, such as:\n   - `privatelink.blob.core.windows.net`\n   - `privatelink.database.windows.net`\n   - `privatelink.vaultcore.azure.net`\n\n2. Link each relevant zone to:\n   - Hub VNet\n   - All spoke VNets with workloads that must resolve the private endpoint FQDNs\n\n3. Disable auto-registration on `privatelink.*` zone links. Private Endpoint records should be created through DNS zone groups, Azure Policy, or IaC.\n\n4. If workloads use Azure-provided DNS, linked private zones are enough.\n\n5. If workloads use custom DNS, forward `privatelink.*` zones to Azure DNS from an Azure-hosted resolver, or to the Azure DNS Private Resolver inbound endpoint from on-premises.\n\n6. For on-premises clients, configure conditional forwarders for each `privatelink.*` zone to the hub DNS Private Resolver inbound endpoint.\n\nResolution should look like:\n\n```text\nstorageacct.blob.core.windows.net\n\u2192 storageacct.privatelink.blob.core.windows.net\n\u2192 private endpoint IP, e.g. 10.x.x.x\n```\n\nAvoid creating separate private DNS zones per spoke unless isolation is required; duplicate zones can cause inconsistent records and broken resolution.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "report_intent",
+      "cn_role",
+      "cn_role",
+      "report_intent",
+      "skill",
+      "report_intent",
+      "cn_skill",
+      "cn_skill",
+      "cn_skill"
+    ],
+    "skills_invoked": [
+      "cn_skill"
+    ],
+    "output_tokens": 953,
+    "api_duration_ms": 31287,
+    "session_duration_ms": 58211,
+    "wall_ms": 81109,
+    "premium_requests": 7.5,
+    "session_id": "f293690c-4869-444a-bfb0-8226ec2852cc",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role",
+      "cn_role",
+      "cn_skill",
+      "cn_skill",
+      "cn_skill"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:27:24+00:00"
+}

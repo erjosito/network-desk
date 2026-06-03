@@ -1,0 +1,57 @@
+{
+  "id": "mon-flow-logs",
+  "query": "enable VNet flow logs and Traffic Analytics for east-west visibility",
+  "category": "regex-easy",
+  "expected_specialists": [
+    "cn_nmon"
+  ],
+  "order": {
+    "A": "upstream",
+    "B": "pattern-g"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 9,
+      "completeness": 8,
+      "actionability": 7,
+      "clarity": 9,
+      "conciseness": 7
+    },
+    "B": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 9,
+      "clarity": 9,
+      "conciseness": 8
+    },
+    "winner": "B",
+    "reason": "B provides a concrete CLI command and structured table making it immediately actionable; both are technically sound but B is more operationally useful"
+  },
+  "winner_variant": "pattern-g",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":9,\"completeness\":8,\"actionability\":7,\"clarity\":9,\"conciseness\":7},\"B\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":9,\"clarity\":9,\"conciseness\":8},\"winner\":\"B\",\"reason\":\"B provides a concrete CLI command and structured table making it immediately actionable; both are technically sound but B is more operationally useful\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 536,
+    "api_duration_ms": 20241,
+    "session_duration_ms": 56251,
+    "wall_ms": 63907,
+    "premium_requests": 3.0,
+    "session_id": "695f1635-1a0e-4b2f-96ff-616c6d28130b",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T09:20:22+00:00"
+}

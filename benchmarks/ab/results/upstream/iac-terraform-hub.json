@@ -1,0 +1,44 @@
+{
+  "id": "iac-terraform-hub",
+  "variant": "upstream",
+  "query": "generate Terraform for an Azure hub VNet with Azure Firewall",
+  "expected_specialists": [
+    "cn_iac"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll use the network-desk specialists for the Azure hub VNet, Firewall, and Terraform guidance, then provide inline code only.\n\n**Assumptions:** single Azure region, Azure Firewall Standard, hub CIDR `10.0.0.0/16`, firewall subnet `10.0.0.0/26`.\n\n```hcl\nterraform {\n  required_version = \">= 1.6.0\"\n\n  required_providers {\n    azurerm = {\n      source  = \"hashicorp/azurerm\"\n      version = \"~> 4.0\"\n    }\n  }\n}\n\nprovider \"azurerm\" {\n  features {}\n}\n\nvariable \"location\" {\n  type    = string\n  default = \"eastus\"\n}\n\nvariable \"prefix\" {\n  type    = string\n  default = \"hub\"\n}\n\nvariable \"tags\" {\n  type = map(string)\n  default = {\n    environment = \"prod\"\n    workload    = \"network-hub\"\n  }\n}\n\nresource \"azurerm_resource_group\" \"hub\" {\n  name     = \"rg-${var.prefix}-network\"\n  location = var.location\n  tags     = var.tags\n}\n\nresource \"azurerm_virtual_network\" \"hub\" {\n  name                = \"vnet-${var.prefix}\"\n  location            = azurerm_resource_group.hub.location\n  resource_group_name = azurerm_resource_group.hub.name\n  address_space       = [\"10.0.0.0/16\"]\n  tags                = var.tags\n}\n\nresource \"azurerm_subnet\" \"firewall\" {\n  name                 = \"AzureFirewallSubnet\"\n  resource_group_name  = azurerm_resource_group.hub.name\n  virtual_network_name = azurerm_virtual_network.hub.name\n  address_prefixes     = [\"10.0.0.0/26\"]\n}\n\nresource \"azurerm_subnet\" \"shared_services\" {\n  name                 = \"snet-shared-services\"\n  resource_group_name  = azurerm_resource_group.hub.name\n  virtual_network_name = azurerm_virtual_network.hub.name\n  address_prefixes     = [\"10.0.1.0/24\"]\n}\n\nresource \"azurerm_public_ip\" \"firewall\" {\n  name                = \"pip-${var.prefix}-azfw\"\n  location            = azurerm_resource_group.hub.location\n  resource_group_name = azurerm_resource_group.hub.name\n  allocation_method   = \"Static\"\n  sku                 = \"Standard\"\n  tags                = var.tags\n}\n\nresource \"azurerm_firewall_policy\" \"hub\" {\n  name                = \"afwp-${var.prefix}\"\n  location            = azurerm_resource_group.hub.location\n  resource_group_name = azurerm_resource_group.hub.name\n  sku                 = \"Standard\"\n  tags                = var.tags\n}\n\nresource \"azurerm_firewall\" \"hub\" {\n  name                = \"azfw-${var.prefix}\"\n  location            = azurerm_resource_group.hub.location\n  resource_group_name = azurerm_resource_group.hub.name\n  sku_name            = \"AZFW_VNet\"\n  sku_tier            = \"Standard\"\n  firewall_policy_id  = azurerm_firewall_policy.hub.id\n  tags                = var.tags\n\n  ip_configuration {\n    name                 = \"configuration\"\n    subnet_id            = azurerm_subnet.firewall.id\n    public_ip_address_id = azurerm_public_ip.firewall.id\n  }\n}\n\noutput \"hub_vnet_id\" {\n  value = azurerm_virtual_network.hub.id\n}\n\noutput \"firewall_private_ip\" {\n  value = azurerm_firewall.hub.ip_configuration[0].private_ip_address\n}\n\noutput \"firewall_public_ip\" {\n  value = azurerm_public_ip.firewall.ip_address\n}\n```\n\nAzure requires the firewall subnet to be named `AzureFirewallSubnet`; `/26` is the recommended minimum size. See Azure Firewall and Terraform provider references: https://learn.microsoft.com/azure/firewall/ and https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/firewall\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "cn_route",
+      "report_intent",
+      "cn_role",
+      "cn_role",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 1518,
+    "api_duration_ms": 32590,
+    "session_duration_ms": 60405,
+    "wall_ms": 94561,
+    "premium_requests": 7.5,
+    "session_id": "792cd951-86ea-4f07-8f0c-5d7e183808eb",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role",
+      "cn_role",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:34:24+00:00"
+}

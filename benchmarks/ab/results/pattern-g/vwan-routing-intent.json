@@ -1,0 +1,41 @@
+{
+  "id": "vwan-routing-intent",
+  "variant": "pattern-g",
+  "query": "configure Virtual WAN routing intent for internet and private traffic inspection",
+  "expected_specialists": [
+    "cn_vwan"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll ground this in the Virtual WAN specialist guidance and keep the answer to configuration steps only.\n\n**Recommended setup:** use a **secured Virtual WAN hub** with **Azure Firewall** deployed in the virtual hub, then enable **Routing Intent** for both traffic classes.\n\n1. Create or use a **Standard Virtual WAN** and **secured virtual hub**.\n2. Deploy **Azure Firewall** into the virtual hub.\n3. Attach VNets, VPN sites, and ExpressRoute circuits to the hub.\n4. Configure the Azure Firewall Policy with required allow/deny rules.\n5. In the Azure portal, go to:\n\n`Virtual WAN > Virtual hubs > <hub> > Routing Intent`\n\n6. Configure both policies:\n\n| Routing policy | Destination | Next hop |\n|---|---|---|\n| **Internet Traffic** | `0.0.0.0/0` internet-bound traffic | Azure Firewall in the hub |\n| **Private Traffic** | VNet-to-VNet, branch-to-VNet, branch-to-branch, RFC1918/private prefixes | Azure Firewall in the hub |\n\n7. Save the routing intent configuration.\n\n**Effect:** internet-bound traffic and private east-west / hybrid traffic are steered through the hub firewall for inspection. Virtual WAN automatically updates the effective routes on hub connections, so you generally should not manually add competing custom routes for the same destinations.\n\n**Important checks:** ensure firewall rules allow required traffic, asymmetric routing is avoided, branch prefixes are correctly advertised, and no custom route tables conflict with Routing Intent. Verify against current Azure Virtual WAN Routing Intent documentation before applying in production.",
+    "tool_calls": [
+      "report_intent",
+      "skill",
+      "view",
+      "view",
+      "view"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1276,
+    "api_duration_ms": 45119,
+    "session_duration_ms": 68670,
+    "wall_ms": 78797,
+    "premium_requests": 7.5,
+    "session_id": "975845b7-d9ce-4d59-bb92-1074a9ff4eb7",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:56:18+00:00"
+}

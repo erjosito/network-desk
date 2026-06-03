@@ -1,0 +1,46 @@
+{
+  "id": "ipv6-migration",
+  "variant": "upstream",
+  "query": "phased dual-stack rollout plan for a brownfield Azure environment",
+  "expected_specialists": [
+    "cn_ipv6"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**Recommendation:** use a cautious dual-stack migration: assess first, pilot at the edge, expand into hub/spoke networks and workloads, then move selected services to IPv6-preferred only after stability is proven.\n\n## Phase 0 \u2014 Governance and readiness\n\n- Inventory VNets, subnets, peerings, UDRs, NSGs, Azure Firewall/NVAs, load balancers, Private Endpoints, DNS zones, VPN/ExpressRoute paths, AKS, App Gateway, Front Door, and monitoring.\n- Classify services as: **IPv6-ready**, **dual-stack with changes**, **IPv4-only dependency**, or **unsupported/unknown**.\n- Audit applications for hardcoded IPv4 literals, IPv4-only validation, database fields sized for IPv4, IPv4-only ACLs, and socket binding to `0.0.0.0`.\n- Define success metrics: IPv6 error rate within IPv4 baseline, no SLA regression, latency within target, complete IPv6 observability, and documented rollback.\n\n## Phase 1 \u2014 Addressing and control-plane design\n\n- Assign global IPv6 address space using a structured hierarchy, typically `/48` per major environment or region and `/64` per Azure subnet.\n- Keep IPv4 addressing unchanged during brownfield rollout.\n- Add IPv6 prefixes to VNets and subnets only where needed for each wave.\n- Mirror intended IPv4 routing policy in IPv6 route tables; do not assume IPv4 UDR/NSG behavior automatically covers IPv6.\n- Review Azure-specific constraints: Azure subnets use `/64` IPv6 prefixes, Basic Load Balancer is not suitable, Standard Load Balancer/App Gateway/Front Door should be used where IPv6 exposure is required, and service support varies by SKU/region.\n\n## Phase 2 \u2014 Edge pilot\n\nStart with low-risk public entry points.\n\n- Enable IPv6 on Azure Front Door, Application Gateway v2, or Standard Load Balancer where supported.\n- Publish AAAA records for a small set of non-critical public services.\n- Lower DNS TTLs before the pilot.\n- Add explicit IPv6 NSG/firewall rules equivalent to IPv4 intent.\n- Allow required ICMPv6; blocking it can break path MTU discovery and neighbor discovery behavior.\n- Monitor IPv4 vs IPv6 request volume, latency, failed connections, WAF events, firewall denies, and application errors.\n\n**Rollback:** remove AAAA records or IPv6 frontend exposure first; clients should fall back to IPv4 after DNS cache expiry.\n\n## Phase 3 \u2014 Hub and shared services\n\n- Add IPv6 to hub VNets, shared DNS, firewall inspection paths, and selected peering routes.\n- Validate Azure Firewall/NVA support for IPv6 policy, logging, threat inspection, and asymmetric routing behavior.\n- Extend monitoring, flow logs, SIEM parsing, IPAM, CMDB, and incident runbooks to IPv6.\n- Validate ExpressRoute/VPN IPv6 support only after confirming current Azure feature availability and gateway/SKU constraints.\n- Avoid enabling IPv6 everywhere at once; migrate one region or hub at a time.\n\n## Phase 4 \u2014 Spoke and workload rollout\n\nMigrate workloads in this order:\n\n1. Stateless web/API services behind load balancers.\n2. Internal APIs and service-to-service traffic.\n3. AKS or container platforms after confirming cluster/network plugin dual-stack support.\n4. Stateful services and databases.\n5. Legacy systems last, with translation or IPv4 retention where required.\n\nFor each workload wave, validate DNS A/AAAA behavior, application binding, health probes, NSG/firewall policy, logging, backup/restore tooling, and dependency reachability.\n\n## Phase 5 \u2014 IPv6-preferred operations\n\n- Prefer IPv6 for services that have run stably in dual-stack mode for at least one full operational cycle.\n- Keep IPv4 available for legacy dependencies, vendor integrations, management tooling, and unsupported Azure services.\n- Use NAT64/DNS64 only where a clear IPv6-to-IPv4 dependency remains and the platform/service design supports it.\n- Do not release or remove IPv4 allocations until rollback risk is acceptably low.\n\n## Key brownfield safeguards\n\n- Treat IPv6 as a second production network, not an address add-on.\n- Require separate change records for DNS, routing, firewall, load balancer, and application changes.\n- Gate every phase with measurable success criteria.\n- Keep rollback simple in early phases: DNS and frontend changes first, subnet/workload changes later.\n- Update security policy explicitly for IPv6; IPv4 allow/deny rules are not enough.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "cn_route",
+      "report_intent",
+      "cn_role",
+      "cn_orchestrate",
+      "cn_skill",
+      "cn_skill"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 1319,
+    "api_duration_ms": 38848,
+    "session_duration_ms": 71437,
+    "wall_ms": 95952,
+    "premium_requests": 7.5,
+    "session_id": "b7773976-9339-400b-8bde-3ea0f9d7bddd",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role",
+      "cn_orchestrate",
+      "cn_skill",
+      "cn_skill"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:42:41+00:00"
+}

@@ -1,0 +1,37 @@
+{
+  "id": "cnet-cni",
+  "variant": "pattern-g",
+  "query": "pick a CNI for an Azure Kubernetes cluster with strict pod IP planning",
+  "expected_specialists": [
+    "cn_cnet"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**Pick: Azure CNI Pod Subnet with static block allocation** for AKS.\n\nUse it when pod IPs must be deliberately planned, isolated from node IP space, and still routable inside the Azure VNet. It gives each node/pool predictable pod IP capacity from a dedicated pod subnet, avoiding the messy IP coupling of classic Azure CNI while preserving Azure-native routing better than overlay.\n\nAvoid **kubenet** for new strict designs. Use **Azure CNI Overlay** only if conserving VNet IPs matters more than having VNet-routable pod IPs.\n\n**Design rule:** create separate subnets for nodes and pods, size pod subnets per node pool using max nodes, max pods per node, surge/upgrade headroom, and future growth. Verify exact limits and formulas against current AKS Azure CNI documentation before implementation.",
+    "tool_calls": [
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 714,
+    "api_duration_ms": 36441,
+    "session_duration_ms": 64587,
+    "wall_ms": 75797,
+    "premium_requests": 7.5,
+    "session_id": "b1b1506d-3bee-4103-b1b3-2a5b0b1b21af",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T09:00:21+00:00"
+}

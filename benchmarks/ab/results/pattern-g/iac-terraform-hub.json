@@ -1,0 +1,38 @@
+{
+  "id": "iac-terraform-hub",
+  "variant": "pattern-g",
+  "query": "generate Terraform for an Azure hub VNet with Azure Firewall",
+  "expected_specialists": [
+    "cn_iac"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "```hcl\nterraform {\n  required_version = \">= 1.6.0\"\n\n  required_providers {\n    azurerm = {\n      source  = \"hashicorp/azurerm\"\n      version = \"~> 4.0\"\n    }\n  }\n}\n\nprovider \"azurerm\" {\n  features {}\n}\n\nvariable \"location\" {\n  type    = string\n  default = \"eastus\"\n}\n\nvariable \"prefix\" {\n  type    = string\n  default = \"hub\"\n}\n\nresource \"azurerm_resource_group\" \"hub\" {\n  name     = \"rg-${var.prefix}-network\"\n  location = var.location\n}\n\nresource \"azurerm_virtual_network\" \"hub\" {\n  name                = \"vnet-${var.prefix}\"\n  location            = azurerm_resource_group.hub.location\n  resource_group_name = azurerm_resource_group.hub.name\n  address_space       = [\"10.0.0.0/16\"]\n}\n\nresource \"azurerm_subnet\" \"firewall\" {\n  name                 = \"AzureFirewallSubnet\"\n  resource_group_name  = azurerm_resource_group.hub.name\n  virtual_network_name = azurerm_virtual_network.hub.name\n  address_prefixes     = [\"10.0.0.0/26\"]\n}\n\nresource \"azurerm_public_ip\" \"firewall\" {\n  name                = \"pip-${var.prefix}-afw\"\n  location            = azurerm_resource_group.hub.location\n  resource_group_name = azurerm_resource_group.hub.name\n  allocation_method   = \"Static\"\n  sku                 = \"Standard\"\n}\n\nresource \"azurerm_firewall_policy\" \"hub\" {\n  name                = \"afwp-${var.prefix}\"\n  location            = azurerm_resource_group.hub.location\n  resource_group_name = azurerm_resource_group.hub.name\n  sku                 = \"Standard\"\n}\n\nresource \"azurerm_firewall\" \"hub\" {\n  name                = \"afw-${var.prefix}\"\n  location            = azurerm_resource_group.hub.location\n  resource_group_name = azurerm_resource_group.hub.name\n  sku_name            = \"AZFW_VNet\"\n  sku_tier            = \"Standard\"\n  firewall_policy_id  = azurerm_firewall_policy.hub.id\n\n  ip_configuration {\n    name                 = \"default\"\n    subnet_id            = azurerm_subnet.firewall.id\n    public_ip_address_id = azurerm_public_ip.firewall.id\n  }\n}\n\nresource \"azurerm_route_table\" \"spoke_default_to_firewall\" {\n  name                = \"rt-${var.prefix}-spoke-default-afw\"\n  location            = azurerm_resource_group.hub.location\n  resource_group_name = azurerm_resource_group.hub.name\n\n  route {\n    name                   = \"default-to-azure-firewall\"\n    address_prefix         = \"0.0.0.0/0\"\n    next_hop_type          = \"VirtualAppliance\"\n    next_hop_in_ip_address = azurerm_firewall.hub.ip_configuration[0].private_ip_address\n  }\n}\n\noutput \"hub_vnet_id\" {\n  value = azurerm_virtual_network.hub.id\n}\n\noutput \"azure_firewall_private_ip\" {\n  value = azurerm_firewall.hub.ip_configuration[0].private_ip_address\n}\n\noutput \"azure_firewall_public_ip\" {\n  value = azurerm_public_ip.firewall.ip_address\n}\n```\n\nThis creates a basic Azure hub VNet with the required `AzureFirewallSubnet`, a Standard Azure Firewall, a firewall policy, and a reusable route table for spoke subnets to send default traffic through the firewall. Verify subnet sizing, SKU, and current Azure Firewall limits against Microsoft documentation before deployment.",
+    "tool_calls": [
+      "report_intent",
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1453,
+    "api_duration_ms": 46653,
+    "session_duration_ms": 99095,
+    "wall_ms": 106719,
+    "premium_requests": 7.5,
+    "session_id": "aef8f7c1-ae70-4b1a-997e-a701eb96e760",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:59:05+00:00"
+}

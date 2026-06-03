@@ -1,0 +1,58 @@
+{
+  "id": "pl-endpoint-dns",
+  "query": "Private Endpoint DNS integration with hub-and-spoke",
+  "category": "regex-easy",
+  "expected_specialists": [
+    "cn_pl",
+    "cn_dns"
+  ],
+  "order": {
+    "A": "upstream",
+    "B": "pattern-g"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 9,
+      "completeness": 7,
+      "actionability": 8,
+      "clarity": 8,
+      "conciseness": 8
+    },
+    "B": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 9,
+      "clarity": 8,
+      "conciseness": 7
+    },
+    "winner": "B",
+    "reason": "B adds PE placement guidance (hub vs spoke table), DNS Private Resolver outbound coverage, and a pitfalls section\u2014all substantive and accurate extra value over A's more compact treatment."
+  },
+  "winner_variant": "pattern-g",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":9,\"completeness\":7,\"actionability\":8,\"clarity\":8,\"conciseness\":8},\"B\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":9,\"clarity\":8,\"conciseness\":7},\"winner\":\"B\",\"reason\":\"B adds PE placement guidance (hub vs spoke table), DNS Private Resolver outbound coverage, and a pitfalls section\u2014all substantive and accurate extra value over A's more compact treatment.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 597,
+    "api_duration_ms": 16758,
+    "session_duration_ms": 41457,
+    "wall_ms": 49063,
+    "premium_requests": 3.0,
+    "session_id": "e1cfc047-7367-4f71-87ad-4b8a31c10237",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T09:24:04+00:00"
+}

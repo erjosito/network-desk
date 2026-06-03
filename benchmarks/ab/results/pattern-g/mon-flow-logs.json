@@ -1,0 +1,38 @@
+{
+  "id": "mon-flow-logs",
+  "variant": "pattern-g",
+  "query": "enable VNet flow logs and Traffic Analytics for east-west visibility",
+  "expected_specialists": [
+    "cn_nmon"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I can\u2019t apply live Azure changes from here, but this is the right enablement pattern for **east-west visibility**:\n\n**Target architecture:** VNets/subnets/NIC traffic \u2192 **Azure Network Watcher VNet flow logs** \u2192 Storage Account \u2192 **Traffic Analytics** \u2192 Log Analytics Workspace.\n\n```bash\naz network watcher flow-log create \\\n  --resource-group <network-watcher-rg> \\\n  --name <flow-log-name> \\\n  --location <region> \\\n  --target-resource <vnet-resource-id> \\\n  --storage-account <storage-account-id> \\\n  --enabled true \\\n  --traffic-analytics true \\\n  --workspace <log-analytics-workspace-id> \\\n  --interval 10\n```\n\nRecommended settings:\n\n| Area | Recommendation |\n|---|---|\n| Scope | Enable on every production VNet where east-west traffic matters, especially spokes and shared services VNets |\n| Region | Use a Network Watcher instance in each Azure region |\n| Logs | Use **VNet flow logs**, not legacy NSG flow logs for new deployments |\n| Analytics | Send to a centralized Log Analytics Workspace for Traffic Analytics |\n| Interval | Use `10` minutes for near-real-time investigation; `60` minutes for lower cost |\n| Storage | Use lifecycle policies to control raw flow-log retention |\n| Visibility | Validate flows between workload subnets, hub services, private endpoints, firewalls, and peered VNets |\n\nAfter enablement, use **Traffic Analytics** to review top talkers, cross-subnet flows, denied flows, unexpected ports, and traffic crossing hub/spoke or segmentation boundaries.\n\nVerify syntax, regional availability, and current limits against the latest Microsoft Azure Network Watcher, VNet flow logs, and Traffic Analytics documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1185,
+    "api_duration_ms": 33938,
+    "session_duration_ms": 64712,
+    "wall_ms": 81313,
+    "premium_requests": 7.5,
+    "session_id": "9854f031-4bd3-4a2b-8796-5bc0da29b848",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T09:04:09+00:00"
+}

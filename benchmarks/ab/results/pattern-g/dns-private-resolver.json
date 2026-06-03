@@ -1,0 +1,41 @@
+{
+  "id": "dns-private-resolver",
+  "variant": "pattern-g",
+  "query": "design Azure Private DNS Resolver for on-prem to cloud lookups",
+  "expected_specialists": [
+    "cn_dns"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll ground the design in the DNS specialist guidance and keep the final answer concise.\n\n## Recommended design\n\nUse **Azure DNS Private Resolver inbound endpoints** in a central hub VNet so on-prem DNS servers can resolve Azure Private DNS zones over ExpressRoute or VPN.\n\n**Flow:** on-prem client \u2192 on-prem DNS \u2192 conditional forwarder \u2192 Azure Private DNS Resolver inbound endpoint \u2192 Azure Private DNS zone \u2192 private endpoint IP.\n\n## Architecture\n\n1. **Deploy Azure DNS Private Resolver in the hub VNet**\n   - Use a dedicated subnet for the **inbound endpoint**.\n   - Place it in the hub/shared services VNet reachable from on-prem via ExpressRoute or S2S VPN.\n   - Ensure routing and NSGs allow DNS from on-prem to the inbound endpoint on **UDP/TCP 53**.\n\n2. **Link Azure Private DNS zones to the resolver VNet**\n   - Link zones such as:\n     - `privatelink.blob.core.windows.net`\n     - `privatelink.database.windows.net`\n     - `privatelink.vaultcore.azure.net`\n     - `privatelink.azurecr.io`\n   - Also link the same zones to spoke VNets that host workloads needing Azure-side resolution.\n\n3. **Configure on-prem DNS conditional forwarders**\n   - On corporate DNS servers, forward Azure private zones to the resolver inbound endpoint IP.\n   - Example:\n     - `privatelink.blob.core.windows.net` \u2192 `10.x.x.x`\n     - `privatelink.database.windows.net` \u2192 `10.x.x.x`\n     - `privatelink.vaultcore.azure.net` \u2192 `10.x.x.x`\n\n4. **Do not forward all Azure public zones**\n   - Prefer forwarding only `privatelink.*` private zones.\n   - Let public DNS resolve the public service name and CNAME chain, then forward the private-link zone to Azure.\n\n## High availability\n\nUse a hub design with resilient connectivity to Azure. If available in your target region/design, use multiple inbound endpoint IPs and configure both as forwarder targets on-prem. Otherwise, treat the resolver endpoint and hybrid network path as critical shared infrastructure and monitor it accordingly.\n\n## Key checks\n\n- On-prem can route to the inbound endpoint private IP.\n- Firewalls permit UDP/TCP 53 from on-prem DNS servers.\n- Private DNS zones are linked to the resolver VNet.\n- Private endpoint records exist in the correct `privatelink.*` zones.\n- On-prem conditional forwarders target the resolver inbound endpoint, not Azure public DNS.\n\nVerify exact limits, regional availability, subnet requirements, and HA behavior against current Microsoft Azure DNS Private Resolver documentation before implementation.",
+    "tool_calls": [
+      "skill",
+      "report_intent",
+      "view",
+      "view",
+      "view"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1402,
+    "api_duration_ms": 42086,
+    "session_duration_ms": 83340,
+    "wall_ms": 90811,
+    "premium_requests": 7.5,
+    "session_id": "4689b484-e90e-468b-a129-aeeea2eb7389",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:51:44+00:00"
+}

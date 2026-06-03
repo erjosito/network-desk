@@ -1,0 +1,57 @@
+{
+  "id": "lb-l4-vs-l7",
+  "query": "when should I use AWS NLB vs ALB",
+  "category": "cloud-service",
+  "expected_specialists": [
+    "cn_lb"
+  ],
+  "order": {
+    "A": "pattern-g",
+    "B": "upstream"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 9,
+      "clarity": 9,
+      "conciseness": 8
+    },
+    "B": {
+      "technical_accuracy": 9,
+      "completeness": 8,
+      "actionability": 8,
+      "clarity": 8,
+      "conciseness": 8
+    },
+    "winner": "A",
+    "reason": "A provides more concrete protocol examples (MQTT, SIP, gRPC, K8s Ingress) improving actionability; B wastes space with unnecessary 'routing through specialists' preamble."
+  },
+  "winner_variant": "pattern-g",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":9,\"clarity\":9,\"conciseness\":8},\"B\":{\"technical_accuracy\":9,\"completeness\":8,\"actionability\":8,\"clarity\":8,\"conciseness\":8},\"winner\":\"A\",\"reason\":\"A provides more concrete protocol examples (MQTT, SIP, gRPC, K8s Ingress) improving actionability; B wastes space with unnecessary 'routing through specialists' preamble.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 607,
+    "api_duration_ms": 15354,
+    "session_duration_ms": 47716,
+    "wall_ms": 65030,
+    "premium_requests": 3.0,
+    "session_id": "0c04b53a-d8c3-4cc1-a3b0-de1cafecd444",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T09:18:23+00:00"
+}

@@ -1,0 +1,39 @@
+{
+  "id": "pl-endpoint-dns",
+  "variant": "pattern-g",
+  "query": "Private Endpoint DNS integration with hub-and-spoke",
+  "expected_specialists": [
+    "cn_pl",
+    "cn_dns"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "## Private Endpoint DNS integration in hub-and-spoke\n\n**Recommended pattern:** centralize DNS resolution, but keep Private Endpoints close to the consuming workload or service owner.\n\n### Core design\n\n1. **Create Azure Private DNS zones** for each Private Link service type, for example:\n   - `privatelink.blob.core.windows.net`\n   - `privatelink.database.windows.net`\n   - `privatelink.vaultcore.azure.net`\n\n2. **Link Private DNS zones to VNets that need resolution**\n   - Link to the **hub VNet** if DNS resolvers live there.\n   - Link to each **spoke VNet** that contains clients resolving Private Endpoint names.\n   - Use registration disabled for Private Link zones.\n\n3. **Use Azure DNS Private Resolver in the hub**\n   - Inbound endpoint: lets on-premises DNS forward Azure private DNS queries into Azure.\n   - Outbound endpoint + rulesets: forwards selected domains from Azure to on-premises DNS if needed.\n\n4. **Configure on-premises DNS conditional forwarding**\n   - Forward `privatelink.*` zones, or the public service zones such as `blob.core.windows.net`, depending on your DNS model, to the hub DNS resolver inbound IPs.\n\n### Important behavior\n\nPrivate Endpoint access depends on **DNS returning the private IP**, not on routing tricks. The public FQDN, such as:\n\n```text\nmystorage.blob.core.windows.net\n```\n\nshould resolve through CNAME to:\n\n```text\nmystorage.privatelink.blob.core.windows.net\n```\n\nand finally to the Private Endpoint IP.\n\n### Hub-and-spoke options\n\n| Pattern | Use when | Notes |\n|---|---|---|\n| **Private DNS zones in hub, linked to spokes** | Most common enterprise design | Central governance, simple resolution |\n| **Private Endpoint in spoke** | Workload-owned services | Keeps data path local to workload VNet |\n| **Private Endpoint in hub** | Shared services consumed by many spokes | Requires routing/security review |\n| **Custom DNS/NVA in hub** | Existing enterprise DNS stack | Forward Azure private zones to Azure DNS Private Resolver |\n\n### Common pitfalls\n\n- Forgetting to link the Private DNS zone to the spoke VNet.\n- Creating duplicate zones with conflicting records across subscriptions.\n- Resolving from on-premises to public IPs because conditional forwarding is missing.\n- Assuming VNet peering automatically provides Private DNS resolution; it does not.\n- Using public DNS overrides without preserving the Private Link CNAME chain.\n\n### Practical recommendation\n\nUse a **central DNS hub** with Azure DNS Private Resolver and centrally managed Private DNS zones, then link those zones to all spokes that consume Private Endpoints. Place Private Endpoints in the spoke unless the endpoint represents a shared platform service.\n\nVerify exact zone names and service-specific behavior against current Azure Private Endpoint and Private DNS documentation before implementation.",
+    "tool_calls": [
+      "report_intent",
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 968,
+    "api_duration_ms": 32576,
+    "session_duration_ms": 62435,
+    "wall_ms": 68797,
+    "premium_requests": 7.5,
+    "session_id": "e1b5a192-0e33-4062-9e81-b884d0ff329d",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:52:52+00:00"
+}

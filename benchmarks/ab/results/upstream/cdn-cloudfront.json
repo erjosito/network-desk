@@ -1,0 +1,40 @@
+{
+  "id": "cdn-cloudfront",
+  "variant": "upstream",
+  "query": "tune CloudFront cache for a single-page app with dynamic origin",
+  "expected_specialists": [
+    "cn_cdn"
+  ],
+  "category": "cloud-service",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the CDN/edge specialist and answer with analysis-only guidance.\n\n**Recommended CloudFront cache split for SPA + dynamic origin:**\n\n| Path | Cache behavior | TTL guidance | Cache key |\n|---|---|---:|---|\n| `/assets/*`, `*.js`, `*.css`, images/fonts | Aggressively cache | `max-age=31536000, immutable` | Path only; enable Brotli/Gzip |\n| `/index.html`, `/`, SPA routes | Revalidate often | `no-cache` or TTL `0-60s` | Path only; avoid cookies/query unless needed |\n| `/api/*`, auth/session/user data | Do not cache | TTL `0` | Forward required headers/cookies/query only |\n| Versioned config like `/config.json` | Short cache | `30-300s` | Include only query/header dimensions that change response |\n\n**Key tuning points:**\n\n1. Use separate CloudFront **cache behaviors** for static assets, SPA shell, and dynamic/API routes.\n2. Prefer hashed filenames for static bundles so you can cache them for a year without invalidations.\n3. Keep `index.html` short-lived because it points users to the current asset versions.\n4. Do not forward all headers, cookies, or query strings by default; each forwarded value fragments the cache key and lowers hit ratio.\n5. For dynamic origin responses, let the origin emit precise `Cache-Control` headers and configure CloudFront to respect them with bounded min/default/max TTLs.\n6. For SPA deep links, route unknown paths to `/index.html` using CloudFront Function/Lambda@Edge rewrite or custom error handling, but avoid rewriting `/api/*` and real static asset paths.\n7. Enable compression, HTTP/2/HTTP/3, and consider **Origin Shield** if the origin is expensive or geographically distant.\n8. Use invalidations only for emergency rollback; normal deploys should rely on versioned assets plus short-lived HTML.\n\n**Safe default policy:**\n\nStatic assets: long TTL and minimal cache key.  \nHTML shell: short TTL or revalidation.  \nAPI/dynamic content: caching disabled unless each response is explicitly safe to cache.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 813,
+    "api_duration_ms": 26559,
+    "session_duration_ms": 108259,
+    "wall_ms": 134781,
+    "premium_requests": 7.5,
+    "session_id": "7e553e55-ee49-42bf-a599-6f047d1f9d7a",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:37:55+00:00"
+}

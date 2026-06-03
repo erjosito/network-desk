@@ -1,0 +1,57 @@
+{
+  "id": "ntsh-mtu",
+  "query": "intermittent TCP resets \u2014 could it be MTU and PMTUD black holes",
+  "category": "regex-easy",
+  "expected_specialists": [
+    "cn_ntsh"
+  ],
+  "order": {
+    "A": "pattern-g",
+    "B": "upstream"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 9,
+      "clarity": 9,
+      "conciseness": 8
+    },
+    "B": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 9,
+      "clarity": 9,
+      "conciseness": 8
+    },
+    "winner": "tie",
+    "reason": "Both technically accurate, well-structured, actionable. B adds asymmetric ICMP path insight; A adds IPv6 detail. Net equivalent quality."
+  },
+  "winner_variant": "tie",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":9,\"clarity\":9,\"conciseness\":8},\"B\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":9,\"clarity\":9,\"conciseness\":8},\"winner\":\"tie\",\"reason\":\"Both technically accurate, well-structured, actionable. B adds asymmetric ICMP path insight; A adds IPv6 detail. Net equivalent quality.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 604,
+    "api_duration_ms": 20659,
+    "session_duration_ms": 52010,
+    "wall_ms": 64672,
+    "premium_requests": 3.0,
+    "session_id": "cdbc1997-2adb-466f-b831-d44a6236df61",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T09:23:15+00:00"
+}

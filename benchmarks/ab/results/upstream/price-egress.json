@@ -1,0 +1,40 @@
+{
+  "id": "price-egress",
+  "variant": "upstream",
+  "query": "minimize cross-region egress costs in a multi-region deployment",
+  "expected_specialists": [
+    "cn_price"
+  ],
+  "category": "vague",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the right Network Desk specialist, then answer with cost-focused guidance.\n\n**Primary strategy:** keep traffic local. Place users, app tiers, data stores, and dependencies in the same region whenever possible, and use global routing only to steer users to the nearest regional stack.\n\n1. **Avoid chatty cross-region flows**: replicate data asynchronously instead of making synchronous service calls across regions.\n2. **Localize reads**: use regional read replicas, caches, CDN/edge caching, and object replication so reads do not cross regions.\n3. **Centralize only when justified**: shared services like logging, security inspection, or APIs can create hidden egress; deploy regional instances for high-volume paths.\n4. **Use private backbone options carefully**: VNet/VPC peering, transit hubs, Private Link, interconnects, or WAN hubs may improve control, but inter-region data transfer can still be billable.\n5. **Compress and batch traffic**: reduce payload size, deduplicate telemetry, batch replication, and avoid unnecessary east-west transfers.\n6. **Inspect flow logs and bills together**: identify top source/destination region pairs by GB, then redesign the highest-volume flows first.\n7. **Use CDN/object storage fronting**: serve static and large content from edge caches instead of repeatedly transferring from an origin region.\n8. **Design active-active deliberately**: active-active can reduce user latency but increase replication and consistency traffic; active-passive may be cheaper for some workloads.\n9. **Set cost guardrails**: tag regional workloads, monitor inter-region transfer metrics, create budgets/alerts, and review architecture when traffic crosses expected thresholds.\n\n**Rule of thumb:** cross-region egress is usually an architecture smell unless it is replication, failover, analytics ingestion, or a clearly justified shared-service flow.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 607,
+    "api_duration_ms": 23626,
+    "session_duration_ms": 61505,
+    "wall_ms": 83547,
+    "premium_requests": 7.5,
+    "session_id": "c38167a1-a098-46ed-acfe-45b3faa04b4a",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T08:32:49+00:00"
+}
