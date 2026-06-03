@@ -1,0 +1,57 @@
+{
+  "id": "vnet-hub-spoke-p1",
+  "query": "I need a hub-and-spoke VNet design that spans three Azure regions \u2014 give me the topology and the inter-region routing choices",
+  "category": "regex-easy",
+  "expected_specialists": [
+    "cn_vnet"
+  ],
+  "order": {
+    "A": "upstream",
+    "B": "pattern-g"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 8,
+      "completeness": 8,
+      "actionability": 7,
+      "clarity": 8,
+      "conciseness": 8
+    },
+    "B": {
+      "technical_accuracy": 8,
+      "completeness": 9,
+      "actionability": 8,
+      "clarity": 8,
+      "conciseness": 7
+    },
+    "winner": "B",
+    "reason": "B provides more actionable peering flag details, per-option routing behavior, and NVA-based transit as a practical third choice directly relevant to the question"
+  },
+  "winner_variant": "pattern-g",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":8,\"completeness\":8,\"actionability\":7,\"clarity\":8,\"conciseness\":8},\"B\":{\"technical_accuracy\":8,\"completeness\":9,\"actionability\":8,\"clarity\":8,\"conciseness\":7},\"winner\":\"B\",\"reason\":\"B provides more actionable peering flag details, per-option routing behavior, and NVA-based transit as a practical third choice directly relevant to the question\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 877,
+    "api_duration_ms": 19652,
+    "session_duration_ms": 43441,
+    "wall_ms": 50719,
+    "premium_requests": 3.0,
+    "session_id": "45245bac-f05b-4d0d-a6b1-096c8bfafe8e",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T10:57:27+00:00"
+}

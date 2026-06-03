@@ -1,0 +1,41 @@
+{
+  "id": "vnet-hub-spoke-p2",
+  "variant": "pattern-g",
+  "query": "what's the recommended way to lay out hub-spoke virtual networks across 3 Azure regions for a multi-region workload",
+  "expected_specialists": [
+    "cn_vnet"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll ground this in the Azure VNet architecture guidance and keep the answer text-only.\n\n**Recommended layout:** use a **regional hub-and-spoke per Azure region**, not one giant global hub.\n\nFor 3 regions:\n\n| Region | Layout |\n|---|---|\n| Region A | Hub VNet + local workload spokes |\n| Region B | Hub VNet + local workload spokes |\n| Region C | Hub VNet + local workload spokes |\n\n**Design pattern**\n\n1. **Place one hub VNet in each region**\n   - Azure Firewall or NVA\n   - VPN/ExpressRoute gateway if needed\n   - Private DNS resolver / shared DNS\n   - Bastion, monitoring, shared services\n   - NAT Gateway or controlled egress path\n\n2. **Put application VNets in regional spokes**\n   - Keep app, data, AKS, and shared workload tiers in separate spokes where segmentation matters.\n   - Peer each spoke only to its regional hub.\n   - Avoid full-mesh peering between spokes unless there is a clear need.\n\n3. **Connect hubs to each other**\n   - Use **Virtual WAN** if you want Microsoft-managed global transit, simpler routing, branch connectivity, and centralized policy.\n   - Use **global VNet peering between hubs** if you want a lighter, self-managed design.\n   - Do not rely on transitive routing through normal VNet peering unless using NVAs, Azure Firewall routing, or Virtual WAN.\n\n4. **Keep traffic regional by default**\n   - App traffic should stay within its region unless failover, replication, or global service communication requires otherwise.\n   - Use Front Door, Traffic Manager, or global load balancing to steer users to the nearest healthy region.\n\n5. **Centralize policy, decentralize failure domains**\n   - Use consistent IP planning, route tables, NSGs, firewall policies, DNS, and logging across all three regions.\n   - Do not make one region\u2019s hub a dependency for all regions.\n   - Each region should be able to operate independently during another region\u2019s failure.\n\n6. **Plan address space up front**\n   - Allocate non-overlapping CIDRs per region, for example:\n     - Region A: `10.10.0.0/16`\n     - Region B: `10.20.0.0/16`\n     - Region C: `10.30.0.0/16`\n   - Reserve growth space for future spokes, Private Endpoints, AKS, and DR expansion.\n\n**Rule of thumb:** choose **Azure Virtual WAN secured hubs** for enterprise-scale multi-region transit; choose **regional hub VNets with global peering** for smaller or more customized environments.\n\nVerify final limits, routing behavior, and service availability against current Azure documentation before implementation.",
+    "tool_calls": [
+      "skill",
+      "report_intent",
+      "view",
+      "view",
+      "view"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 908,
+    "api_duration_ms": 26478,
+    "session_duration_ms": 47312,
+    "wall_ms": 53938,
+    "premium_requests": 7.5,
+    "session_id": "cfd4198f-83f2-42ef-b06c-09c68eea8262",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T10:31:39+00:00"
+}

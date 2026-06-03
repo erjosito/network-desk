@@ -1,0 +1,42 @@
+{
+  "id": "fw-rule-audit-p2",
+  "variant": "upstream",
+  "query": "how do I systematically detect overlapping and over-broad rules in an Azure Firewall ruleset",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the right network-desk specialist and use its guidance before answering.\n\nUse an **offline rule-audit pipeline**: export Azure Firewall Policy, expand objects, normalize every rule, then compare rules as mathematical sets.\n\n1. **Build the effective rule order**: Rule Collection Group priority \u2192 Rule Collection priority \u2192 rule order, analyzed separately for DNAT, Network, and Application rules.\n\n2. **Normalize each rule** into a tuple: `rule_type, action, priority, source_set, destination_set, protocol_set, port_set, fqdn/url/category_set, translated_address, logging, hit_count`.\n\n3. **Expand objects** before comparison: IP Groups, CIDRs, service tags, port ranges, FQDN wildcards, web categories, and application protocols.\n\n4. **Detect overlaps with set logic**:\n   - **Exact duplicate**: same source, destination, protocol, port, and action.\n   - **Shadowed rule**: a later rule is fully contained by an earlier matching rule.\n   - **Partial overlap**: source/destination/service sets intersect but neither contains the other.\n   - **Conflicting overlap**: overlapping match criteria but different action, NAT behavior, or inspection intent.\n   - **Redundant rule**: later rule permits traffic already permitted by an earlier broader rule.\n\n5. **Flag over-broad rules** using thresholds:\n   - Source or destination is `Any`, `0.0.0.0/0`, large RFC1918 ranges, or broad service tags.\n   - Service is `Any`, `*`, `1-65535`, or wide protocol/port ranges.\n   - Management ports like SSH/RDP/SQL exposed from broad sources.\n   - Application rules using broad wildcards such as `*.com`, large web categories, or unrestricted outbound access.\n\n6. **Use logs to prioritize**: compare findings against 30-90 days of Azure Firewall structured logs, especially `AZFWNetworkRule`, `AZFWApplicationRule`, and `AZFWDnatRule`. Zero-hit broad rules are cleanup candidates; high-hit broad rules need traffic decomposition before tightening.\n\n7. **Produce a risk table** with: rule name, collection, priority, match scope, hit count, overlap type, risk, and remediation. Treat `Any/Any/Any Allow` as **Critical**, broad source/destination/service as **High**, shadowed/conflicting rules as **High**, and unused/redundant rules as **Medium**.\n\nReferences: Azure Firewall Policy rule processing and Azure Firewall structured logs in Microsoft Learn.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role",
+      "cn_skill"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 1362,
+    "api_duration_ms": 37983,
+    "session_duration_ms": 60387,
+    "wall_ms": 70593,
+    "premium_requests": 7.5,
+    "session_id": "f66605d9-178b-4321-97a3-8fb373af7dbd",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role",
+      "cn_skill"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T10:12:17+00:00"
+}

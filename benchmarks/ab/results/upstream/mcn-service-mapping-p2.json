@@ -1,0 +1,41 @@
+{
+  "id": "mcn-service-mapping-p2",
+  "variant": "upstream",
+  "query": "map the equivalent of Azure Private Endpoint / AWS PrivateLink onto GCP \u2014 what's it called and does it behave the same",
+  "expected_specialists": [
+    "cn_mcn",
+    "cn_pl"
+  ],
+  "category": "vague",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**GCP equivalent:** **Private Service Connect (PSC)**.\n\nIt is conceptually closest to **Azure Private Endpoint** and **AWS PrivateLink / Interface VPC Endpoint**: a consumer VPC gets a **private IP endpoint** that reaches a Google API, partner/SaaS service, or producer-published service without using public internet paths.\n\n**Not exactly the same behavior:**\n\n| Concept | Azure | AWS | GCP |\n|---|---|---|---|\n| Consumer-side private endpoint | Private Endpoint NIC | Interface VPC Endpoint ENI | PSC endpoint / forwarding rule with private IP |\n| Provider-side publishing | Private Link Service | Endpoint Service behind NLB | PSC Service Attachment behind internal LB |\n| Approval workflow | Supported | Supported | Supported |\n| DNS automation | Often integrated via Private DNS Zones | Optional private DNS for endpoints | More manual; Cloud DNS/private zones often required |\n| Public access disabled automatically? | No | No | No |\n| Regional behavior | Regional | Regional | Regional |\n\n**Important nuance:** For Google APIs, you may also see **Private Google Access**, `private.googleapis.com`, or `restricted.googleapis.com`. Those are related private-access patterns, but **PSC is the closest architectural equivalent** to Azure Private Endpoint / AWS PrivateLink. For some services like Cloud SQL private IP, GCP may also use **Private Service Access**, which is VPC peering-based and not the same model as PSC.\n\nDocs: [Private Service Connect](https://cloud.google.com/vpc/docs/private-service-connect), [Private Google Access](https://cloud.google.com/vpc/docs/private-google-access).\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 737,
+    "api_duration_ms": 21055,
+    "session_duration_ms": 41738,
+    "wall_ms": 48186,
+    "premium_requests": 7.5,
+    "session_id": "142f4445-8363-4c03-b269-889cc1143454",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T10:29:33+00:00"
+}

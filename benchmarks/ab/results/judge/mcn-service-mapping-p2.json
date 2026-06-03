@@ -1,0 +1,58 @@
+{
+  "id": "mcn-service-mapping-p2",
+  "query": "map the equivalent of Azure Private Endpoint / AWS PrivateLink onto GCP \u2014 what's it called and does it behave the same",
+  "category": "vague",
+  "expected_specialists": [
+    "cn_mcn",
+    "cn_pl"
+  ],
+  "order": {
+    "A": "upstream",
+    "B": "pattern-g"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 7,
+      "clarity": 9,
+      "conciseness": 7
+    },
+    "B": {
+      "technical_accuracy": 9,
+      "completeness": 8,
+      "actionability": 6,
+      "clarity": 9,
+      "conciseness": 8
+    },
+    "winner": "A",
+    "reason": "A adds Private Service Access distinction and doc links, giving more complete and actionable coverage without sacrificing accuracy"
+  },
+  "winner_variant": "upstream",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":7,\"clarity\":9,\"conciseness\":7},\"B\":{\"technical_accuracy\":9,\"completeness\":8,\"actionability\":6,\"clarity\":9,\"conciseness\":8},\"winner\":\"A\",\"reason\":\"A adds Private Service Access distinction and doc links, giving more complete and actionable coverage without sacrificing accuracy\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 699,
+    "api_duration_ms": 18047,
+    "session_duration_ms": 36343,
+    "wall_ms": 42328,
+    "premium_requests": 3.0,
+    "session_id": "e73917be-025a-4aaf-bcae-b2d2b18e7849",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T10:54:52+00:00"
+}

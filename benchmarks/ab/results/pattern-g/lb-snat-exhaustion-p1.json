@@ -1,0 +1,41 @@
+{
+  "id": "lb-snat-exhaustion-p1",
+  "variant": "pattern-g",
+  "query": "my workload behind an Azure Load Balancer is hitting outbound connection failures \u2014 walk me through diagnosing SNAT port exhaustion",
+  "expected_specialists": [
+    "cn_lb",
+    "cn_ntsh"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll ground this in the load-balancing workflow, then provide a concise diagnostic runbook.\n\n## Diagnose Azure Load Balancer SNAT exhaustion\n\n1. **Confirm the outbound path**\n   - Check whether the subnet uses **NAT Gateway**, Azure Firewall/NVA, instance public IPs, or **Azure Load Balancer outbound rules**.\n   - If a **NAT Gateway** is attached to the subnet, it takes precedence over Load Balancer SNAT.\n   - If outbound relies on a Standard Load Balancer frontend IP, SNAT ports are finite and shared across backend instances.\n\n2. **Check Azure Monitor metrics on the Load Balancer**\n   - Review:\n     - `Used SNAT Ports`\n     - `Allocated SNAT Ports`\n     - `SNAT Connection Count`\n   - Look for:\n     - `Used SNAT Ports` approaching `Allocated SNAT Ports`\n     - failed SNAT connection counts\n     - one backend instance consuming far more ports than others\n\n3. **Correlate with workload symptoms**\n   - Typical signs:\n     - outbound TCP connection timeouts\n     - intermittent failures to the same public destination\n     - errors during connect, before TLS or application negotiation\n     - spikes during scale-out, retries, or batch jobs\n   - SNAT exhaustion is especially likely with many short-lived connections to the same destination IP and port.\n\n4. **Inspect connection behavior**\n   - Look for:\n     - missing HTTP/TCP connection pooling\n     - aggressive retries\n     - high fan-out to public APIs\n     - many connections stuck in `TIME_WAIT`\n     - uneven load across backend instances\n   - A small number of hot destinations can exhaust ports faster than broad outbound traffic.\n\n5. **Estimate port pressure**\n   - For each backend instance, compare:\n     - **Required ports**: concurrent outbound public flows plus retry churn\n     - **Available ports**: SNAT ports allocated by the Load Balancer outbound rule, multiplied by frontend IP capacity\n   - If automatic allocation is used, backend pool size changes can reduce per-instance SNAT allocation.\n\n6. **Mitigate**\n   - Preferred fix: attach an **Azure NAT Gateway** to the backend subnet.\n   - Other options:\n     - add frontend public IPs to the Load Balancer outbound rule\n     - explicitly increase allocated outbound ports\n     - enable application connection pooling\n     - reduce retry storms\n     - use Private Link/service endpoints for Azure PaaS where possible\n     - scale backend instances if traffic is evenly distributed\n\n7. **Validate after changes**\n   - Confirm `Used SNAT Ports` stays comfortably below `Allocated SNAT Ports`.\n   - Confirm failed SNAT connections drop to zero.\n   - Re-test during peak traffic or replay the failure pattern.\n\nVerify exact SNAT limits, metric names, and allocation behavior against current Microsoft Azure Load Balancer and NAT Gateway documentation before applying changes.",
+    "tool_calls": [
+      "skill",
+      "report_intent",
+      "view",
+      "view"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1486,
+    "api_duration_ms": 42892,
+    "session_duration_ms": 99106,
+    "wall_ms": 119297,
+    "premium_requests": 7.5,
+    "session_id": "52eb1ad6-94f8-4dc8-a11c-af1060dc2380",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T10:37:42+00:00"
+}

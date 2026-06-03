@@ -1,0 +1,42 @@
+{
+  "id": "vnet-hub-spoke-p1",
+  "variant": "pattern-g",
+  "query": "I need a hub-and-spoke VNet design that spans three Azure regions \u2014 give me the topology and the inter-region routing choices",
+  "expected_specialists": [
+    "cn_vnet"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll use the network design specialist guidance, then provide the topology and routing choices as concise Markdown.\n\n## Topology\n\nUse **one hub VNet per Azure region**, with local spokes peered only to their regional hub.\n\n| Region | Hub contents | Spokes |\n|---|---|---|\n| Region 1 | Azure Firewall/NVA, VPN/ExpressRoute Gateway, Bastion, DNS resolver, shared services | App, data, identity, private endpoint spokes |\n| Region 2 | Same regional hub pattern | Local workload spokes |\n| Region 3 | Same regional hub pattern | Local workload spokes |\n\n**Peering model**\n\n- Spoke-to-hub: VNet peering with **Allow forwarded traffic**.\n- Hub-to-spoke: VNet peering with **Allow gateway transit** only where that hub provides hybrid connectivity.\n- Spokes should not peer directly to other spokes unless there is a strong latency or cost reason.\n- Default route from spokes: `0.0.0.0/0` to regional firewall/NVA.\n- Private endpoint and shared-services DNS should resolve through regional DNS forwarding, with conditional forwarding to on-premises if needed.\n\n## Inter-region routing choices\n\n### Recommended: Azure Virtual WAN\n\nUse **Virtual WAN secured hubs** in all three regions.\n\n**Best when:** you want managed transitive routing, simpler inter-region connectivity, centralized route control, SD-WAN/VPN/ExpressRoute integration, and easier scaling.\n\n**Routing behavior**\n\n- Each regional hub connects its local spokes.\n- vWAN provides **hub-to-hub routing** across regions.\n- Spokes learn remote-region prefixes through the virtual hub route tables.\n- Use routing intent or custom route tables to force inspection through Azure Firewall where required.\n\n### Alternative: Global VNet peering between regional hubs\n\nPeer Hub 1, Hub 2, and Hub 3 using **global VNet peering**.\n\n**Best when:** you want a simpler, lower-control-plane design without vWAN, and you can manage routes manually.\n\n**Routing behavior**\n\n- Hub VNets are globally peered in a full mesh or selective mesh.\n- Spokes route remote-region prefixes to their local firewall/NVA.\n- Firewalls/NVAs forward traffic across hub global peerings.\n- Requires careful UDR management because VNet peering itself is not a full transit router.\n\n### Alternative: NVA-based transit\n\nDeploy routing NVAs in each hub and build tunnels or BGP overlays between regions.\n\n**Best when:** you need advanced routing policy, segmentation, inspection, third-party firewall features, or consistent hybrid/cloud routing.\n\n**Routing behavior**\n\n- Spokes send all non-local traffic to the regional NVA.\n- NVAs exchange routes using BGP over IPsec/overlay tunnels.\n- Inter-region traffic is inspected and routed by NVAs.\n- More flexible, but operationally heavier than vWAN.\n\n## Practical recommendation\n\nFor most three-region Azure hub-and-spoke designs, choose **Azure Virtual WAN secured hubs** if transitive inter-region routing and operational simplicity matter. Choose **global VNet peering plus Azure Firewall/NVA UDRs** if the environment is smaller and you want direct control with fewer managed networking components.\n\nVerify current Azure limits, routing behavior, and pricing in Microsoft documentation before implementation.",
+    "tool_calls": [
+      "skill",
+      "report_intent",
+      "view",
+      "view",
+      "view",
+      "view"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1066,
+    "api_duration_ms": 32501,
+    "session_duration_ms": 53005,
+    "wall_ms": 62344,
+    "premium_requests": 7.5,
+    "session_id": "573ce59d-c0f1-4747-a7aa-5f8203be767a",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T10:30:45+00:00"
+}

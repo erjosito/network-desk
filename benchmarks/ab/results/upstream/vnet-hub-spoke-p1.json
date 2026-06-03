@@ -1,0 +1,42 @@
+{
+  "id": "vnet-hub-spoke-p1",
+  "variant": "upstream",
+  "query": "I need a hub-and-spoke VNet design that spans three Azure regions \u2014 give me the topology and the inter-region routing choices",
+  "expected_specialists": [
+    "cn_vnet"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "## Three-region Azure hub-and-spoke design\n\n**Assumptions:** three Azure regions, regional workload isolation, centralized inspection, no overlapping CIDRs, and optional on-prem connectivity.\n\n### Topology\n\n- Deploy **one hub VNet per region**.\n- Deploy **spoke VNets per workload/environment** in each region.\n- Peer each regional spoke only to its **local regional hub**.\n- Place shared services in each hub:\n  - Azure Firewall or NVA\n  - DNS resolver / private DNS integration\n  - VPN or ExpressRoute gateway if needed\n  - Bastion / jump access\n  - monitoring agents or network watcher resources\n- Avoid direct spoke-to-spoke peering unless latency or high-throughput requirements justify it.\n\nExample structure:\n\n```text\nRegion 1: Hub-R1 <-> Spokes-R1\nRegion 2: Hub-R2 <-> Spokes-R2\nRegion 3: Hub-R3 <-> Spokes-R3\n\nHub-R1 <-> Hub-R2 <-> Hub-R3\nor\nAll hubs connect through Azure Virtual WAN\n```\n\n### Recommended CIDR pattern\n\n| Scope | Example CIDR |\n|---|---:|\n| Region 1 | `10.10.0.0/16` |\n| Region 2 | `10.20.0.0/16` |\n| Region 3 | `10.30.0.0/16` |\n| Hub per region | `/20` or `/21` |\n| Spoke per workload | `/22` to `/24` |\n| Shared-services subnets | dedicated `/24` or smaller where supported |\n\n### Inter-region routing choices\n\n| Option | Best for | Notes |\n|---|---|---|\n| **Global VNet peering between regional hubs** | Simple 3-region design | Lowest complexity; non-transitive, so route carefully with UDRs and firewall next hops. |\n| **Azure Virtual WAN secured hubs** | Larger enterprise or many spokes/regions | Provides managed transitive routing, easier scale, centralized policy, and simpler branch connectivity. |\n| **Direct spoke-to-spoke global peering** | Specific high-throughput app paths | Use sparingly; bypasses hub inspection unless explicitly routed through firewalls. |\n| **ExpressRoute with Global Reach / multiple ER circuits** | Hybrid-heavy environments | Prefer dual-region ER connectivity for resilience; integrate with hub routing or Virtual WAN. |\n\n### Recommended default\n\nUse **regional hubs plus Azure Virtual WAN** if this is an enterprise platform expected to grow beyond a few VNets. Use **global VNet peering between hubs** if this is a smaller, controlled three-region deployment.\n\nFor inspected east-west traffic, attach route tables to spoke subnets with UDRs sending non-local traffic to the regional Azure Firewall. For cross-region traffic, either advertise/learn routes through Virtual WAN or add explicit UDRs toward the local hub firewall and hub-to-hub path.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 994,
+    "api_duration_ms": 32026,
+    "session_duration_ms": 68536,
+    "wall_ms": 94139,
+    "premium_requests": 7.5,
+    "session_id": "d59f4a5d-580d-478a-9298-4de5dac49218",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T10:09:18+00:00"
+}

@@ -1,0 +1,52 @@
+{
+  "id": "price-er-vs-vpn-p1",
+  "variant": "upstream",
+  "query": "at what sustained traffic level does ExpressRoute become cheaper than site-to-site VPN \u2014 assume 500 Mbps baseline",
+  "expected_specialists": [
+    "cn_price",
+    "cn_hyb"
+  ],
+  "category": "cross-specialist",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this through the loaded network-desk pricing guidance and keep the answer text-only.\n\n**ExpressRoute becomes cheaper at roughly ~15\u201325 Mbps sustained outbound traffic**, using Azure public-rate assumptions for VPN internet egress vs. ExpressRoute metered egress.\n\nAt a **500 Mbps sustained baseline**, ExpressRoute is already far cheaper:\n\n| Option | Approx. monthly traffic | Approx. monthly cost driver |\n|---|---:|---:|\n| S2S VPN | ~164 TB/month | Internet egress dominates, often **>$10K/month** |\n| ExpressRoute metered 500 Mbps | ~164 TB/month | Port + ~$0.025/GB, roughly **$4K\u2013$5K/month plus gateway/provider fees** |\n| ExpressRoute unlimited/local | ~164 TB/month | Usually even better if traffic is predictable |\n\n**Bottom line:** if the 500 Mbps is sustained cloud-to-on-prem/outbound traffic, ExpressRoute is not near the break-even point \u2014 it is well past it. VPN only stays cheaper for low or bursty traffic, typically below a few tens of Mbps sustained.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "report_intent",
+      "cn_role",
+      "cn_role",
+      "cn_orchestrate",
+      "cn_skill",
+      "cn_skill",
+      "cn_skill"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 1987,
+    "api_duration_ms": 55689,
+    "session_duration_ms": 76449,
+    "wall_ms": 82641,
+    "premium_requests": 7.5,
+    "session_id": "cb6a9fd2-c6ed-49a4-9c3e-ca7273bb546b",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role",
+      "cn_role",
+      "cn_orchestrate",
+      "cn_skill",
+      "cn_skill",
+      "cn_skill"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T10:26:36+00:00"
+}

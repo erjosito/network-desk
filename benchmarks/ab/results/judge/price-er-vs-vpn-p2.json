@@ -1,0 +1,58 @@
+{
+  "id": "price-er-vs-vpn-p2",
+  "query": "running ~500 Mbps of steady on-prem-to-Azure traffic; help me decide between ExpressRoute and VPN gateway on a TCO basis",
+  "category": "cross-specialist",
+  "expected_specialists": [
+    "cn_price",
+    "cn_hyb"
+  ],
+  "order": {
+    "A": "pattern-g",
+    "B": "upstream"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 7,
+      "completeness": 7,
+      "actionability": 7,
+      "clarity": 8,
+      "conciseness": 8
+    },
+    "B": {
+      "technical_accuracy": 7,
+      "completeness": 8,
+      "actionability": 8,
+      "clarity": 7,
+      "conciseness": 6
+    },
+    "winner": "B",
+    "reason": "B provides concrete cost ranges, data-volume math, and pricing links that make TCO comparison more actionable despite extra verbosity"
+  },
+  "winner_variant": "upstream",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":7,\"completeness\":7,\"actionability\":7,\"clarity\":8,\"conciseness\":8},\"B\":{\"technical_accuracy\":7,\"completeness\":8,\"actionability\":8,\"clarity\":7,\"conciseness\":6},\"winner\":\"B\",\"reason\":\"B provides concrete cost ranges, data-volume math, and pricing links that make TCO comparison more actionable despite extra verbosity\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 1378,
+    "api_duration_ms": 30335,
+    "session_duration_ms": 51063,
+    "wall_ms": 56594,
+    "premium_requests": 3.0,
+    "session_id": "5709a263-1b8c-4e14-a115-0cbc2fc5c77a",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T10:56:36+00:00"
+}

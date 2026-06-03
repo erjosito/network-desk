@@ -1,0 +1,40 @@
+{
+  "id": "lb-snat-exhaustion-p2",
+  "variant": "pattern-g",
+  "query": "VMs behind an Azure LB are getting intermittent egress failures, suspect SNAT \u2014 how do I confirm and remediate",
+  "expected_specialists": [
+    "cn_lb",
+    "cn_ntsh"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll use the load-balancing specialist guidance, then give you a concise runbook-style answer.\n\n**Likely cause:** Azure Load Balancer SNAT port exhaustion causes intermittent outbound connection failures, especially with many short-lived TCP connections or many VMs sharing too few frontend IP SNAT ports.\n\n**Confirm it:**\n\n1. Check the VM subnet\u2019s outbound path: Azure NAT Gateway, LB outbound rule, instance public IP, Azure Firewall/NVA, or default outbound access.\n2. In Azure Monitor for the Load Balancer, inspect:\n   - **Used SNAT Ports**\n   - **Allocated SNAT Ports**\n   - **SNAT Connection Count**, especially failed states\n3. Break metrics down by **backend IP**, **frontend IP**, and **protocol**. If used ports approach allocated ports or failed SNAT connections appear during incidents, SNAT is confirmed.\n4. Correlate with app symptoms: outbound TCP timeouts, failed connects, spikes in `TIME_WAIT`, retries succeeding later, and failures concentrated on busy backend VMs.\n\n**Remediate:**\n\n1. **Preferred:** attach an **Azure NAT Gateway** to the VM subnet. It takes precedence for outbound internet traffic and provides much larger, scalable SNAT capacity.\n2. Add more NAT Gateway public IPs or a public IP prefix if port demand is high.\n3. If staying with Azure LB outbound rules:\n   - Increase **allocated outbound ports per instance**\n   - Add more LB frontend public IPs\n   - Ensure outbound rules are explicitly configured\n4. Reduce SNAT churn:\n   - Reuse connections / enable HTTP keep-alive\n   - Use connection pooling\n   - Avoid excessive short-lived outbound connections\n   - Tune app retry behavior\n5. For Azure service dependencies, prefer **Private Endpoint** or service-internal paths to avoid internet SNAT entirely.\n\n**Rule of thumb:** if the workload depends on reliable VM internet egress, use **NAT Gateway** rather than relying on Load Balancer outbound SNAT. Verify current SNAT limits and metric names against Microsoft\u2019s Azure Load Balancer and NAT Gateway documentation before changing production.",
+    "tool_calls": [
+      "skill",
+      "report_intent",
+      "view"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1194,
+    "api_duration_ms": 38522,
+    "session_duration_ms": 81956,
+    "wall_ms": 100500,
+    "premium_requests": 7.5,
+    "session_id": "b1dd2d2f-acee-4e83-b525-c1761e8255fd",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T10:39:22+00:00"
+}

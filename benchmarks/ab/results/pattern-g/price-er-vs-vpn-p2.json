@@ -1,0 +1,38 @@
+{
+  "id": "price-er-vs-vpn-p2",
+  "variant": "pattern-g",
+  "query": "running ~500 Mbps of steady on-prem-to-Azure traffic; help me decide between ExpressRoute and VPN gateway on a TCO basis",
+  "expected_specialists": [
+    "cn_price",
+    "cn_hyb"
+  ],
+  "category": "cross-specialist",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**TCO call:** for ~500 Mbps steady **on-prem \u2192 Azure only**, a **VPN Gateway is usually cheaper** on Azure charges because inbound data to Azure is generally not billed; ExpressRoute adds fixed circuit/gateway/provider costs that may not be offset by data-transfer savings.\n\n| Factor | VPN Gateway | ExpressRoute |\n|---|---:|---:|\n| Best-fit SKU | VpnGw3/VpnGw4+ for headroom | 1 Gbps circuit minimum practical fit |\n| Cost shape | Low fixed monthly gateway cost | Higher fixed Azure + carrier/provider MRC |\n| Data cost for on-prem \u2192 Azure | Typically $0 Azure ingress | Typically $0 Azure ingress |\n| Performance risk | Internet jitter, IPsec overhead, variable throughput | Predictable latency/throughput, private path |\n| SLA/operations | Good, but depends on internet + VPN devices | Better for production steady-state hybrid traffic |\n\n**Recommendation:** choose **VPN Gateway** if this is mostly one-way ingestion, moderate SLA, and cost is the main driver. Choose **ExpressRoute** if the workload is business-critical, latency-sensitive, needs predictable 500 Mbps sustained throughput, has compliance/private-path requirements, or has meaningful **Azure \u2192 on-prem** return traffic where ExpressRoute billing model may become more favorable.\n\nFor TCO, price these three scenarios: **VpnGw3/4 active-active**, **1 Gbps ExpressRoute metered**, and **1 Gbps ExpressRoute unlimited**, including carrier cross-connect/MPLS/ISP costs. Verify current prices in Azure Pricing Calculator and your connectivity provider quote before committing.",
+    "tool_calls": [
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1133,
+    "api_duration_ms": 35546,
+    "session_duration_ms": 107667,
+    "wall_ms": 120437,
+    "premium_requests": 7.5,
+    "session_id": "330a2cb2-4b09-4cac-ac8a-55b758258211",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T10:43:56+00:00"
+}

@@ -1,0 +1,57 @@
+{
+  "id": "fw-rule-audit-p1",
+  "query": "review my Azure Firewall policy and flag any shadowed or excessively permissive rules",
+  "category": "regex-easy",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "order": {
+    "A": "pattern-g",
+    "B": "upstream"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 7,
+      "completeness": 6,
+      "actionability": 6,
+      "clarity": 5,
+      "conciseness": 4
+    },
+    "B": {
+      "technical_accuracy": 7,
+      "completeness": 7,
+      "actionability": 7,
+      "clarity": 7,
+      "conciseness": 6
+    },
+    "winner": "B",
+    "reason": "Both lack input to review; B is cleaner, less repo-search noise, better categorized (egress vs DNAT), and more directly actionable."
+  },
+  "winner_variant": "upstream",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":7,\"completeness\":6,\"actionability\":6,\"clarity\":5,\"conciseness\":4},\"B\":{\"technical_accuracy\":7,\"completeness\":7,\"actionability\":7,\"clarity\":7,\"conciseness\":6},\"winner\":\"B\",\"reason\":\"Both lack input to review; B is cleaner, less repo-search noise, better categorized (egress vs DNAT), and more directly actionable.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 586,
+    "api_duration_ms": 21046,
+    "session_duration_ms": 90624,
+    "wall_ms": 113890,
+    "premium_requests": 3.0,
+    "session_id": "b70085be-0d63-45ef-aaef-3cb1676df793",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T10:49:47+00:00"
+}

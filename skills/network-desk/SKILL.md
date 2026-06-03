@@ -38,7 +38,7 @@ When the user's question matches one of these domains, load the corresponding sp
 | **Virtual WAN / SD-WAN** | `vwan-sdwan.md` | Virtual WAN, vWAN, routing intent, secured hub, SD-WAN, inter-hub |
 | **Network Monitoring** | `network-monitor.md` | network monitor, Connection Monitor, traffic analytics, flow log, network alert/dashboard, NSG flow, VPC flow |
 | **Multi-Cloud Networking** | `multi-cloud-net.md` | multi-cloud network, cross-cloud, cloud-to-cloud, transit architecture, service mapping across clouds |
-| **Network Pricing** | `pricing-analyst.md` | pricing, cost estimate/compare/optimize, egress cost, data transfer cost, TCO, network cost, billing, budget, how much, cheaper, expensive, save money, right-size |
+| **Network Pricing** | `pricing-analyst.md` | pricing, cost estimate/compare/optimize, egress cost, data transfer cost, TCO, network cost, billing, budget, how much, cheaper, expensive, save money, right-size, per-resource cost, cost summary, cost breakdown, cost report |
 | **IaC Generator** | `iac-generator.md` | Bicep, Terraform, ARM template, Ansible, infrastructure as code, IaC, generate Bicep/Terraform, deploy network |
 | **Container Networking** | `container-networking.md` | CNI, Kubernetes network, pod network, service mesh, Calico, Cilium, Azure CNI, VPC CNI, AKS network, EKS network, GKE network, network policy |
 | **CDN & Edge** | `cdn-edge.md` | CDN, content delivery, Front Door, CloudFront, Cloud CDN, edge caching, origin, purge, WAF edge |
@@ -46,7 +46,7 @@ When the user's question matches one of these domains, load the corresponding sp
 | **SASE / SSE** | `sase-sse.md` | SASE, SSE, Secure Access Service Edge, ZTNA, CASB, SWG, Zscaler, Prisma Access, Netskope |
 | **Capacity Planning** | `capacity-planner.md` | capacity plan, bandwidth plan, IP exhaust, SNAT port limit, connection limit, gateway throughput, scale limit |
 | **IPv6 Migration** | `ipv6-migration.md` | IPv6, dual-stack, IPv6 migration, NAT64, DNS64, IPv6 subnet, v6 address |
-| **Report Builder** | `report-builder.md` | network report, assessment report, executive summary, network documentation, architecture review document |
+| **Report Builder** | `report-builder.md` | network report, assessment report, executive summary, network documentation, architecture review document, Excel workbook, xlsx, spreadsheet, CSV, table format, PDF report, DOCX, runbook, deliverable, polish, format the output, build a workbook, compile, "summarize ... in a (table/sheet/doc/workbook)" |
 
 ---
 
@@ -55,8 +55,10 @@ When the user's question matches one of these domains, load the corresponding sp
 1. **Single-domain questions** — load one specialist and follow its workflow.
 2. **Cross-domain questions** (e.g., "firewall + DNS for a multi-region failover") — load the primary specialist, then load additional specialists as needed. You can have multiple specialists active.
 3. **Ambiguous questions** — if the domain isn't clear from keywords, ask the user to clarify. Don't guess.
-4. **Quick factual questions** — if you can answer from your training knowledge without loading a specialist (e.g., "what port does BGP use?"), do so. Only load specialists for design, audit, troubleshooting, or multi-step tasks.
-5. **When switching topics** — if the user changes domain mid-conversation, replace the current specialist context with the new one. Don't accumulate all specialists.
+4. **Trivial factual lookups** — if the user asks a single-sentence factual question whose answer is a fact, port, RFC number, or one-word definition (e.g., "what port does BGP use?", "what does NAT64 stand for?"), answer from training without loading a specialist.
+5. **ALWAYS load a specialist for generative tasks.** Any user request that contains a *deliverable verb* (build, generate, create, design, write, produce, draft, compose, output, plan, audit, troubleshoot, recommend, compare, estimate, summarize) plus a *deliverable noun* (report, workbook, spreadsheet, document, summary, table, plan, IaC, Terraform, Bicep, ARM, Ansible, diagram, topology, ruleset, configuration, runbook, assessment, design, architecture) **MUST** route to a specialist, even if you feel you could answer from training. The specialist file contains the canonical workflow and guardrails that keep the output consistent.
+6. **When switching topics** — if the user changes domain mid-conversation, replace the current specialist context with the new one. Don't accumulate all specialists.
+7. **Bias toward routing.** When in doubt between Rule 4 and Rule 5, choose Rule 5 — the cost of loading a specialist file is small, and the benefit of a structured workflow is large.
 
 ---
 

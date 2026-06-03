@@ -1,0 +1,38 @@
+{
+  "id": "mcn-service-mapping-p1",
+  "variant": "pattern-g",
+  "query": "I know Azure Private Endpoint and AWS PrivateLink \u2014 what's the GCP feature that gives me the same private-service-access pattern",
+  "expected_specialists": [
+    "cn_mcn",
+    "cn_pl"
+  ],
+  "category": "vague",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**GCP equivalent:** **Private Service Connect (PSC)**.\n\nIt maps most closely to **Azure Private Endpoint** and **AWS PrivateLink**: consumers reach a service privately via an internal IP in their VPC, without public internet exposure.\n\nRelated nuance: **Private Service Access** also exists in GCP, but it is mainly the older VPC-peering-based pattern for Google-managed services like Cloud SQL. For the modern PrivateLink-style model, use **Private Service Connect**.",
+    "tool_calls": [
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 236,
+    "api_duration_ms": 20790,
+    "session_duration_ms": 65428,
+    "wall_ms": 88641,
+    "premium_requests": 7.5,
+    "session_id": "4eb2290a-0486-49b6-860c-f4ac8059cad8",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T10:45:25+00:00"
+}

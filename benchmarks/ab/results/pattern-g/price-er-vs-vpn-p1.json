@@ -1,0 +1,40 @@
+{
+  "id": "price-er-vs-vpn-p1",
+  "variant": "pattern-g",
+  "query": "at what sustained traffic level does ExpressRoute become cheaper than site-to-site VPN \u2014 assume 500 Mbps baseline",
+  "expected_specialists": [
+    "cn_price",
+    "cn_hyb"
+  ],
+  "category": "cross-specialist",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll ground the cost comparison on the pricing-specialist workflow, without touching files or running commands.\n\n**ExpressRoute is already cheaper at a 500 Mbps sustained baseline.**\n\nRule of thumb: 500 Mbps sustained one-way traffic is about **162 TB/month**. At that volume, Internet egress over site-to-site VPN usually dominates cost, while ExpressRoute has lower metered data rates or an unlimited-data option.\n\n**Break-even is typically in the tens of Mbps, not hundreds** \u2014 roughly **30-50 Mbps sustained outbound** for a 500 Mbps ExpressRoute circuit when comparing against VPN plus Internet egress. Above that, ExpressRoute usually wins on cost; at **500 Mbps sustained**, it is materially cheaper.\n\nVerify with current Azure pricing for your region, ExpressRoute billing model, VPN gateway SKU, and carrier/cross-connect charges.",
+    "tool_calls": [
+      "report_intent",
+      "skill",
+      "view"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 2240,
+    "api_duration_ms": 71100,
+    "session_duration_ms": 139197,
+    "wall_ms": 153906,
+    "premium_requests": 7.5,
+    "session_id": "2eec6a96-664b-4cf7-8589-93e5de37173e",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T10:41:56+00:00"
+}

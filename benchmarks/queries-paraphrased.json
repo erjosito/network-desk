@@ -1,0 +1,82 @@
+[
+  {
+    "id": "vnet-hub-spoke-p1",
+    "base_id": "vnet-hub-spoke",
+    "query": "I need a hub-and-spoke VNet design that spans three Azure regions — give me the topology and the inter-region routing choices",
+    "expected_specialists": ["cn_vnet"],
+    "expected_pages": ["Hub-and-Spoke"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "vnet-hub-spoke-p2",
+    "base_id": "vnet-hub-spoke",
+    "query": "what's the recommended way to lay out hub-spoke virtual networks across 3 Azure regions for a multi-region workload",
+    "expected_specialists": ["cn_vnet"],
+    "expected_pages": ["Hub-and-Spoke"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "fw-rule-audit-p1",
+    "base_id": "fw-rule-audit",
+    "query": "review my Azure Firewall policy and flag any shadowed or excessively permissive rules",
+    "expected_specialists": ["cn_fw"],
+    "expected_pages": ["Firewall-Rule-Audit", "Azure-Firewall"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "fw-rule-audit-p2",
+    "base_id": "fw-rule-audit",
+    "query": "how do I systematically detect overlapping and over-broad rules in an Azure Firewall ruleset",
+    "expected_specialists": ["cn_fw"],
+    "expected_pages": ["Firewall-Rule-Audit", "Azure-Firewall"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "lb-snat-exhaustion-p1",
+    "base_id": "lb-snat-exhaustion",
+    "query": "my workload behind an Azure Load Balancer is hitting outbound connection failures — walk me through diagnosing SNAT port exhaustion",
+    "expected_specialists": ["cn_lb", "cn_ntsh"],
+    "expected_pages": ["Load-Balancer-Troubleshooting", "NAT-Debugging"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "lb-snat-exhaustion-p2",
+    "base_id": "lb-snat-exhaustion",
+    "query": "VMs behind an Azure LB are getting intermittent egress failures, suspect SNAT — how do I confirm and remediate",
+    "expected_specialists": ["cn_lb", "cn_ntsh"],
+    "expected_pages": ["Load-Balancer-Troubleshooting", "NAT-Debugging"],
+    "category": "regex-easy"
+  },
+  {
+    "id": "price-er-vs-vpn-p1",
+    "base_id": "price-er-vs-vpn",
+    "query": "at what sustained traffic level does ExpressRoute become cheaper than site-to-site VPN — assume 500 Mbps baseline",
+    "expected_specialists": ["cn_price", "cn_hyb"],
+    "expected_pages": ["Dedicated-Circuit-Pricing", "VPN-Gateway-Pricing"],
+    "category": "cross-specialist"
+  },
+  {
+    "id": "price-er-vs-vpn-p2",
+    "base_id": "price-er-vs-vpn",
+    "query": "running ~500 Mbps of steady on-prem-to-Azure traffic; help me decide between ExpressRoute and VPN gateway on a TCO basis",
+    "expected_specialists": ["cn_price", "cn_hyb"],
+    "expected_pages": ["Dedicated-Circuit-Pricing", "VPN-Gateway-Pricing"],
+    "category": "cross-specialist"
+  },
+  {
+    "id": "mcn-service-mapping-p1",
+    "base_id": "mcn-service-mapping",
+    "query": "I know Azure Private Endpoint and AWS PrivateLink — what's the GCP feature that gives me the same private-service-access pattern",
+    "expected_specialists": ["cn_mcn", "cn_pl"],
+    "expected_pages": ["Cloud-Network-Service-Mapping", "Private-Service-Connect", "PrivateLink", "Private-Endpoint"],
+    "category": "vague"
+  },
+  {
+    "id": "mcn-service-mapping-p2",
+    "base_id": "mcn-service-mapping",
+    "query": "map the equivalent of Azure Private Endpoint / AWS PrivateLink onto GCP — what's it called and does it behave the same",
+    "expected_specialists": ["cn_mcn", "cn_pl"],
+    "expected_pages": ["Cloud-Network-Service-Mapping", "Private-Service-Connect", "PrivateLink", "Private-Endpoint"],
+    "category": "vague"
+  }
+]

@@ -1,0 +1,38 @@
+{
+  "id": "mcn-service-mapping-p2",
+  "variant": "pattern-g",
+  "query": "map the equivalent of Azure Private Endpoint / AWS PrivateLink onto GCP \u2014 what's it called and does it behave the same",
+  "expected_specialists": [
+    "cn_mcn",
+    "cn_pl"
+  ],
+  "category": "vague",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**GCP equivalent:** **Private Service Connect (PSC)**.\n\n| Concept | Azure | AWS | GCP |\n|---|---|---|---|\n| Private consumer-side endpoint | Private Endpoint | Interface VPC Endpoint / PrivateLink | Private Service Connect endpoint |\n| Provider-side published service | Private Link Service | Endpoint Service | Service Attachment |\n| Private access to cloud-native APIs | Private Endpoint for PaaS | Interface/Gateway endpoints | PSC for Google APIs, plus Private Google Access in some cases |\n\n**Does it behave the same?** Broadly yes: PSC gives a private IP in the consumer VPC that reaches a service over Google\u2019s private network without exposing the service publicly. It supports cross-project/private producer-consumer access and avoids VPC peering-style route sharing.\n\n**Key differences:**\n\n- GCP PSC endpoints are based on **forwarding rules/IPs**, not NICs like Azure Private Endpoint or AWS interface endpoints.\n- Provider publishing uses a **Service Attachment**, usually fronted by an internal load balancer.\n- DNS behavior is not identical; you often need explicit private DNS mapping depending on the target.\n- It is **not the same as Private Google Access**, which is mainly for VM-to-Google API access without external IPs.\n- Security and routing controls differ by cloud; don\u2019t assume Azure NSG/AWS SG behavior maps 1:1 to GCP firewall semantics.\n\nShort version: **GCP Private Service Connect is the closest equivalent to Azure Private Endpoint and AWS PrivateLink, but implementation details, DNS, and security controls differ.**",
+    "tool_calls": [
+      "skill"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 710,
+    "api_duration_ms": 25507,
+    "session_duration_ms": 95061,
+    "wall_ms": 115156,
+    "premium_requests": 7.5,
+    "session_id": "42fbfc87-04bb-4803-b3de-6047e5692935",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T10:47:20+00:00"
+}

@@ -47,6 +47,30 @@ If requirements are incomplete, state assumptions explicitly with ⚠️ markers
 - Plan route tables and UDRs for NVA/firewall traffic steering
 - Address transitive routing (non-transitive by default in Azure/AWS; GCP auto-exchanges subnet routes)
 
+### Step 4.5 — Worked Subnet Template (use as the pattern)
+
+When recommending per-VNet/VPC subnets, **always use four-octet
+CIDR notation with the third octet as the VNet index and the
+fourth octet as `0`**. Example for a /16 VNet at `10.1.0.0/16`:
+
+| Subnet role | CIDR | Notes |
+|---|---:|---|
+| App tier | `10.1.0.0/24` | 256 IPs (251 usable in Azure/AWS) |
+| Data tier | `10.1.1.0/24` | |
+| Private endpoints | `10.1.2.0/24` | |
+| Management | `10.1.3.0/26` | 64 IPs |
+| Firewall / gateway | `10.1.3.64/26` | adjacent /26 |
+| AKS / EKS / GKE pods | `10.1.16.0/20` | dense /20 for pod IPs |
+
+If you must use placeholders (e.g., showing the pattern across
+multiple regions), write the **fixed octet positions** with
+placeholders, never insert extra octets:
+
+* ✅ `10.<region>.<vnet>.0/24` (still 4 octets)
+* ✅ `10.{R}.{V}.0/24`
+* ❌ `10.x.y.1.0/24` — invalid; this is 5 octets
+* ❌ `10.x.y.N.0/24` — invalid; this is 5 octets
+
 ### Step 5 — Document with Diagrams
 Default: **Mermaid** (renders in GitHub, VS Code, chat). Use subgraphs for VNets/VPCs, emoji prefixes (🛡️ firewall, 🔐 gateway, ⚖️ LB, 🌐 VNet), CIDR labels on all elements.
 
@@ -98,6 +122,7 @@ Load from `reference/` when you need deep detail:
 3. **Mark assumptions** — `⚠️ ASSUMPTION:` label for any unconfirmed requirement.
 4. **Validate before recommending** — check overlaps, sizing, limits, route consistency.
 5. **Cloud-specific accuracy** — never generalize when behavior differs across clouds.
-6. **CIDR notation must be valid** — always exactly 4 octets followed by `/N` (e.g., `10.1.2.0/24`, NEVER `10.1.2.1.0/24`). Verify each CIDR you emit before including it in a recommendation; the network address of a `/N` block has the host bits zeroed (e.g., `10.1.2.0/24`, not `10.1.2.1/24` if you mean a subnet).
+6. **CIDR notation has exactly 4 octets.** Count the dots in every CIDR you emit — there must be exactly three dots between four octets, followed by `/N`. Valid examples: `10.0.0.0/8`, `10.1.2.0/24`, `172.16.32.0/20`. If you find yourself writing a fifth octet (e.g., `10.x.y.1.0/24`), STOP — that is not a CIDR. Use the placeholder forms from Step 4.5 instead.
+7. **Subnet addresses have host bits zeroed.** A `/24` subnet ends in `.0`, a `/26` ends in `.0`, `.64`, `.128`, or `.192`. Never write `10.1.2.1/24` as a subnet identifier (that's a host inside the subnet, not the subnet itself).
 
 **Analysis only — verify against vendor documentation before applying.**

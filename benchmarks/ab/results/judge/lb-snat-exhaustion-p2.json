@@ -1,0 +1,58 @@
+{
+  "id": "lb-snat-exhaustion-p2",
+  "query": "VMs behind an Azure LB are getting intermittent egress failures, suspect SNAT \u2014 how do I confirm and remediate",
+  "category": "regex-easy",
+  "expected_specialists": [
+    "cn_lb",
+    "cn_ntsh"
+  ],
+  "order": {
+    "A": "upstream",
+    "B": "pattern-g"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 9,
+      "completeness": 7,
+      "actionability": 7,
+      "clarity": 8,
+      "conciseness": 8
+    },
+    "B": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 9,
+      "clarity": 8,
+      "conciseness": 7
+    },
+    "winner": "B",
+    "reason": "B adds outbound-path check, metric breakdown by backend/frontend IP, Private Endpoint advice, and TIME_WAIT correlation\u2014more actionable without sacrificing accuracy."
+  },
+  "winner_variant": "pattern-g",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":9,\"completeness\":7,\"actionability\":7,\"clarity\":8,\"conciseness\":8},\"B\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":9,\"clarity\":8,\"conciseness\":7},\"winner\":\"B\",\"reason\":\"B adds outbound-path check, metric breakdown by backend/frontend IP, Private Endpoint advice, and TIME_WAIT correlation\u2014more actionable without sacrificing accuracy.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 476,
+    "api_duration_ms": 12782,
+    "session_duration_ms": 36692,
+    "wall_ms": 47483,
+    "premium_requests": 3.0,
+    "session_id": "b566691d-b095-4a09-9bcf-de63c551f226",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T10:53:27+00:00"
+}

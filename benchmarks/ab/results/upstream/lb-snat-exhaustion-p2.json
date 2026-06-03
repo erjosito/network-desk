@@ -1,0 +1,41 @@
+{
+  "id": "lb-snat-exhaustion-p2",
+  "variant": "upstream",
+  "query": "VMs behind an Azure LB are getting intermittent egress failures, suspect SNAT \u2014 how do I confirm and remediate",
+  "expected_specialists": [
+    "cn_lb",
+    "cn_ntsh"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this to the right network-desk specialist and use its guidance before answering. \n\n\n**Confirm SNAT exhaustion**\n\n1. In Azure Monitor for the **Standard Load Balancer**, check:\n   - `Used SNAT Ports`\n   - `Allocated SNAT Ports`\n   - `SNAT Connection Count`, especially failed connections\n2. Correlate spikes with VM/app logs showing outbound connection timeouts or resets.\n3. Look for patterns: many short-lived outbound connections, high fan-out to the same destination IP/port, or failures that improve after connection churn drops.\n\n**Most likely remediation**\n\nPrefer **Azure NAT Gateway** for VM subnet egress. Associate a NAT Gateway with the backend subnet and attach one or more public IPs/prefixes. NAT Gateway provides larger, dedicated, scalable outbound SNAT capacity and takes precedence over Load Balancer outbound SNAT.\n\n**Other mitigations**\n\n- Configure explicit LB **outbound rules** instead of relying on defaults.\n- Increase allocated outbound ports per backend instance.\n- Add more frontend public IPs to increase SNAT port inventory.\n- Reduce connection churn with keep-alive / pooling.\n- Scale out destinations or avoid many connections to the same remote IP/port.\n- Review idle timeout behavior and app retry patterns.\n\nReferences: Azure Load Balancer outbound connections and SNAT guidance, plus Azure NAT Gateway documentation on Microsoft Learn.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 1111,
+    "api_duration_ms": 32771,
+    "session_duration_ms": 62542,
+    "wall_ms": 69202,
+    "premium_requests": 7.5,
+    "session_id": "cff53855-be4b-4fd3-8877-b818adf08aec",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T10:25:14+00:00"
+}

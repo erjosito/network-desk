@@ -161,8 +161,12 @@ def run_copilot(
         )
         stdout, stderr, rc = proc.stdout, proc.stderr, proc.returncode
     except subprocess.TimeoutExpired as exc:
-        stdout = exc.stdout.decode("utf-8", "replace") if exc.stdout else ""
-        stderr = exc.stderr.decode("utf-8", "replace") if exc.stderr else ""
+        stdout = exc.stdout if isinstance(exc.stdout, str) else (
+            exc.stdout.decode("utf-8", "replace") if exc.stdout else ""
+        )
+        stderr = exc.stderr if isinstance(exc.stderr, str) else (
+            exc.stderr.decode("utf-8", "replace") if exc.stderr else ""
+        )
         rc = -1
     wall_ms = int((time.monotonic() - start) * 1000)
     events: list[dict] = []
@@ -340,7 +344,8 @@ def run_variant_query(variant: str, query: dict) -> tuple[list[dict], str, str, 
 
 
 def cmd_run(args) -> int:
-    queries = json.loads(QUERIES_FILE.read_text(encoding="utf-8"))
+    queries_file = Path(args.queries_file) if getattr(args, "queries_file", None) else QUERIES_FILE
+    queries = json.loads(queries_file.read_text(encoding="utf-8"))
     if args.ids:
         wanted = set(s.strip() for s in args.ids.split(",") if s.strip())
         queries = [q for q in queries if q["id"] in wanted]
@@ -470,7 +475,8 @@ def parse_judge_json(text: str) -> dict | None:
 
 
 def cmd_judge(args) -> int:
-    queries = json.loads(QUERIES_FILE.read_text(encoding="utf-8"))
+    queries_file = Path(args.queries_file) if getattr(args, "queries_file", None) else QUERIES_FILE
+    queries = json.loads(queries_file.read_text(encoding="utf-8"))
     qmap = {q["id"]: q for q in queries}
     pg_dir = RESULTS_DIR / "pattern-g"
     up_dir = RESULTS_DIR / "upstream"
@@ -819,11 +825,16 @@ def build_parser() -> argparse.ArgumentParser:
                     help="Filter to queries whose specialists are a subset of Pattern G coverage.")
     pr.add_argument("--skip-existing", action="store_true",
                     help="Don't re-run queries whose result JSON already exists.")
+    pr.add_argument("--queries-file",
+                    help="Override the queries source file (default: benchmarks/queries.json). "
+                         "Use benchmarks/queries-paraphrased.json for the paraphrase-stability sweep.")
     pr.set_defaults(func=cmd_run)
 
     pj = sub.add_parser("judge", help="Judge paired answers head-to-head.")
     pj.add_argument("--ids")
     pj.add_argument("--skip-existing", action="store_true")
+    pj.add_argument("--queries-file",
+                    help="Override the queries source file (default: benchmarks/queries.json).")
     pj.set_defaults(func=cmd_judge)
 
     pa = sub.add_parser("report", help="Aggregate everything into a summary.")

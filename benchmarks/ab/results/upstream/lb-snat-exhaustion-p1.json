@@ -1,0 +1,44 @@
+{
+  "id": "lb-snat-exhaustion-p1",
+  "variant": "upstream",
+  "query": "my workload behind an Azure Load Balancer is hitting outbound connection failures \u2014 walk me through diagnosing SNAT port exhaustion",
+  "expected_specialists": [
+    "cn_lb",
+    "cn_ntsh"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**Diagnosis flow for Azure Load Balancer SNAT exhaustion**\n\n1. **Confirm the path**: verify outbound internet traffic is actually using Azure Load Balancer SNAT. If the subnet has **NAT Gateway**, **Azure Firewall**, or an NVA as the outbound path, diagnose that device instead.\n\n2. **Check the symptom pattern**: SNAT exhaustion usually appears as intermittent outbound TCP failures, often during traffic spikes, scale-out gaps, or many short-lived connections to the same external service.\n\n3. **Inspect Azure Monitor metrics on the Standard Load Balancer**: focus on **Used SNAT Ports**, **Allocated SNAT Ports**, and **SNAT Connection Count**, ideally split by backend IP/frontend IP if dimensions are available. A backend nearing its allocated port count during failures is the strongest signal.\n\n4. **Correlate with workload behavior**: look for high connection churn, missing HTTP connection pooling, aggressive retry loops, many pods/processes sharing one VM IP, or long `TIME_WAIT`/idle connections holding ports.\n\n5. **Rule out lookalikes**: validate NSGs, UDRs, DNS, destination throttling, proxy/firewall limits, and backend health. SNAT exhaustion affects **new outbound flows**; existing connections may continue.\n\n6. **Capture evidence if metrics are inconclusive**: use Network Watcher packet capture/Connection Troubleshoot conceptually to compare failed vs successful attempts. Repeated SYN retries with no response plus high SNAT usage points toward exhaustion, but packet data alone is not definitive.\n\n7. **Mitigate based on cause**: prefer **NAT Gateway** for high-scale outbound, or add frontend IPs/increase allocated outbound ports via explicit outbound rules. Also reduce churn with connection pooling, keep-alives, backoff, and fewer unnecessary outbound connections.\n\nRelevant Azure docs:  \n- `https://learn.microsoft.com/azure/load-balancer/load-balancer-outbound-connections`  \n- `https://learn.microsoft.com/azure/load-balancer/troubleshoot-outbound-connection`  \n- `https://learn.microsoft.com/azure/nat-gateway/nat-gateway-resource`\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "report_intent",
+      "cn_role",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 1167,
+    "api_duration_ms": 31575,
+    "session_duration_ms": 56347,
+    "wall_ms": 64375,
+    "premium_requests": 7.5,
+    "session_id": "0a11180a-5218-4f3a-b437-a80f7f37c6ff",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T10:24:05+00:00"
+}

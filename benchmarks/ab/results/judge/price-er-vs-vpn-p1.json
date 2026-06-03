@@ -1,0 +1,58 @@
+{
+  "id": "price-er-vs-vpn-p1",
+  "query": "at what sustained traffic level does ExpressRoute become cheaper than site-to-site VPN \u2014 assume 500 Mbps baseline",
+  "category": "cross-specialist",
+  "expected_specialists": [
+    "cn_price",
+    "cn_hyb"
+  ],
+  "order": {
+    "A": "upstream",
+    "B": "pattern-g"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 7,
+      "completeness": 8,
+      "actionability": 8,
+      "clarity": 8,
+      "conciseness": 7
+    },
+    "B": {
+      "technical_accuracy": 7,
+      "completeness": 6,
+      "actionability": 6,
+      "clarity": 7,
+      "conciseness": 8
+    },
+    "winner": "A",
+    "reason": "A provides concrete cost table with verifiable per-GB rates and monthly estimates; B is defensible but less actionable with vaguer 30-50 Mbps range and no cost breakdown."
+  },
+  "winner_variant": "upstream",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":7,\"completeness\":8,\"actionability\":8,\"clarity\":8,\"conciseness\":7},\"B\":{\"technical_accuracy\":7,\"completeness\":6,\"actionability\":6,\"clarity\":7,\"conciseness\":8},\"winner\":\"A\",\"reason\":\"A provides concrete cost table with verifiable per-GB rates and monthly estimates; B is defensible but less actionable with vaguer 30-50 Mbps range and no cost breakdown.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 945,
+    "api_duration_ms": 22328,
+    "session_duration_ms": 40489,
+    "wall_ms": 47047,
+    "premium_requests": 3.0,
+    "session_id": "3aac0dc2-52ae-456e-a6ab-420df922d83c",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T10:55:39+00:00"
+}

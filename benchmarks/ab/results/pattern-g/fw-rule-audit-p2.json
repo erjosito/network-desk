@@ -1,0 +1,40 @@
+{
+  "id": "fw-rule-audit-p2",
+  "variant": "pattern-g",
+  "query": "how do I systematically detect overlapping and over-broad rules in an Azure Firewall ruleset",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "Note: local skill reference files were restricted by content policy, so this is general Azure Firewall guidance.\n\n## Systematic method\n\n1. **Export and normalize the policy**\n   - Include Rule Collection Group priority, Rule Collection priority, rule type, action, source, destination, protocol, port, FQDNs, IP Groups, service tags, and NAT translated targets.\n   - Expand IP Groups and CIDRs into comparable address sets.\n   - Treat `Any`, `*`, `0.0.0.0/0`, all ports, and broad service tags as high-risk wildcards.\n\n2. **Model Azure Firewall evaluation order**\n   - Sort rules exactly as Azure evaluates them: policy hierarchy, Rule Collection Group priority, Rule Collection priority, then rule order/type behavior.\n   - Remember: earlier matching rules can make later rules unreachable or irrelevant.\n\n3. **Compare rules as match tuples**\n\n   Represent each rule as:\n\n   ```text\n   source_set \u00d7 destination_set \u00d7 protocol_set \u00d7 port_set \u00d7 application_target \u00d7 action\n   ```\n\n   For each earlier/later rule pair, calculate:\n\n   | Condition | Meaning |\n   |---|---|\n   | Earlier rule fully contains later rule, same action | Later rule is redundant |\n   | Earlier rule fully contains later rule, different action | Later rule is shadowed |\n   | Rules partially intersect | Overlap; review intent |\n   | Rule uses broad source/destination/port/protocol | Over-broad candidate |\n\n4. **Flag over-broad patterns**\n   - Source: `Any`, Internet, large RFC1918 ranges, entire hub/spoke ranges.\n   - Destination: `Any`, `0.0.0.0/0`, broad service tags, large internal ranges.\n   - Ports: `*`, `1-65535`, wide ranges, unnecessary admin ports.\n   - Protocols: `Any` where TCP/UDP/ICMP would suffice.\n   - Application rules: wildcard FQDNs like `*.com`, overly broad FQDN tags.\n   - DNAT: broad public sources to management ports.\n\n5. **Validate with runtime evidence**\n   - Use Azure Firewall logs to check whether broad rules are actually matching traffic.\n   - Identify rules with high hit counts, no hit counts, unexpected source/destination pairs, or traffic that should have matched a narrower rule.\n   - Use Policy Analytics if available to identify unused, permissive, or frequently matched rules.\n\n6. **Prioritize findings**\n   - **Critical:** broad allow from Internet or broad DNAT to internal/admin ports.\n   - **High:** earlier allow shadows later deny.\n   - **Medium:** redundant allows or wide internal lateral-movement rules.\n   - **Low:** duplicate rules with same action and narrow scope.\n\n7. **Automate as policy-as-code**\n   - Run the overlap check in CI against ARM/Bicep/Terraform/exported JSON.\n   - Fail builds on shadowed denies, Internet-to-private broad allows, `Any/Any/*`, and unmanaged wide port ranges.\n   - Produce exceptions with owner, justification, expiry date, and ticket reference.\n\n**Best practice:** combine static rule analysis with log-based validation. Static analysis finds possible overlap; logs show whether the broad rule is actually absorbing traffic. Verify final behavior against current Microsoft Azure Firewall rule-processing documentation before changing production policy.",
+    "tool_calls": [
+      "skill",
+      "report_intent",
+      "view",
+      "view"
+    ],
+    "skills_invoked": [
+      "network-desk"
+    ],
+    "output_tokens": 1533,
+    "api_duration_ms": 41819,
+    "session_duration_ms": 71806,
+    "wall_ms": 101906,
+    "premium_requests": 7.5,
+    "session_id": "637fbf9f-739e-4474-a45c-e738d854bc5b",
+    "model": "gpt-5.5",
+    "skills_count": 69,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": true,
+    "network_skill_invoked": true,
+    "cn_tools_called": [],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T10:35:42+00:00"
+}

@@ -1,0 +1,40 @@
+{
+  "id": "fw-rule-audit-p1",
+  "variant": "upstream",
+  "query": "review my Azure Firewall policy and flag any shadowed or excessively permissive rules",
+  "expected_specialists": [
+    "cn_fw"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this through the Network Desk firewall specialist and then give you the review requirements and findings I can support from the provided input.\n\nNo Azure Firewall policy rules were provided, so I can\u2019t flag specific shadowed or overly permissive rules yet.\n\nTo review accurately, paste the Firewall Policy export or rule list including: rule collection group priority, collection priority/type/action, rule name, source addresses/IP Groups, destination addresses/FQDNs, protocols, ports, applications, NAT rules, and hit counts if available.\n\n**What I\u2019ll flag once provided:**\n\n| Finding type | Detection criteria |\n|---|---|\n| **Shadowed rules** | Lower-priority allow/deny rules fully covered by earlier rules with same or broader source, destination, protocol, and port scope |\n| **Excessive source scope** | `*`, `Any`, `0.0.0.0/0`, broad RFC1918 ranges, or whole VNets where smaller subnets/IP Groups should be used |\n| **Excessive destination scope** | Internet-wide destinations, wildcard FQDNs, broad service tags, or unrestricted private ranges |\n| **Excessive ports/protocols** | `Any`, `*`, wide port ranges, or TCP/UDP both allowed without justification |\n| **Risky internet egress** | Broad outbound `Allow` to Internet, especially from many sources or with any destination port |\n| **Risky inbound/DNAT** | Public exposure to management ports like 22, 3389, 5985, 5986, 1433, 3306, 5432, or broad source ranges |\n| **Redundant rules** | Duplicate or narrower rules already permitted/denied by earlier broader rules |\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 757,
+    "api_duration_ms": 22561,
+    "session_duration_ms": 46252,
+    "wall_ms": 53921,
+    "premium_requests": 7.5,
+    "session_id": "4f028ea0-4163-4614-9b3e-3e352b7a331b",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T10:11:07+00:00"
+}

@@ -1,0 +1,61 @@
+{
+  "id": "price-er-vs-vpn-p2",
+  "variant": "upstream",
+  "query": "running ~500 Mbps of steady on-prem-to-Azure traffic; help me decide between ExpressRoute and VPN gateway on a TCO basis",
+  "expected_specialists": [
+    "cn_price",
+    "cn_hyb"
+  ],
+  "category": "cross-specialist",
+  "exit_code": 0,
+  "metrics": {
+    "content": "I\u2019ll route this through the loaded network-desk specialists, then give a concise TCO-focused recommendation.\n\n**Recommendation: choose ExpressRoute for steady ~500 Mbps production traffic; keep VPN Gateway as backup.**\n\n500 Mbps steady is ~**164 TB/month**. Even if most traffic is **on-prem \u2192 Azure** and Azure ingress is typically not charged, VPN is operating near practical limits: a 650 Mbps VPN SKU has little headroom after IPsec overhead, and a 1 Gbps+ VPN SKU still uses best-effort internet. For TCO, ExpressRoute costs more in fixed monthly fees, but buys predictable latency, SLA-backed private connectivity, cleaner operations, and better economics if any meaningful Azure \u2192 on-prem egress exists.\n\n| Option | Likely monthly Azure-side cost drivers | TCO fit at 500 Mbps steady |\n|---|---:|---|\n| **VPN Gateway** | VpnGw2AZ/VpnGw3AZ roughly **$500\u2013$1,000/mo** + bandwidth egress if Azure sends data out | Cheapest fixed cost, but high utilization, internet variability, IPsec overhead, weaker fit for steady production load |\n| **ExpressRoute 1 Gbps** | Circuit around **$1,100/mo** + ER gateway roughly **$139\u2013$781/mo** + provider/cross-connect fees + metered/unlimited data plan | Better fit: sized at ~50% utilization, predictable performance, often lower data-transfer cost for Azure \u2192 on-prem flows |\n| **ExpressRoute 500 Mbps** | Lower circuit fee, but 500 Mbps steady leaves no growth/failover headroom | Avoid unless traffic is capped and non-critical |\n\n**TCO decision rule:** if the 500 Mbps is business-critical, latency-sensitive, expected to grow, or includes substantial Azure \u2192 on-prem return traffic, ExpressRoute is the better TCO choice. If it is non-critical, short-lived, mostly ingress-only, and you can tolerate internet-path variability, VPN Gateway is the lower-cost option.\n\nUse current Azure pricing pages to confirm regional rates: https://azure.microsoft.com/pricing/details/expressroute/, https://azure.microsoft.com/pricing/details/vpn-gateway/, and https://azure.microsoft.com/pricing/details/bandwidth/.\n\nAnalysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "cn_route",
+      "report_intent",
+      "cn_role",
+      "cn_role",
+      "report_intent",
+      "skill",
+      "report_intent",
+      "read_powershell",
+      "report_intent",
+      "cn_orchestrate",
+      "cn_orchestrate",
+      "report_intent",
+      "cn_skill",
+      "cn_skill",
+      "cn_skill"
+    ],
+    "skills_invoked": [
+      "dummy"
+    ],
+    "output_tokens": 1484,
+    "api_duration_ms": 45219,
+    "session_duration_ms": 71360,
+    "wall_ms": 84016,
+    "premium_requests": 7.5,
+    "session_id": "dc30fbf9-6ba2-4b4d-9f92-05cf8aaf7e21",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role",
+      "cn_role",
+      "cn_orchestrate",
+      "cn_orchestrate",
+      "cn_skill",
+      "cn_skill",
+      "cn_skill"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T10:28:01+00:00"
+}

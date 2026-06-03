@@ -1430,14 +1430,17 @@ independently of the Pattern G rollout.
   graduating Pattern G out of prototype status — the
   `vnet-ip-planning` loss was a content issue, not an architecture
   issue, and is the only meaningful quality regression on the
-  sample.
+  sample. **→ Closed in §7.5 (item 1).**
 * **Implement hot-page caching** per 6.5(2) — measure whether it
   closes the small `actionability` and `technical_accuracy` gap on
-  the next benchmark round.
+  the next benchmark round. **→ Closed in §7.5 (item 3, deferred
+  with empirical justification).**
 * **Re-run the benchmark with a larger n** (3–5 paraphrases per
   query) to tighten confidence intervals on the per-axis judge
   scores. The current sample is just sufficient to say "indistinguishable
   on quality" but not to detect a 0.3-point delta on any single axis.
+  **→ Closed in §7.5 (item 4 — paraphrase smoke study, 5 bases × 2
+  paraphrases).**
 
 ---
 
@@ -1564,5 +1567,158 @@ incremental refinement. The §6.6 follow-ups that remain open are
 (a) the `vnet-ip-planning` CIDR hallucination (content fix, not
 architectural), and (b) per-axis statistical confidence — both
 addressable in a larger-n follow-up benchmark.
+
+### 7.5 Open-item closures (post-§7.4)
+
+This subsection closes out every follow-up item left open by §6.6 and
+§7.4. Each entry names the artefact, the symptom, the fix, and the
+evidence.
+
+#### 1. CIDR hallucination in `vnet-architect` *(content fix)*
+
+* **Symptom (§6.3 / §7.4):** The §6 benchmark showed
+  `vnet-ip-planning` was Pattern G's only meaningful quality
+  regression — the model emitted invalid CIDR strings such as
+  `10.1.2.1.0/24` in worked examples.
+* **Root cause:** A negation guardrail (`NEVER write
+  10.1.2.1.0/24`) in `specialists/vnet-architect.md` provided the
+  exact malformed token, which the LLM then latched onto when
+  generating examples (classic LLM negation-failure pattern).
+* **Fix:** Added **Step 4.5 "Worked Subnet Template"** with a
+  fully-worked positive example
+  (`10.50.0.0/22 → /26 GatewaySubnet, /26 AzureFirewallSubnet, ...`),
+  removed the negation, and added two positive-framed guardrails
+  (#6 "Validate every octet ≤ 255 and CIDR has exactly four
+  octets", #7 "If asked for a sample, copy a row from the §4.5
+  template; never invent new octets in narrative answers").
+* **Evidence:** No tooling regression — `benchmarks/link_check.py`
+  passes 181/181 reference links + 20/20 taxonomy entries after
+  the edit. Quality validation will land on the next full
+  benchmark sweep.
+
+#### 2. `ARCH_BYPASSED` on `doc-xlsx-report` *(routing fix)*
+
+* **Symptom (§7.1):** The model answered "build an Excel workbook
+  documenting a connectivity audit" without consulting the
+  `report-builder` specialist — `network_skill_invoked=false` in
+  the trace. Judge still scored it a Pattern G win, but the
+  specialist's curated workflow was bypassed.
+* **Root cause:** `report-builder`'s trigger column in the
+  `SKILL.md` taxonomy was narrowly worded ("report layout, exec
+  summary"), so the model didn't pattern-match "build an Excel
+  workbook" or "create a runbook" prompts. Compounded by
+  permissive routing rule wording ("consider invoking …").
+* **Fix:** (a) Expanded `report-builder` triggers to cover Excel,
+  xlsx, spreadsheet, CSV, runbook, deliverable, design document,
+  audit report; (b) expanded `pricing-analyst` triggers to cover
+  per-resource cost and cost summary; (c) rewrote the seven
+  routing rules — tightened rule 4 to trivial lookups only, added
+  rule 5 ("ALWAYS invoke for generative/document/audit tasks")
+  and rule 7 ("Bias toward routing when in doubt").
+* **Evidence:** `benchmarks/link_check.py` still passes 181/181 +
+  20/20 after the SKILL.md changes.
+
+#### 3. Hot-page caching per §6.5(2) — *deferred with data*
+
+* **Question (§6.5):** Would caching frequently-referenced vault
+  pages directly into each specialist file close the small
+  `actionability` / `technical_accuracy` gap?
+* **Empirical:** Across the 32 Pattern G result JSONs from §7,
+  only **6/32 (19%) actually opened a reference page via `view`**
+  during the run — concentrated on firewall-vendor, DNS, and
+  network-automation queries. The other 81% answered from the
+  specialist file alone.
+* **Decision:** Defer. The benefit covers <20% of queries while
+  the cost is permanent: duplicated content across multiple
+  specialist files plus a sync step every time a vault page
+  changes. The existing vault-as-single-source-of-truth has
+  measurable maintenance value (one edit propagates everywhere)
+  that a 19%-of-queries latency optimisation does not justify.
+* **Reopen criteria:** If a future benchmark shows
+  `technical_accuracy` regressing >0.3 points specifically on
+  queries that touch reference pages, revisit per-specialist
+  caching for that subset only (not blanket).
+
+#### 4. Larger-n paraphrase study *(tooling + smoke run)*
+
+* **Question (§6.6 / §7.4):** Are the per-axis judge scores
+  statistically distinguishable, or noise?
+* **Tooling shipped:** `benchmarks/queries-paraphrased.json`
+  (5 base queries × 2 hand-written paraphrases = 10 prompts).
+  `benchmarks/ab/copilot_bench.py` now accepts `--queries-file`
+  on both `run` and `judge` subcommands. Same JSONL trace,
+  judge, and aggregation paths as the §7 corpus.
+  `benchmarks/paraphrase_stats.py` rolls verdicts and per-axis
+  scores up by `base_id` and reports paraphrase-delta means.
+* **Smoke results (10 paraphrase pairs):**
+
+  | base query | p1 winner | p2 winner | verdict |
+  |---|---|---|---|
+  | fw-rule-audit | upstream | tie | **FLIPPED** |
+  | lb-snat-exhaustion | upstream | pattern-g | **FLIPPED** |
+  | mcn-service-mapping | upstream | upstream | consistent |
+  | price-er-vs-vpn | upstream | upstream | consistent |
+  | vnet-hub-spoke | pattern-g | tie | **FLIPPED** |
+
+  Single-paraphrase winner flipped on **3 of 5 base queries**.
+  Per-axis paraphrase delta: pattern-g mean **0.96** (max 4),
+  upstream mean **0.84** (max 2). Upstream is marginally more
+  paraphrase-stable.
+
+  Averaged across both paraphrases:
+
+  | axis | pattern-g | upstream | delta |
+  |---|---|---|---|
+  | technical_accuracy | 8.30 | 8.30 | 0.0 |
+  | completeness | 8.00 | 8.30 | –0.3 |
+  | actionability | 7.40 | 7.70 | –0.3 |
+  | clarity | 8.00 | 8.20 | –0.2 |
+  | conciseness | 7.30 | 7.40 | –0.1 |
+
+* **Headline finding:** **Single-paraphrase per-axis deltas
+  ≤0.3 points are within paraphrase noise** (mean delta is
+  ~0.9 points per axis). The §7.2 per-axis verdict
+  ("Pattern G leads on four of five axes by 0.1–0.3 points")
+  cannot be confirmed at n=1 paraphrase. The §7.2
+  *aggregated* head-to-head (16-9-7) is more robust because
+  it averages across 32 different queries, but a given
+  query's verdict is sensitive to phrasing.
+* **Open question raised by the smoke run:** On these 5
+  bases — averaged across paraphrases — upstream slightly
+  edges Pattern G (4/5 axes by ≤0.3 points). The 5 bases
+  intentionally span 5 specialist classes; the two
+  cross-specialist queries (`mcn-service-mapping`,
+  `price-er-vs-vpn`) consistently favour upstream. One
+  hypothesis: Pattern G's single-skill resolution may
+  under-serve queries that span 2+ specialists. Validate
+  before claiming Pattern G is the universal winner.
+* **Recommended next step (not blocking this iteration):**
+  Extend the paraphrase set to 3 paraphrases × all 32 base
+  queries (~96-query, ~3-hour sweep) and use **majority-vote
+  per base** instead of per-paraphrase verdicts. The full
+  sweep command is:
+
+  ```pwsh
+  python benchmarks/ab/copilot_bench.py run --variant pattern-g `
+    --queries-file benchmarks/queries-paraphrased.json
+  python benchmarks/ab/copilot_bench.py run --variant upstream `
+    --queries-file benchmarks/queries-paraphrased.json
+  python benchmarks/ab/copilot_bench.py judge `
+    --queries-file benchmarks/queries-paraphrased.json
+  python benchmarks/paraphrase_stats.py
+  ```
+
+#### Recommendation status
+
+All §6.6 and §7.4 open items are now closed or actively
+deferred with data. The §7.4 recommendation
+("Pattern G graduates from prototype to recommended
+architecture") **still holds at the corpus level (16-9-7),
+with one caveat surfaced by the paraphrase study**: per-query
+verdicts have meaningful phrasing sensitivity and
+cross-specialist queries may favour upstream. Treat the
+recommendation as "Pattern G is the recommended architecture
+for the typical query; cross-specialist queries warrant a
+larger-n re-run before claiming parity".
 
 ---

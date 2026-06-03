@@ -1,0 +1,57 @@
+{
+  "id": "vnet-hub-spoke-p2",
+  "query": "what's the recommended way to lay out hub-spoke virtual networks across 3 Azure regions for a multi-region workload",
+  "category": "regex-easy",
+  "expected_specialists": [
+    "cn_vnet"
+  ],
+  "order": {
+    "A": "upstream",
+    "B": "pattern-g"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 8,
+      "clarity": 9,
+      "conciseness": 8
+    },
+    "B": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 8,
+      "clarity": 9,
+      "conciseness": 8
+    },
+    "winner": "tie",
+    "reason": "Both give correct regional hub-spoke guidance with VWAN/peering decision criteria, CIDR examples, and failover principles. Nearly identical quality and depth."
+  },
+  "winner_variant": "tie",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":8,\"clarity\":9,\"conciseness\":8},\"B\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":8,\"clarity\":9,\"conciseness\":8},\"winner\":\"tie\",\"reason\":\"Both give correct regional hub-spoke guidance with VWAN/peering decision criteria, CIDR examples, and failover principles. Nearly identical quality and depth.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 769,
+    "api_duration_ms": 19998,
+    "session_duration_ms": 38193,
+    "wall_ms": 43844,
+    "premium_requests": 3.0,
+    "session_id": "e1ca5ff8-9fe7-40d6-a624-af20a3759b84",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T10:58:11+00:00"
+}

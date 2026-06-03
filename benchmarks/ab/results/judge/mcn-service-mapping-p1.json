@@ -1,0 +1,58 @@
+{
+  "id": "mcn-service-mapping-p1",
+  "query": "I know Azure Private Endpoint and AWS PrivateLink \u2014 what's the GCP feature that gives me the same private-service-access pattern",
+  "category": "vague",
+  "expected_specialists": [
+    "cn_mcn",
+    "cn_pl"
+  ],
+  "order": {
+    "A": "pattern-g",
+    "B": "upstream"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 9,
+      "completeness": 8,
+      "actionability": 7,
+      "clarity": 9,
+      "conciseness": 9
+    },
+    "B": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 8,
+      "clarity": 9,
+      "conciseness": 8
+    },
+    "winner": "B",
+    "reason": "B enumerates PSC target types (Google API, managed service, SaaS, own service) giving more actionable detail without sacrificing accuracy"
+  },
+  "winner_variant": "upstream",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":9,\"completeness\":8,\"actionability\":7,\"clarity\":9,\"conciseness\":9},\"B\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":8,\"clarity\":9,\"conciseness\":8},\"winner\":\"B\",\"reason\":\"B enumerates PSC target types (Google API, managed service, SaaS, own service) giving more actionable detail without sacrificing accuracy\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 439,
+    "api_duration_ms": 12127,
+    "session_duration_ms": 36482,
+    "wall_ms": 42969,
+    "premium_requests": 3.0,
+    "session_id": "3acd282d-ef74-4f2f-97f1-e1f77baa322c",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T10:54:10+00:00"
+}

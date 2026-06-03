@@ -1,0 +1,58 @@
+{
+  "id": "lb-snat-exhaustion-p1",
+  "query": "my workload behind an Azure Load Balancer is hitting outbound connection failures \u2014 walk me through diagnosing SNAT port exhaustion",
+  "category": "regex-easy",
+  "expected_specialists": [
+    "cn_lb",
+    "cn_ntsh"
+  ],
+  "order": {
+    "A": "pattern-g",
+    "B": "upstream"
+  },
+  "verdict": {
+    "A": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 8,
+      "clarity": 8,
+      "conciseness": 7
+    },
+    "B": {
+      "technical_accuracy": 9,
+      "completeness": 9,
+      "actionability": 9,
+      "clarity": 9,
+      "conciseness": 8
+    },
+    "winner": "B",
+    "reason": "B adds differential diagnosis (rule out lookalikes), notes new-vs-existing flow nuance, includes doc links, and is more concise while equally accurate."
+  },
+  "winner_variant": "upstream",
+  "judge_model": "claude-opus-4.6",
+  "judge_effort": "high",
+  "judge_metrics": {
+    "content": "{\"A\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":8,\"clarity\":8,\"conciseness\":7},\"B\":{\"technical_accuracy\":9,\"completeness\":9,\"actionability\":9,\"clarity\":9,\"conciseness\":8},\"winner\":\"B\",\"reason\":\"B adds differential diagnosis (rule out lookalikes), notes new-vs-existing flow nuance, includes doc links, and is more concise while equally accurate.\"}",
+    "tool_calls": [],
+    "skills_invoked": [],
+    "output_tokens": 802,
+    "api_duration_ms": 18405,
+    "session_duration_ms": 46392,
+    "wall_ms": 58704,
+    "premium_requests": 3.0,
+    "session_id": "fd4f12d7-a247-453d-8643-b0ef5b5082ee",
+    "model": "claude-opus-4.6",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [],
+    "architecture_used": false,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "exit_code": 0,
+  "ts": "2026-06-03T10:52:39+00:00"
+}

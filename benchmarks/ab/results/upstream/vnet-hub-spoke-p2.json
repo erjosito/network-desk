@@ -1,0 +1,40 @@
+{
+  "id": "vnet-hub-spoke-p2",
+  "variant": "upstream",
+  "query": "what's the recommended way to lay out hub-spoke virtual networks across 3 Azure regions for a multi-region workload",
+  "expected_specialists": [
+    "cn_vnet"
+  ],
+  "category": "regex-easy",
+  "exit_code": 0,
+  "metrics": {
+    "content": "**Recommended pattern:** deploy a **separate hub-and-spoke stamp per Azure region**, then connect the regional hubs with **global VNet peering** or **Azure Virtual WAN** if you expect many regions/spokes.\n\nFor 3 regions, use this layout:\n\n| Layer | Recommendation |\n|---|---|\n| **Addressing** | Reserve one contiguous block per region, e.g. Region 1 `10.0.0.0/16`, Region 2 `10.1.0.0/16`, Region 3 `10.2.0.0/16`. Avoid overlap with on-prem and future clouds. |\n| **Hub VNets** | One hub VNet per region for Azure Firewall/NVA, VPN/ExpressRoute Gateway, Bastion, DNS forwarders, shared Private DNS, and monitoring. |\n| **Spoke VNets** | Separate spokes per workload, environment, or security boundary. Keep app/data/AKS/private endpoint subnets inside spokes, not hubs. |\n| **Regional traffic** | Spokes peer only to their local regional hub. Use UDRs to force egress, ingress, and spoke-to-spoke traffic through the local firewall. |\n| **Cross-region traffic** | Connect hubs together. For small/medium scale, use global VNet peering between hubs. For larger estates, prefer Azure Virtual WAN secured hubs. |\n| **Failover design** | Each region should be independently operable: local DNS resolution, firewall, ingress path, private endpoints, and observability should not depend on another region. |\n| **Shared services** | Keep latency-sensitive/shared control-plane services regional. Centralize only truly global services such as identity, policy, CI/CD, or global DNS. |\n| **Routing** | Summarize per-region CIDRs where possible. Avoid full mesh spoke peering unless there is a clear latency or throughput reason. |\n\n**Default topology:**  \n`Region hub -> local spokes`, with `Hub Region A <-> Hub Region B <-> Hub Region C` cross-region connectivity. Use Azure Front Door or Traffic Manager for global user ingress, and keep private east-west routing controlled through regional hubs.\n\n**Key assumption:** this is an enterprise-style workload needing centralized inspection, private connectivity, and repeatable growth. If you expect 50+ VNets, many branches, or complex hybrid routing, start with **Azure Virtual WAN** rather than manually peered hubs.\n\n> Analysis only \u2014 verify against vendor documentation before applying.",
+    "tool_calls": [
+      "report_intent",
+      "cn_route",
+      "cn_role"
+    ],
+    "skills_invoked": [],
+    "output_tokens": 731,
+    "api_duration_ms": 24134,
+    "session_duration_ms": 48625,
+    "wall_ms": 54813,
+    "premium_requests": 7.5,
+    "session_id": "a9de9db4-b940-4a83-a324-60d9636e6b19",
+    "model": "gpt-5.5",
+    "skills_count": 68,
+    "mcp_servers_count": 13,
+    "network_skill_loaded": false,
+    "network_skill_invoked": false,
+    "cn_tools_called": [
+      "cn_route",
+      "cn_role"
+    ],
+    "architecture_used": true,
+    "lines_added": 0,
+    "lines_removed": 0,
+    "files_modified": [],
+    "contaminated": false
+  },
+  "ts": "2026-06-03T10:10:13+00:00"
+}
